@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #0F2A4A;
+  --color-navy-light: #1E3A5F;
+  --color-navy-dark: #0A1F38;
+  --color-cyan: #06B6D4;
+  --color-cyan-light: #22D3EE;
+  --color-cyan-dark: #0891B2;
+  --color-orange: #F97316;
+  --color-orange-dark: #EA580C;
+  --font-sans: 'Inter', sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #ffffff;
+  color: #0F2A4A;
+}
+
+/* Custom Styling for FAQ */
+details summary::-webkit-details-marker {
+  display: none;
+}
+details[open] .faq-icon-wrapper {
+  background-color: #06B6D4 !important;
+}
+details[open] .faq-icon-wrapper svg {
+  color: #ffffff !important;
+  transform: scale(1.1);
+}
+details[open] .faq-question {
+  color: #06B6D4 !important;
+}
+
+/* Styling for Mitra Banner */
+.mitra-item svg {
+  transition: color 0.3s ease;
+}
+.mitra-item p {
+  transition: color 0.3s ease;
+}
+.mitra-item:hover svg {
+  color: #06B6D4 !important;
+}
+.mitra-item:hover p {
+  color: #0F2A4A !important;
+}
+
+/* Styling for Testimonial Slider */
+.testimonial-track {
+  transition: transform 0.5s ease-in-out;
+}
+
