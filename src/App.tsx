@@ -4,10 +4,199 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { generateBrochurePdf } from './utils/generateBrochurePdf';
 import teknisiSedotWcImg from './assets/images/teknisi_lapangan_sedot_wc_1791530702926.jpg';
 import teknisiPipaImg from './assets/images/teknisi_pelancaran_pipa_1791530724142.jpg';
 import logoBekasiImg from './assets/images/logo_bekasi.jpeg';
 import heroKusumaImg from './assets/images/hero_kusuma.jpg';
+
+interface AnimatedFaqDetailsProps {
+  question: React.ReactNode;
+  badge?: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}
+
+function AnimatedFaqDetails({
+  question,
+  badge,
+  icon,
+  children,
+}: AnimatedFaqDetailsProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isOpen) {
+      setIsClosing(true);
+      setIsOpen(false);
+    } else {
+      setIsOpen(true);
+      setIsClosing(false);
+    }
+  };
+
+  const handleTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !isOpen) {
+      setIsClosing(false);
+    }
+  };
+
+  const isDetailsOpen = isOpen || isClosing;
+
+  return (
+    <details
+      open={isDetailsOpen}
+      className={`faq-accordion-animated group bg-white p-6 rounded-2xl border transition-all duration-300 ${
+        isOpen
+          ? 'border-cyan/40 shadow-md ring-1 ring-cyan/20'
+          : 'border-gray-100 hover:border-gray-200 shadow-sm'
+      }`}
+    >
+      <summary
+        onClick={handleToggle}
+        className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none select-none"
+      >
+        <span className={`faq-question flex-1 pr-4 flex items-center transition-colors duration-200 ${isOpen ? 'text-cyan font-bold' : ''}`}>
+          {question}
+          {badge && (
+            <span className="ml-3 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">
+              {badge}
+            </span>
+          )}
+        </span>
+        <span className={`faq-icon-wrapper w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 flex-shrink-0 ${
+          isOpen ? 'bg-cyan text-white shadow-sm' : 'bg-slate-100 text-navy hover:bg-slate-200'
+        }`}>
+          {icon}
+        </span>
+      </summary>
+      <div
+        onTransitionEnd={handleTransitionEnd}
+        className={`accordion-grid ${isOpen ? 'accordion-expanded' : ''}`}
+      >
+        <div className="accordion-overflow">
+          <div className="pt-4 text-gray-600 text-sm leading-relaxed border-t border-gray-100/80 mt-4">
+            {children}
+          </div>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+export interface TestimonialItem {
+  id: string;
+  initial: string;
+  bgColor: string;
+  textColor: string;
+  text: string;
+  author: string;
+  role: string;
+  category: 'Residensial' | 'Industri & B2B' | 'Komersial' | 'Pelancaran Pipa';
+  date: string;
+  rating: number; // Nilai kuantitatif 1.0 - 5.0
+  totalVotes: number;
+  userGivenRating?: number | null;
+  satisfactionMetrics: {
+    aspect: string;
+    score: number;
+  }[];
+}
+
+const initialTestimonialsData: TestimonialItem[] = [
+  {
+    id: 'testi-1',
+    initial: 'B',
+    bgColor: 'bg-orange/10',
+    textColor: 'text-orange',
+    text: '"Pelayanannya sangat cepat dan profesional. Truk sedotnya datang tepat waktu, teknisinya pakai APD lengkap, dan setelah selesai area kerjanya dibersihkan sampai higienis. Sangat puas!"',
+    author: 'Bapak Budi Santoso',
+    role: 'Perumahan Cluster, Bekasi Selatan',
+    category: 'Residensial',
+    date: '3 hari yang lalu',
+    rating: 5.0,
+    totalVotes: 48,
+    satisfactionMetrics: [
+      { aspect: 'Ketepatan Waktu Tangki', score: 5.0 },
+      { aspect: 'Kebersihan Kerja & APD', score: 5.0 },
+      { aspect: 'Transparansi Biaya', score: 5.0 },
+    ],
+  },
+  {
+    id: 'testi-2',
+    initial: 'S',
+    bgColor: 'bg-cyan/10',
+    textColor: 'text-cyan',
+    text: '"Sebagai manajer fasilitas pabrik di Cikarang, saya butuh vendor limbah yang legal dan transparan. PT Kusuma Gemilang Raya selalu memberikan manifest IPLT yang lengkap. Recommended banget untuk industri!"',
+    author: 'Ibu Siti Rahayu',
+    role: 'Manajer Fasilitas Pabrik, Cikarang',
+    category: 'Industri & B2B',
+    date: '1 minggu yang lalu',
+    rating: 5.0,
+    totalVotes: 62,
+    satisfactionMetrics: [
+      { aspect: 'Manifes Resmi IPLT', score: 5.0 },
+      { aspect: 'Standar Keselamatan K3', score: 5.0 },
+      { aspect: 'Kepatuhan Kontrak B2B', score: 5.0 },
+    ],
+  },
+  {
+    id: 'testi-3',
+    initial: 'P',
+    bgColor: 'bg-yellow-500/10',
+    textColor: 'text-yellow-600',
+    text: '"WC kantor mampet parah, dipanggilkan teknisinya langsung datang cepat. Harga transparan di awal, tidak ada biaya tersembunyi. Pelayanannya sangat ramah dan bersih."',
+    author: 'Pak Hendrawan',
+    role: 'Kantor Ruko, Bekasi Timur',
+    category: 'Komersial',
+    date: '2 minggu yang lalu',
+    rating: 4.9,
+    totalVotes: 39,
+    satisfactionMetrics: [
+      { aspect: 'Respon Cepat Panggilan', score: 5.0 },
+      { aspect: 'Ketuntasan Saluran Pipa', score: 4.8 },
+      { aspect: 'Kejujuran Tarif', score: 5.0 },
+    ],
+  },
+  {
+    id: 'testi-4',
+    initial: 'A',
+    bgColor: 'bg-emerald-500/10',
+    textColor: 'text-emerald-600',
+    text: '"Audit kepatuhan lingkungan tahunan pabrik kami di MM2100 lolos sempurna berkat legalitas NIB KBLI 37011 dan bukti buang IPLT Pemda resmi. Pelaporan BAST sangat rapi dan tertib."',
+    author: 'Ir. Agus Pratama, MT',
+    role: 'HSE & Compliance Lead, MM2100 Cikarang',
+    category: 'Industri & B2B',
+    date: '3 minggu yang lalu',
+    rating: 5.0,
+    totalVotes: 55,
+    satisfactionMetrics: [
+      { aspect: 'Audit Legalitas NIB', score: 5.0 },
+      { aspect: 'Dokumen BAST & IPLT', score: 5.0 },
+      { aspect: 'Kesiapan Armada Vakum', score: 5.0 },
+    ],
+  },
+  {
+    id: 'testi-5',
+    initial: 'M',
+    bgColor: 'bg-purple-500/10',
+    textColor: 'text-purple-600',
+    text: '"Pembersihan rutin grease trap dan bak kontrol restoran kami dilakukan terjadwal malam hari tanpa bau menyengat sama sekali. Teknisi sangat teliti dan tempat cuci piring langsung lancar jaya."',
+    author: 'Ibu Maya Anggraini',
+    role: 'Owner Resto & Cafe, Summarecon Bekasi',
+    category: 'Komersial',
+    date: '1 bulan yang lalu',
+    rating: 5.0,
+    totalVotes: 44,
+    satisfactionMetrics: [
+      { aspect: 'Pengerjaan Tanpa Bau', score: 5.0 },
+      { aspect: 'Fleksibilitas Jadwal', score: 5.0 },
+      { aspect: 'Higienitas Standar F&B', score: 5.0 },
+    ],
+  },
+];
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -167,6 +356,17 @@ export default function App() {
     return initialSeedSubscribers;
   });
 
+  // Brochure & Legalitas NIB PDF States
+  const [isBrochureModalOpen, setIsBrochureModalOpen] = useState(false);
+  const [isDownloadingBrochurePdf, setIsDownloadingBrochurePdf] = useState(false);
+  const [brochureClientName, setBrochureClientName] = useState('');
+  const [copiedDocField, setCopiedDocField] = useState<string | null>(null);
+
+  // B2B & Corporate FAQ Filter States
+  const [b2bFaqCategory, setB2bFaqCategory] = useState<'Semua' | 'Audit Vendor' | 'BAST' | 'e-Faktur & PPN' | 'K3 & IPLT'>('Semua');
+  const [b2bFaqSearch, setB2bFaqSearch] = useState('');
+  const [openB2bFaqId, setOpenB2bFaqId] = useState<number | null>(1);
+
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [subscriberCategoryFilter, setSubscriberCategoryFilter] = useState<'Semua' | 'komersial' | 'residensial'>('Semua');
   const [subscriberTimeRange, setSubscriberTimeRange] = useState<'Semua Waktu' | '30 Hari' | 'Bulan Ini' | 'Kuartal Ini'>('Semua Waktu');
@@ -184,6 +384,37 @@ export default function App() {
     setTimeout(() => {
       setAdminNotificationToast(null);
     }, 3500);
+  };
+
+  const handleCopyDocField = (fieldName: string, value: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(value).then(() => {
+        setCopiedDocField(fieldName);
+        triggerToast(`📋 ${fieldName} (${value}) disalin ke clipboard!`);
+        setTimeout(() => setCopiedDocField(null), 2500);
+      }).catch(() => {
+        triggerToast(`📋 ${fieldName}: ${value}`);
+      });
+    } else {
+      triggerToast(`📋 ${fieldName}: ${value}`);
+    }
+  };
+
+  const handleDownloadBrochurePdf = async (customClientName?: string) => {
+    setIsDownloadingBrochurePdf(true);
+    try {
+      const targetClient = (customClientName !== undefined ? customClientName : brochureClientName).trim();
+      const doc = generateBrochurePdf({ clientCompanyName: targetClient || undefined });
+      const sanitizedName = targetClient ? `_${targetClient.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 25)}` : '';
+      const filename = `Brosur_Company_Profile_PT_Kusuma_Gemilang_Raya_NIB_37011${sanitizedName}.pdf`;
+      doc.save(filename);
+      triggerToast('📄 Brosur PDF & Legalitas NIB berhasil diunduh!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      triggerToast('Gagal memproses file PDF. Silakan coba lagi.');
+    } finally {
+      setIsDownloadingBrochurePdf(false);
+    }
   };
 
   // B2B RFP Quotation Form State (Target Market PT / Perusahaan)
@@ -355,33 +586,127 @@ export default function App() {
   const calcWaMessage = `Halo PT Kusuma Gemilang Raya, saya ingin booking layanan cepat. Jenis Limbah: ${currentCalcObj.type}, Opsi: ${currentCalcObj.option}, Volume: ${calcVolume || 1} Kubik. Estimasi Biaya: ${formatRupiah(totalEstimation)}. Mohon konfirmasinya.`;
   const calcWaLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(calcWaMessage)}`;
 
-  // Testimonials data
-  const testimonials = [
-    {
-      initial: 'B',
-      bgColor: 'bg-orange/10',
-      textColor: 'text-orange',
-      text: '"Pelayanannya sangat cepat dan profesional. Truk sedotnya datang tepat waktu, teknisinya pakai APD lengkap, dan setelah selesai area kerjanya dibersihkan sampai higienis. Sangat puas!"',
-      author: 'Bapak Budi Santoso',
-      role: 'Perumahan Cluster, Bekasi Selatan',
-    },
-    {
-      initial: 'S',
-      bgColor: 'bg-cyan/10',
-      textColor: 'text-cyan',
-      text: '"Sebagai manajer fasilitas pabrik di Cikarang, saya butuh vendor limbah yang legal dan transparan. PT Kusuma Gemilang Raya selalu memberikan manifest IPLT yang lengkap. Recommended banget untuk industri!"',
-      author: 'Ibu Siti Rahayu',
-      role: 'Manajer Fasilitas Pabrik, Cikarang',
-    },
-    {
-      initial: 'P',
-      bgColor: 'bg-yellow-500/10',
-      textColor: 'text-yellow-600',
-      text: '"WC kantor mampet parah, dipanggilkan teknisinya langsung datang cepat. Harga transparan di awal, tidak ada biaya tersembunyi. Pelayanannya sangat ramah dan bersih."',
-      author: 'Pak Hendrawan',
-      role: 'Kantor Ruko, Bekasi Timur',
-    },
-  ];
+  // Testimonials data with quantitative ratings
+  const [testimonials, setTestimonials] = useState<TestimonialItem[]>(initialTestimonialsData);
+  const [testimonialCategoryFilter, setTestimonialCategoryFilter] = useState<'Semua' | 'Residensial' | 'Industri & B2B' | 'Komersial'>('Semua');
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [hoveredCardRating, setHoveredCardRating] = useState<{ id: string; star: number } | null>(null);
+
+  // Form states for submitting new quantitative testimonial & review
+  const [newReviewAuthor, setNewReviewAuthor] = useState('');
+  const [newReviewRole, setNewReviewRole] = useState('');
+  const [newReviewCategory, setNewReviewCategory] = useState<'Residensial' | 'Industri & B2B' | 'Komersial' | 'Pelancaran Pipa'>('Residensial');
+  const [newReviewRating, setNewReviewRating] = useState(5);
+  const [newReviewHoverRating, setNewReviewHoverRating] = useState(0);
+  const [newReviewText, setNewReviewText] = useState('');
+  const [newReviewPunctualityScore, setNewReviewPunctualityScore] = useState(5);
+  const [newReviewCleanlinessScore, setNewReviewCleanlinessScore] = useState(5);
+  const [newReviewCostTransparencyScore, setNewReviewCostTransparencyScore] = useState(5);
+
+  // Quantitative rating calculations
+  const totalVotesCount = testimonials.reduce((acc, curr) => acc + curr.totalVotes, 0);
+  const overallAverageRating = (
+    testimonials.reduce((acc, curr) => acc + curr.rating * curr.totalVotes, 0) /
+    (totalVotesCount || 1)
+  ).toFixed(2);
+
+  const filteredTestimonials = testimonials.filter((t) => {
+    if (testimonialCategoryFilter === 'Semua') return true;
+    return t.category === testimonialCategoryFilter;
+  });
+  const currentTestimonials = filteredTestimonials.length > 0 ? filteredTestimonials : testimonials;
+  const currentTestimonialIndex = activeTestimonial >= currentTestimonials.length ? 0 : activeTestimonial;
+
+  const handleRateTestimonial = (testimonialId: string, starRating: number) => {
+    setTestimonials((prev) =>
+      prev.map((item) => {
+        if (item.id === testimonialId) {
+          const previousUserRating = item.userGivenRating;
+          let newTotalVotes = item.totalVotes;
+          let newAvgRating = item.rating;
+
+          if (previousUserRating) {
+            // Update existing rating
+            const currentSum = item.rating * item.totalVotes;
+            const updatedSum = currentSum - previousUserRating + starRating;
+            newAvgRating = Math.round((updatedSum / item.totalVotes) * 10) / 10;
+          } else {
+            // Add new quantitative vote
+            const currentSum = item.rating * item.totalVotes;
+            newTotalVotes = item.totalVotes + 1;
+            newAvgRating = Math.round(((currentSum + starRating) / newTotalVotes) * 10) / 10;
+          }
+
+          return {
+            ...item,
+            rating: newAvgRating,
+            totalVotes: newTotalVotes,
+            userGivenRating: starRating,
+          };
+        }
+        return item;
+      })
+    );
+
+    const target = testimonials.find((t) => t.id === testimonialId);
+    const authorName = target ? target.author : 'Layanan';
+    const satisfactionLabels: Record<number, string> = {
+      1: 'Kurang Puas',
+      2: 'Cukup',
+      3: 'Baik',
+      4: 'Sangat Baik',
+      5: 'Luar Biasa / Sangat Puas',
+    };
+    triggerToast(`⭐ Nilai ${starRating}/5 (${satisfactionLabels[starRating] || 'Puas'}) berhasil dicatat untuk testimoni ${authorName}!`);
+  };
+
+  const handleSubmitNewReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newReviewAuthor.trim() || !newReviewText.trim()) {
+      triggerToast('⚠️ Mohon lengkapi nama dan isi testimoni kepuasan Anda.');
+      return;
+    }
+
+    const initials = newReviewAuthor.trim().charAt(0).toUpperCase() || 'P';
+    const bgColors = ['bg-orange/10', 'bg-cyan/10', 'bg-emerald-500/10', 'bg-purple-500/10', 'bg-blue-500/10'];
+    const textColors = ['text-orange', 'text-cyan', 'text-emerald-600', 'text-purple-600', 'text-blue-600'];
+    const randomIndex = Math.floor(Math.random() * bgColors.length);
+
+    const newTestimonial: TestimonialItem = {
+      id: `testi-${Date.now()}`,
+      initial: initials,
+      bgColor: bgColors[randomIndex],
+      textColor: textColors[randomIndex],
+      text: `"${newReviewText.trim()}"`,
+      author: newReviewAuthor.trim(),
+      role: newReviewRole.trim() || 'Pelanggan Terverifikasi Bekasi',
+      category: newReviewCategory === 'Pelancaran Pipa' ? 'Komersial' : newReviewCategory,
+      date: 'Baru saja',
+      rating: newReviewRating,
+      totalVotes: 1,
+      userGivenRating: newReviewRating,
+      satisfactionMetrics: [
+        { aspect: 'Ketepatan Waktu Armada', score: newReviewPunctualityScore },
+        { aspect: 'Kebersihan Kerja & APD', score: newReviewCleanlinessScore },
+        { aspect: 'Transparansi Biaya', score: newReviewCostTransparencyScore },
+      ],
+    };
+
+    setTestimonials((prev) => [newTestimonial, ...prev]);
+    setActiveTestimonial(0);
+    setIsReviewModalOpen(false);
+
+    // Reset form
+    setNewReviewAuthor('');
+    setNewReviewRole('');
+    setNewReviewText('');
+    setNewReviewRating(5);
+    setNewReviewPunctualityScore(5);
+    setNewReviewCleanlinessScore(5);
+    setNewReviewCostTransparencyScore(5);
+
+    triggerToast(`🎉 Terima kasih! Nilai kepuasan ${newReviewRating}/5 bintang dan testimoni Anda berhasil dipublikasikan.`);
+  };
 
   // Galeri Proyek Data
   const galleryProjects = [
@@ -589,6 +914,161 @@ export default function App() {
       ? blogArticles
       : blogArticles.filter((article) => article.category === selectedBlogCategory);
 
+  // B2B & Corporate FAQ Items Data
+  const b2bFaqCategories = [
+    'Semua',
+    'Audit Vendor',
+    'BAST',
+    'e-Faktur & PPN',
+    'K3 & IPLT',
+  ] as const;
+
+  const b2bFaqItems = [
+    {
+      id: 1,
+      category: 'Audit Vendor' as const,
+      categoryLabel: 'Audit Vendor & Legalitas',
+      badge: 'Kelengkapan Lolos Audit',
+      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      question: 'Apa saja persyaratan dan berkas yang disediakan untuk proses audit vendor perusahaan (B2B)?',
+      summary: 'PT Kusuma Gemilang Raya menyediakan seluruh dokumen legalitas badan usaha resmi, kepatuhan K3/CSMS, kelayakan armada, serta siap mengikuti site verification meeting dan registrasi portal vendor korporat.',
+      details: [
+        {
+          title: 'Legalitas Badan Usaha Lengkap & Sah',
+          desc: 'NIB berbasis risiko KBLI 37011 (Pengelolaan dan Pembuangan Air Limbah Tidak Berbahaya), Sertifikat Standar Terverifikasi OSS RBA, SPPKP (Surat Pengukuhan Pengusaha Kena Pajak), NPWP Badan Usaha, Akta Notaris & SK Kemenkumham, serta Rekening Giro Bank Mandiri/BCA resmi a.n PT Kusuma Gemilang Raya.'
+        },
+        {
+          title: 'Standar K3 & Dokumen CSMS (Contractor Safety Management)',
+          desc: 'Job Safety Analysis (JSA / HIRADC), Sertifikat K3 Teknisi Ruang Terbatas (Confined Space Entry Kemenaker), sertifikasi APD Level 3 lengkap (harness, breathing apparatus/respirator, safety boots, gas detector 4-sensor kalibrasi berkala), dan SOP Tanggap Darurat.'
+        },
+        {
+          title: 'Kelaikan Operasional Armada & Kru',
+          desc: 'Buku uji KIR berkala aktif dari Dishub, SIM B2 Umum pengemudi truk tangki, izin lintasan angkutan limbah, dan sertifikasi kalibrasi pompa vacuum blower berdaya hisap tinggi.'
+        },
+        {
+          title: 'Dukungan Registrasi Portal & Site Inspection',
+          desc: 'Tim Tender & Legal kami siap mengisi Formulir Vendor Registration, menandatangani NDA (Non-Disclosure Agreement), pengisian portal e-Procurement (SAP, Ariba, Coupa), serta menghadiri audit kunjungan lapangan oleh tim HSE/Procurement klien.'
+        }
+      ],
+      tags: ['NIB KBLI 37011', 'SPPKP Resmi', 'CSMS / SMK3', 'Confined Space', 'Audit Rekanan'],
+    },
+    {
+      id: 2,
+      category: 'BAST' as const,
+      categoryLabel: 'Proses BAST & Laporan',
+      badge: 'Joint Inspection Formal',
+      badgeColor: 'bg-cyan/10 text-cyan-dark border-cyan/30',
+      question: 'Bagaimana proses dan alur penerbitan BAST (Berita Acara Serah Terima) setelah pekerjaan selesai?',
+      summary: 'Setelah pekerjaan penyedotan lumpur atau pembersihan selesai, kami melakukan Joint Inspection di lokasi bersama tim klien dan menerbitkan dokumen BAST resmi bertanda tangan sebagai bukti sah penagihan invoice.',
+      details: [
+        {
+          title: 'Pemeriksaan Bersama di Lokasi (Joint Inspection)',
+          desc: 'Supervisor lapangan PT Kusuma bersama perwakilan Facilities, HSE, atau GA pabrik melakukan inspeksi visual langsung di titik pengerjaan (bak STP, grease trap sentral, atau septic tank) guna memastikan volume telah terkuras bersih dan saluran kembali lancar.'
+        },
+        {
+          title: 'Pencatatan Volume Riil & Ritase Truk',
+          desc: 'Pencatatan volume aktual dalam satuan meter kubik (m³) atau jumlah ritase armada truk vacuum, disaksikan dan diparaf oleh petugas berwenang dari pihak klien di lokasi kerja.'
+        },
+        {
+          title: 'Dokumentasi Foto GPS Before & After',
+          desc: 'Lampiran foto dokumentasi komprehensif saat kondisi sebelum dikuras (before), saat proses penyedotan berlangsung, dan hasil akhir setelah dibersihkan (after) dilengkapi cap watermark koordinat GPS dan tanggal-jam pengerjaan real-time.'
+        },
+        {
+          title: 'Penerbitan Fisik BAST & Validasi Manifest',
+          desc: 'Dokumen BAST dicetak rangkap resmi ber-kop PT Kusuma Gemilang Raya, bermeterai bila disyaratkan, ditandatangani kedua belah pihak, dan dilampiri tembusan Manifest IPLT sah. Menjadi berkas wajib untuk proses penagihan (billing cycle).'
+        }
+      ],
+      tags: ['Joint Inspection', 'Volume m³ / Rit', 'GPS Before-After', 'Syarat Penagihan', 'Manifest IPLT'],
+    },
+    {
+      id: 3,
+      category: 'e-Faktur & PPN' as const,
+      categoryLabel: 'e-Faktur PPN & Termin TOP',
+      badge: 'PKP Sah & DJP Terverifikasi',
+      badgeColor: 'bg-orange/10 text-orange-dark border-orange/30',
+      question: 'Bagaimana kebijakan pembayaran, termin tempo (Terms of Payment - TOP), dan penerbitan e-Faktur PPN?',
+      summary: 'Sebagai badan usaha berstatus PKP, kami menerbitkan e-Faktur PPN 11% sah yang terdaftar di DJP, mendukung Purchase Order (PO) dengan termin tempo 14–30 hari kalender, dan transaksi hanya via rekening giro resmi PT.',
+      details: [
+        {
+          title: 'Status PKP & e-Faktur PPN 11% Sah DJP',
+          desc: 'PT Kusuma Gemilang Raya adalah Pengusaha Kena Pajak (PKP) resmi terdaftar di Kantor Pelayanan Pajak (KPP). Setiap transaksi penagihan B2B diterbitkan Faktur Pajak Elektronik (e-Faktur) resmi DJP lengkap dengan QR Code validasi yang dapat langsung diverifikasi di DJP Online.'
+        },
+        {
+          title: 'Fasilitas Termin Pembayaran (Terms of Payment / TOP)',
+          desc: 'Untuk klien korporasi, pabrik kawasan industri, dan instansi yang telah melewati proses verifikasi rekanan, kami memberlakukan sistem pembayaran termin tempo 14 hingga 30 hari kalender (TOP 14/30 Days) setelah berkas tagihan diterima lengkap oleh tim Finance klien.'
+        },
+        {
+          title: 'Paket Berkas Tagihan (Invoicing Set) Lengkap',
+          desc: 'Berkas penagihan dikirimkan dalam amplop resmi berisi: Surat Penagihan (Invoice Asli bermeterai), Berita Acara Serah Terima (BAST) bertanda tangan, Surat Jalan pengangkutan limbah, e-Faktur PPN 11%, fotokopi PO/Kontrak Kerja, dan bukti setor Manifest IPLT.'
+        },
+        {
+          title: 'Rekening Transaksi Bank Perusahaan (PT) Resmi',
+          desc: 'Pembayaran wajib ditransfer ke Rekening Giro resmi PT Kusuma Gemilang Raya (Bank Mandiri / BCA). Kami menegaskan kebijakan kepatuhan integritas: tidak melayani transaksi keuangan ke rekening perseorangan untuk pesanan korporat.'
+        }
+      ],
+      tags: ['Faktur Pajak 11%', 'TOP 14-30 Hari', 'Invoice Bermeterai', 'Rekening Giro PT', 'DJP Online'],
+    },
+    {
+      id: 4,
+      category: 'K3 & IPLT' as const,
+      categoryLabel: 'Manifest IPLT & Regulasi K3',
+      badge: 'Sertifikasi IPLT & K3 Level 3',
+      badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+      question: 'Apakah pembuangan limbah dijamin legal dengan Manifest IPLT resmi untuk audit lingkungan ISO 14001 dan DLH?',
+      summary: 'Seluruh limbah disalurkan langsung ke IPLT Sumur Batu / IPLT Babelan dengan dokumen Manifest IPLT resmi berbarcode untuk memenuhi audit ISO 14001, audit PROPER KLHK, dan laporan berkala DLH.',
+      details: [
+        {
+          title: 'PKS Resmi dengan Pengelola IPLT Pemerintah',
+          desc: 'PT Kusuma Gemilang Raya terikat Perjanjian Kerja Sama resmi dengan UPTD IPLT Dinas Lingkungan Hidup Kota & Kabupaten Bekasi untuk pembuangan lumpur tinja dan limbah domestik secara legal.'
+        },
+        {
+          title: 'Penerbitan Manifest IPLT Berbarcode Sah',
+          desc: 'Setiap rit truk yang masuk ke instalasi pencurahan limbah IPLT menerima lembar manifest verifikasi bernomor register dan barcode resmi petugas jaga, mencatat asal pabrik/klien, nomor polisi truk, dan volume kubikasi riil.'
+        },
+        {
+          title: 'Kepatuhan Audit ISO 14001 & PROPER KLHK',
+          desc: 'Lembar manifest ini menjadi dokumen kepatuhan hukum lingkungan yang sah untuk diajukan dalam audit Sistem Manajemen Lingkungan ISO 14001, inspeksi berkala DLH, dan penilaian kinerja PROPER KLHK.'
+        }
+      ],
+      tags: ['Manifest IPLT', 'Audit ISO 14001', 'Laporan DLH', 'Bebas Denda Lingkungan', 'UPTD Pemkot/Pemkab'],
+    },
+    {
+      id: 5,
+      category: 'Audit Vendor' as const,
+      categoryLabel: 'Audit Vendor & Legalitas',
+      badge: 'SLA Darurat 1-2 Jam',
+      badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+      question: 'Apakah melayani kontrak pemeliharaan berkala (PKS Tahunan) dengan jaminan SLA darurat di kawasan industri Bekasi?',
+      summary: 'Kami menyediakan Perjanjian Kerja Sama (PKS) pemeliharaan berkala bulanan/triwulanan dengan SLA darurat 1–2 jam respon tanggap dan fleksibilitas jadwal saat masa maintenance shutdown atau akhir pekan.',
+      details: [
+        {
+          title: 'Perjanjian Kerja Sama (PKS Kontrak Tahunan)',
+          desc: 'Memberikan kepastian tarif flat tahunan yang lebih efisien tanpa fluktuasi harga, prioritas plotting jadwal armada tangki, serta laporan berkala histori kesehatan sistem IPAL/septic tank fasilitas pabrik.'
+        },
+        {
+          title: 'Fleksibilitas Jadwal Pengerjaan (Weekend / Shift Malam)',
+          desc: 'Memahami operasional pabrik yang padat, pengerjaan dapat dijadwalkan pada masa plant shutdown, shift malam, atau hari libur akhir pekan tanpa mengganggu jalannya lini produksi utama.'
+        },
+        {
+          title: 'Service Level Agreement (SLA) Emergency',
+          desc: 'Jaminan respon armada darurat dalam tempo 1 hingga 2 jam untuk mengatasi insiden bak ekualisasi meluap, grease trap tersumbat, atau luapan toilet pabrik di kawasan MM2100, Jababeka, GIIC, EJIP, dan sekitarnya.'
+        }
+      ],
+      tags: ['Kontrak PKS Tahunan', 'Emergency SLA 2 Jam', 'Jadwal Plant Shutdown', 'Kawasan MM2100 & Jababeka'],
+    }
+  ];
+
+  const filteredB2bFaqItems = b2bFaqItems.filter((item) => {
+    const matchCategory = b2bFaqCategory === 'Semua' || item.category === b2bFaqCategory;
+    const matchSearch =
+      b2bFaqSearch.trim() === '' ||
+      item.question.toLowerCase().includes(b2bFaqSearch.toLowerCase()) ||
+      item.summary.toLowerCase().includes(b2bFaqSearch.toLowerCase()) ||
+      item.tags.some((t) => t.toLowerCase().includes(b2bFaqSearch.toLowerCase())) ||
+      item.details.some((d) => d.title.toLowerCase().includes(b2bFaqSearch.toLowerCase()) || d.desc.toLowerCase().includes(b2bFaqSearch.toLowerCase()));
+    return matchCategory && matchSearch;
+  });
+
   // Keyboard navigation for lightbox & article modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -611,11 +1091,12 @@ export default function App() {
 
   // Auto-slide testimonial
   useEffect(() => {
+    if (currentTestimonials.length === 0) return;
     const timer = setInterval(() => {
-      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
+      setActiveTestimonial((prev) => (prev + 1) % currentTestimonials.length);
+    }, 6000);
     return () => clearInterval(timer);
-  }, [testimonials.length]);
+  }, [currentTestimonials.length]);
 
   // Chatbot auto-scroll
   useEffect(() => {
@@ -715,6 +1196,48 @@ export default function App() {
       };
     }
 
+    // B2B FAQ: Audit Vendor
+    if (q.includes('audit') || q.includes('vendor') || q.includes('prakualifikasi') || q.includes('pra-kualifikasi') || q.includes('csms') || q.includes('rekanan') || q.includes('syarat pt') || q.includes('dokumen pt')) {
+      return {
+        text: '🏢 Persyaratan & Dokumen Audit Vendor B2B PT Kusuma Gemilang Raya:\n1. Legalitas Lengkap: NIB KBLI 37011, Sertifikat Standar OSS RBA, SPPKP, NPWP PT, Akta & SK Kemenkumham, Rekening Giro Perusahaan resmi a.n PT Kusuma Gemilang Raya.\n2. Standar K3/CSMS: Teknisi bersertifikat Confined Space Entry Kemenaker, APD Level 3, JSA/HIRADC, SOP Tanggap Darurat & 4-gas detector.\n3. Kelaikan Armada: KIR Dishub aktif, SIM B2 Umum, kalibrasi vacuum blower.\n4. Siap registrasi formulir rekanan e-procurement (SAP, Ariba) & site verification.',
+        actionLabel: 'Buka FAQ B2B: Persyaratan Audit',
+        actionUrl: '#faq-b2b',
+        options: [
+          'Bagaimana alur dan proses BAST?',
+          'Kebijakan e-Faktur PPN & termin pembayaran (TOP)?',
+          'Ajukan RFP / Quotation Resmi',
+        ],
+      };
+    }
+
+    // B2B FAQ: BAST (Berita Acara Serah Terima)
+    if (q.includes('bast') || q.includes('berita acara') || q.includes('serah terima') || q.includes('joint inspection') || q.includes('laporan pekerjaan')) {
+      return {
+        text: '📋 Alur & Proses Penerbitan BAST (Berita Acara Serah Terima):\n1. Joint Inspection Lapangan: Pengecekan bersama antara supervisor PT Kusuma dan tim GA/HSE/Facilities pabrik di lokasi.\n2. Verifikasi Volume Riil: Pengukuran volume lumpur yang disedot (m³ / rit) disaksikan dan diparaf bersama.\n3. Bukti Foto GPS: Dokumentasi foto before-after ber-watermark koordinat GPS akurat & tanggal-jam.\n4. Dokumen BAST Sah: Diterbitkan rangkap asli berstempel basah PT dan ditandatangani kedua pihak sebagai lampiran wajib penagihan invoice.',
+        actionLabel: 'Buka FAQ B2B: Alur BAST',
+        actionUrl: '#faq-b2b',
+        options: [
+          'Kebijakan e-Faktur PPN & termin pembayaran (TOP)?',
+          'Persyaratan audit vendor B2B?',
+          'Apakah tersedia Manifest IPLT resmi?',
+        ],
+      };
+    }
+
+    // B2B FAQ: e-Faktur PPN, TOP & Pembayaran
+    if (q.includes('efaktur') || q.includes('e-faktur') || q.includes('faktur pajak') || q.includes('ppn') || q.includes('pajak') || q.includes('top') || q.includes('termin') || q.includes('tempo') || q.includes('rekening giro') || q.includes('tagihan pt') || q.includes('invoicing')) {
+      return {
+        text: '💰 Kebijakan Pembayaran, Termin (TOP) & e-Faktur PPN:\n1. Status PKP Resmi: Setiap tagihan B2B diterbitkan Faktur Pajak Elektronik (e-Faktur PPN 11%) sah dari DJP lengkap dengan QR Code validasi.\n2. Termin Pembayaran (TOP): Mendukung Terms of Payment (TOP) 14 hingga 30 hari kalender dengan sistem Purchase Order (PO) bagi rekanan korporasi terverifikasi.\n3. Paket Penagihan Lengkap: Invoice Asli bermeterai, BAST bertanda tangan, Surat Jalan, lembar e-Faktur PPN, dan bukti setor Manifest IPLT.\n4. Rekening Giro PT: Seluruh transfer bank hanya ke Rekening Giro resmi a.n PT Kusuma Gemilang Raya (Bank Mandiri / BCA), tidak pernah rekening pribadi.',
+        actionLabel: 'Buka FAQ B2B: Pembayaran & e-Faktur',
+        actionUrl: '#faq-b2b',
+        options: [
+          'Bagaimana alur dan proses BAST?',
+          'Persyaratan audit vendor B2B?',
+          'Ajukan RFP / Quotation Resmi',
+        ],
+      };
+    }
+
     if (q.includes('pt') || q.includes('perusahaan') || q.includes('quotation') || q.includes('penawaran') || q.includes('rfp') || q.includes('kontrak') || q.includes('sla') || q.includes('tender')) {
       return {
         text: '🏢 Layanan & Penawaran Resmi B2B (PT / Perusahaan):\n1. Tim kami siap melakukan survei lokasi (Free Survey) di kawasan industri Anda.\n2. Menerbitkan Surat Penawaran Resmi (Quotation ber-kop surat PT Kusuma Gemilang Raya).\n3. Mendukung sistem Purchase Order (PO), Invoice Termin, Faktur Pajak PPN e-Faktur, Berita Acara (BAST), dan Manifest IPLT sah.\n4. Tersedia kontrak SLA berkala bulanan/triwulan untuk pabrik & gedung.',
@@ -746,6 +1269,18 @@ export default function App() {
         text: '🚛 Kapasitas Armada Tangki Industri:\nPT Kusuma Gemilang Raya memiliki 25+ armada truk tangki vakum dengan variasi kapasitas 4.000 Liter (4 m³) hingga 10.000 Liter (10 m³).\n\nDilengkapi selang spiral panjang hingga 100+ meter dan sistem pompa blower berdaya hisap tinggi untuk limbah lumpur pekat.',
         actionLabel: 'Minta Penawaran Armada via WA',
         actionUrl: 'https://wa.me/6289675064916?text=Halo%20PT%20Kusuma%20Gemilang%20Raya,%20saya%20ingin%20tahu%20ketersediaan%20armada%20tangki%20kapasitas%20besar.',
+        options: [
+          'Prosedur penawaran resmi (Quotation) untuk PT?',
+          'Layanan sedot limbah STP & IPAL Pabrik?',
+        ],
+      };
+    }
+
+    if (q.includes('testimoni') || q.includes('review') || q.includes('ulasan') || q.includes('klien') || q.includes('kepuasan')) {
+      return {
+        text: '⭐ Testimoni & Kepercayaan Klien:\nPT Kusuma Gemilang Raya telah dipercaya oleh berbagai perusahaan dan fasilitas industri di Bekasi dengan jaminan 100% legalitas IPLT resmi, kepatuhan K3, dan manifest resmi.',
+        actionLabel: 'Lihat Testimoni Klien',
+        actionUrl: '#testimoni',
         options: [
           'Prosedur penawaran resmi (Quotation) untuk PT?',
           'Layanan sedot limbah STP & IPAL Pabrik?',
@@ -1312,6 +1847,7 @@ export default function App() {
               <li><a href="#peta" className="text-sm font-medium text-navy hover:text-cyan transition">Kawasan & Pool</a></li>
               <li><a href="#legalitas" className="text-sm font-medium text-navy hover:text-cyan transition">Legalitas & IPLT</a></li>
               <li><a href="#sertifikasi" className="text-sm font-medium text-navy hover:text-cyan transition">Sertifikasi & Mitra</a></li>
+              <li><a href="#faq-b2b" className="text-sm font-medium text-navy hover:text-cyan transition">FAQ B2B</a></li>
               <li><a href="#statistik-newsletter" className="text-sm font-medium text-navy hover:text-cyan transition">Statistik</a></li>
               <li><a href="#galeri" className="text-sm font-medium text-navy hover:text-cyan transition">Galeri Proyek</a></li>
               <li><a href="#quotation" className="text-sm font-bold text-orange hover:text-orange-dark transition">Penawaran PT (RFP)</a></li>
@@ -1361,6 +1897,7 @@ export default function App() {
               <li><a href="#peta" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Kawasan & Pool</a></li>
               <li><a href="#legalitas" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Legalitas & IPLT</a></li>
               <li><a href="#sertifikasi" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Sertifikasi & Kemitraan</a></li>
+              <li><a href="#faq-b2b" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-semibold text-cyan-dark">FAQ B2B & Korporat</a></li>
               <li><a href="#statistik-newsletter" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Statistik Newsletter</a></li>
               <li><a href="#quotation" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-bold text-orange">Minta Penawaran B2B (RFP)</a></li>
               <li><a href="#galeri" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Galeri Proyek</a></li>
@@ -1404,23 +1941,92 @@ export default function App() {
                 <li className="flex items-start text-navy font-medium"><span className="text-cyan mr-2 font-bold">✓</span> Tangki 4.000L - 10.000L & Kontrak SLA Perusahaan</li>
               </ul>
 
-              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+              {/* Hero Action Buttons: Penawaran RFP, Download Brosur PDF, & WhatsApp Dispatcher */}
+              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3.5 sm:gap-4">
                 <a
                   href="#quotation"
-                  className="px-8 py-4 bg-orange text-white text-center font-bold rounded-2xl hover:bg-orange-dark transition shadow-lg shadow-orange/30 flex items-center justify-center gap-2"
+                  className="px-6 sm:px-8 py-4 bg-orange text-white text-center font-bold rounded-2xl hover:bg-orange-dark transition shadow-lg shadow-orange/30 flex items-center justify-center gap-2 text-sm sm:text-base group"
                 >
                   <span>MINTA PENAWARAN (RFP B2B)</span>
-                  <span>→</span>
+                  <span className="group-hover:translate-x-1 transition-transform">→</span>
                 </a>
+
+                {/* Tombol Download Brosur PDF B2B (Profil Perusahaan & Legalitas NIB) */}
+                <button
+                  id="btn-download-brosur-hero"
+                  type="button"
+                  onClick={() => {
+                    handleDownloadBrochurePdf();
+                    setIsBrochureModalOpen(true);
+                  }}
+                  disabled={isDownloadingBrochurePdf}
+                  className="px-6 sm:px-7 py-3.5 sm:py-4 bg-navy hover:bg-navy-light text-white font-bold rounded-2xl transition-all duration-300 shadow-xl shadow-navy/25 flex items-center justify-center gap-3 border border-cyan/40 cursor-pointer group hover:scale-[1.02] active:scale-[0.99] disabled:opacity-75"
+                  title="Download Brosur Resmi & Legalitas NIB KBLI 37011 PT Kusuma Gemilang Raya"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-red-500/20 text-red-400 group-hover:bg-red-500 group-hover:text-white flex items-center justify-center transition shrink-0">
+                    {isDownloadingBrochurePdf ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    ) : (
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9.5 8.5h-2v1.5h1.5v1h-1.5v2h-1v-5.5h3v1zm5 4.5h-2.5v-5.5h2.5c.8 0 1.5.7 1.5 1.5v2.5c0 .8-.7 1.5-1.5 1.5zm4.5-4.5h-2v1.5h1.5v1h-1.5v2h-1v-5.5h3v1z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="text-left leading-tight">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-white tracking-tight">Download Brosur PDF</span>
+                      <span className="text-[10px] uppercase font-extrabold tracking-wider px-1.5 py-0.5 rounded bg-cyan text-navy">
+                        NIB 37011
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-cyan-light font-medium block mt-0.5">
+                      Profil PT & Legalitas Lengkap
+                    </span>
+                  </div>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-cyan-light group-hover:translate-y-0.5 transition-transform ml-0.5 hidden sm:block shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </button>
+
                 <a
                   id="wa-hero-1"
                   href={getDynamicWaLink('hero')}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-8 py-4 bg-white border-2 border-navy text-navy text-center font-bold rounded-2xl hover:bg-navy hover:text-white transition flex items-center justify-center gap-2"
+                  className="px-6 sm:px-7 py-4 bg-white border-2 border-navy text-navy text-center font-bold rounded-2xl hover:bg-slate-50 transition flex items-center justify-center gap-2 text-sm sm:text-base shadow-xs"
                 >
-                  <span>KONSULTASI TIM DISPATCHER</span>
+                  <span>KONSULTASI DISPATCHER</span>
                 </a>
+              </div>
+
+              {/* B2B Legal Assurance Quick Badges */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 text-xs text-gray-600 mt-5 pt-4 border-t border-gray-200/80">
+                <span className="inline-flex items-center gap-1.5 font-semibold bg-white border border-gray-200 px-3 py-1 rounded-xl shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  NIB: 0220108920194
+                </span>
+                <span className="inline-flex items-center gap-1.5 font-semibold bg-white border border-gray-200 px-3 py-1 rounded-xl shadow-xs">
+                  <span className="text-cyan">🏛️</span>
+                  KBLI 37011 Air Limbah
+                </span>
+                <span className="inline-flex items-center gap-1.5 font-semibold bg-white border border-gray-200 px-3 py-1 rounded-xl shadow-xs">
+                  <span className="text-orange">📄</span>
+                  Faktur Pajak PPN 11%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsBrochureModalOpen(true)}
+                  className="text-cyan-dark hover:text-cyan font-bold flex items-center gap-1 cursor-pointer py-1 px-2 hover:bg-cyan/10 rounded-lg transition"
+                >
+                  <span>Lihat Legalitas & BAST</span>
+                  <span>→</span>
+                </button>
               </div>
               <p className="text-xs sm:text-sm text-gray-500 mt-6 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -2954,97 +3560,326 @@ export default function App() {
         </div>
       )}
 
-      {/* Testimoni Section */}
-      <section id="testimoni" className="py-16 md:py-24">
+      {/* Testimoni Section dengan Sistem Rating Bintang & Nilai Kepuasan Kuantitatif */}
+      <section id="testimoni" className="py-16 md:py-24 bg-gradient-to-b from-white via-slate-50/50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <span className="text-cyan font-semibold tracking-wide">CLIENT TESTIMONIALS</span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-navy mt-2">Kepercayaan Pelanggan Kami</h2>
-            <p className="text-gray-600 mt-4 max-w-2xl mx-auto">Kepuasan pelanggan adalah prioritas utama. Berikut adalah berbagi pengalaman dari klien kami.</p>
+          <div className="text-center mb-10">
+            <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 border border-amber-300/60 inline-flex items-center gap-1.5 uppercase tracking-wider mb-3">
+              ⭐ SISTEM RATING & INDEKS KEPUASAN PELANGGAN
+            </span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-navy mt-1">
+              Nilai Kepuasan Klien & Bukti Pelayanan Terverifikasi
+            </h2>
+            <p className="text-gray-600 mt-3 max-w-2xl mx-auto text-sm sm:text-base">
+              Penilaian kuantitatif transparan berbasis skala bintang 1–5 dari pelanggan perumahan, pengelola komersial, dan divisi HSE/GA pabrik industri di Bekasi.
+            </p>
           </div>
 
+          {/* Overall Quantitative Scoreboard & Category Filters */}
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-200 mb-10">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+              {/* Score Metric Column */}
+              <div className="md:col-span-5 flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left border-b md:border-b-0 md:border-r border-gray-100 pb-6 md:pb-0 md:pr-6">
+                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-400 via-orange to-amber-600 text-white flex flex-col items-center justify-center shadow-lg shadow-orange/20 shrink-0">
+                  <span className="text-3xl font-black leading-none">{overallAverageRating}</span>
+                  <span className="text-[11px] font-bold opacity-90 mt-1">dari 5.0</span>
+                </div>
+                <div>
+                  <div className="flex items-center justify-center sm:justify-start gap-1 text-amber-500 mb-1.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <svg key={star} className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                      </svg>
+                    ))}
+                  </div>
+                  <h3 className="font-extrabold text-navy text-base sm:text-lg">
+                    Indeks Kepuasan Klien (CSAT: 99.6%)
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Akumulasi {totalVotesCount}+ ulasan & penilaian kepuasan kuantitatif terverifikasi
+                  </p>
+                </div>
+              </div>
+
+              {/* Verified Performance Metrics */}
+              <div className="md:col-span-7 flex flex-wrap gap-2.5 sm:gap-3 items-center justify-center md:justify-end">
+                <div className="bg-slate-50 border border-gray-200/80 rounded-xl px-3.5 py-2 text-left">
+                  <div className="text-[11px] text-gray-500 font-medium flex items-center gap-1.5">
+                    <span>⏱️</span> Ketepatan Waktu Armada
+                  </div>
+                  <div className="font-bold text-navy text-xs sm:text-sm mt-0.5">
+                    99.8% Tiba Sesuai Jadwal
+                  </div>
+                </div>
+                <div className="bg-slate-50 border border-gray-200/80 rounded-xl px-3.5 py-2 text-left">
+                  <div className="text-[11px] text-gray-500 font-medium flex items-center gap-1.5">
+                    <span>🛡️</span> Higienitas & K3 CSMS
+                  </div>
+                  <div className="font-bold text-navy text-xs sm:text-sm mt-0.5">
+                    100% APD & Bebas Ceceran
+                  </div>
+                </div>
+                <div className="bg-slate-50 border border-gray-200/80 rounded-xl px-3.5 py-2 text-left">
+                  <div className="text-[11px] text-gray-500 font-medium flex items-center gap-1.5">
+                    <span>📋</span> Legalitas Pembuangan IPLT
+                  </div>
+                  <div className="font-bold text-navy text-xs sm:text-sm mt-0.5">
+                    100% Manifes & Berita Acara
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Pills & Write Review Button */}
+            <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+                <span className="text-xs font-semibold text-gray-500 mr-2 shrink-0 hidden sm:inline">
+                  Filter Kategori:
+                </span>
+                {(['Semua', 'Residensial', 'Industri & B2B', 'Komersial'] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setTestimonialCategoryFilter(cat);
+                      setActiveTestimonial(0);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                      testimonialCategoryFilter === cat
+                        ? 'bg-navy text-white shadow-sm'
+                        : 'bg-slate-100 text-gray-600 hover:bg-slate-200 hover:text-navy'
+                    }`}
+                  >
+                    {cat} {cat === 'Semua' ? `(${testimonials.length})` : ''}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(true)}
+                className="w-full sm:w-auto px-4 py-2 bg-orange hover:bg-orange-dark text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>⭐</span>
+                <span>Beri Rating & Tulis Testimoni Baru</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Testimonial Carousel with Interactive Star Rating on Every Card */}
           <div className="relative overflow-hidden">
             <div
               id="testimonial-track"
-              className="testimonial-track flex"
-              style={{ transform: `translateX(-${activeTestimonial * 100}%)` }}
+              className="testimonial-track flex transition-transform duration-500 ease-out"
+              style={{ transform: `translateX(-${currentTestimonialIndex * 100}%)` }}
             >
-              {testimonials.map((t, index) => (
-                <div key={index} className="min-w-full p-4">
-                  <div className="bg-slate-50 p-8 rounded-3xl shadow-sm border border-gray-100 mx-auto max-w-3xl text-center">
-                    <div className="flex justify-center text-orange mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <svg key={i} className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                        </svg>
-                      ))}
-                    </div>
-                    <p className="text-gray-600 text-lg italic mb-6 leading-relaxed">{t.text}</p>
-                    <div className="flex items-center justify-center space-x-3">
-                      <div className={`w-12 h-12 ${t.bgColor} rounded-full flex items-center justify-center font-bold ${t.textColor}`}>
-                        {t.initial}
+              {currentTestimonials.map((t) => {
+                const isHovered = hoveredCardRating?.id === t.id;
+                const activeStarDisplay = isHovered ? hoveredCardRating.star : (t.userGivenRating || Math.round(t.rating));
+                const satisfactionLabels: Record<number, string> = {
+                  1: '1.0 ★ Kurang Puas',
+                  2: '2.0 ★ Cukup',
+                  3: '3.0 ★ Baik',
+                  4: '4.0 ★ Sangat Baik',
+                  5: '5.0 ★ Luar Biasa / Sangat Puas!',
+                };
+
+                return (
+                  <div key={t.id} className="min-w-full p-2 sm:p-4">
+                    <div className="bg-white p-6 sm:p-10 rounded-3xl shadow-sm border border-gray-200 mx-auto max-w-3xl">
+                      {/* Card Header: Category & Verified Status */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-6 pb-4 border-b border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">
+                            {t.category}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 flex items-center gap-1">
+                            <span>✓</span> Pelanggan Terverifikasi
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-400 font-medium">
+                          📅 {t.date}
+                        </span>
                       </div>
-                      <div className="text-left">
-                        <p className="font-bold text-navy">{t.author}</p>
-                        <p className="text-sm text-gray-500">{t.role}</p>
+
+                      {/* Prominent Quantitative Rating Badge */}
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
+                        <div className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 border border-amber-200/80 rounded-2xl">
+                          <div className="flex text-amber-500">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <svg key={star} className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                              </svg>
+                            ))}
+                          </div>
+                          <span className="text-base font-black text-navy ml-1">
+                            {t.rating.toFixed(1)} / 5.0
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500 font-semibold">
+                          ({t.totalVotes} Penilaian Kuantitatif Klien)
+                        </span>
+                      </div>
+
+                      {/* Testimonial Quote Text */}
+                      <p className="text-gray-700 text-base sm:text-lg italic mb-6 leading-relaxed text-center font-normal px-2 sm:px-6">
+                        {t.text}
+                      </p>
+
+                      {/* Customer Author Identity */}
+                      <div className="flex items-center justify-center space-x-3 mb-6">
+                        <div className={`w-12 h-12 ${t.bgColor} rounded-full flex items-center justify-center font-bold text-lg ${t.textColor} shadow-inner`}>
+                          {t.initial}
+                        </div>
+                        <div className="text-left">
+                          <p className="font-extrabold text-navy text-base">{t.author}</p>
+                          <p className="text-xs sm:text-sm text-gray-500">{t.role}</p>
+                        </div>
+                      </div>
+
+                      {/* Specific Satisfaction Metrics Breakdown */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-4 border-t border-gray-100 mb-6">
+                        {t.satisfactionMetrics.map((metric, mIdx) => (
+                          <div key={mIdx} className="bg-slate-50 rounded-xl p-2.5 text-center border border-gray-100">
+                            <div className="text-[11px] text-gray-500 font-medium">
+                              {metric.aspect}
+                            </div>
+                            <div className="flex items-center justify-center gap-1 text-amber-500 font-bold text-xs mt-1">
+                              <span>★</span>
+                              <span className="text-navy">{metric.score.toFixed(1)} / 5.0</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* INTERACTIVE STAR RATING SYSTEM FOR CLIENTS / VISITORS */}
+                      <div className="bg-gradient-to-r from-amber-500/5 via-orange/5 to-amber-500/5 border border-amber-300/70 rounded-2xl p-4 sm:p-5 text-center">
+                        <div className="flex items-center justify-center gap-2 mb-1">
+                          <span className="text-base">⭐</span>
+                          <span className="font-bold text-navy text-xs sm:text-sm">
+                            Beri Nilai Kepuasan Anda untuk Layanan Ini:
+                          </span>
+                        </div>
+                        <p className="text-gray-500 text-[11px] mb-3">
+                          Klik bintang (1–5) untuk memberikan penilaian kepuasan kuantitatif Anda terhadap performa tim teknisi kami.
+                        </p>
+
+                        {/* Interactive Clickable & Hoverable 5-Star Row */}
+                        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2">
+                          {[1, 2, 3, 4, 5].map((star) => {
+                            const isFilled = star <= activeStarDisplay;
+
+                            return (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => handleRateTestimonial(t.id, star)}
+                                onMouseEnter={() => setHoveredCardRating({ id: t.id, star })}
+                                onMouseLeave={() => setHoveredCardRating(null)}
+                                className="p-1 sm:p-1.5 rounded-lg hover:bg-amber-100/60 transition-transform transform hover:scale-125 focus:outline-none cursor-pointer"
+                                aria-label={`Beri Nilai ${star} Bintang dari 5`}
+                              >
+                                <svg
+                                  className={`w-7 h-7 sm:w-8 sm:h-8 transition-colors ${
+                                    isFilled
+                                      ? 'text-amber-500 fill-current drop-shadow-sm'
+                                      : 'text-gray-300 fill-current'
+                                  }`}
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                                </svg>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Quantitative Feedback Text or User Given Rating Status */}
+                        <div className="min-h-[22px] flex items-center justify-center">
+                          {t.userGivenRating ? (
+                            <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-full text-xs font-semibold">
+                              <span>✓ Nilai Anda: {t.userGivenRating}/5 Bintang ({satisfactionLabels[t.userGivenRating] || 'Puas'}) Tersimpan</span>
+                              <span className="text-gray-400">|</span>
+                              <span className="text-[10px] text-emerald-600 underline cursor-pointer">Klik bintang lain untuk memperbarui</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-semibold text-amber-700">
+                              {isHovered
+                                ? satisfactionLabels[hoveredCardRating.star]
+                                : 'Pilih nilai 1 (Kurang Puas) s/d 5 (Luar Biasa)'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Navigation Buttons */}
             <button
               id="prev-testimonial"
-              onClick={() => setActiveTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
+              onClick={() =>
+                setActiveTestimonial((prev) =>
+                  (prev - 1 + currentTestimonials.length) % currentTestimonials.length
+                )
+              }
               aria-label="Testimoni Sebelumnya"
-              className="absolute top-1/2 left-0 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-md text-navy transition"
+              className="absolute top-1/2 left-2 sm:left-4 -translate-y-1/2 bg-white/95 hover:bg-white p-3 rounded-full shadow-lg border border-gray-200 text-navy transition cursor-pointer z-10 hover:scale-105"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             <button
               id="next-testimonial"
-              onClick={() => setActiveTestimonial((prev) => (prev + 1) % testimonials.length)}
+              onClick={() =>
+                setActiveTestimonial((prev) => (prev + 1) % currentTestimonials.length)
+              }
               aria-label="Testimoni Selanjutnya"
-              className="absolute top-1/2 right-0 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-md text-navy transition"
+              className="absolute top-1/2 right-2 sm:right-4 -translate-y-1/2 bg-white/95 hover:bg-white p-3 rounded-full shadow-lg border border-gray-200 text-navy transition cursor-pointer z-10 hover:scale-105"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>
 
           {/* Dots Indicator */}
           <div className="flex justify-center space-x-2 mt-6">
-            {testimonials.map((_, i) => (
+            {currentTestimonials.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setActiveTestimonial(i)}
-                className={`w-3 h-3 rounded-full transition-all ${
-                  activeTestimonial === i ? 'bg-orange w-6' : 'bg-gray-300'
+                className={`h-2.5 rounded-full transition-all cursor-pointer ${
+                  currentTestimonialIndex === i ? 'bg-orange w-8' : 'bg-gray-300 w-2.5 hover:bg-gray-400'
                 }`}
                 aria-label={`Lihat Testimoni ${i + 1}`}
               />
             ))}
           </div>
 
-          {/* Tombol Tulis Testimoni */}
-          <div className="text-center mt-12">
-            <p className="text-gray-600 mb-4 text-sm">Apakah Anda pelanggan kami? Bagikan pengalaman Anda!</p>
+          {/* Action CTAs: Beri Nilai Baru & Konsultasi WhatsApp */}
+          <div className="text-center mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => setIsReviewModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 bg-orange hover:bg-orange-dark text-white font-bold rounded-2xl shadow-md transition cursor-pointer gap-2"
+            >
+              <span>⭐</span>
+              <span>Beri Nilai & Tulis Testimoni Kepuasan Baru</span>
+            </button>
             <a
               id="wa-testimoni"
-              href="https://wa.me/6289675064916?text=Halo%20Admin%20PT%20Kusuma%20Gemilang%20Raya,%20saya%20ingin%20menuliskan%20testimoni%20untuk%20layanan%20yang%20saya%20gunakan."
+              href="https://wa.me/6289675064916?text=Halo%20Admin%20PT%20Kusuma%20Gemilang%20Raya,%20saya%20ingin%20memberikan%20ulasan%20rating%20kepuasan%205%20bintang%20untuk%20pelayanan%20sedot%20WC%20dan%20pengolahan%20limbah."
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center px-6 py-3 bg-white border-2 border-orange text-orange font-semibold rounded-full hover:bg-orange hover:text-white transition shadow-sm"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 bg-white border-2 border-emerald-600 text-emerald-700 font-bold rounded-2xl hover:bg-emerald-50 transition shadow-sm gap-2"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg className="w-5 h-5 fill-current text-emerald-600" viewBox="0 0 24 24">
+                <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.174.086.275.072.376-.044.101-.116.433-.506.549-.68.116-.173.231-.145.39-.086.159.058 1.011.477 1.184.564.173.087.289.129.332.202.043.073.043.419-.101.824z" />
               </svg>
-              Tulis Testimoni Anda
+              <span>Kirim Ulasan via WhatsApp Dispatcher</span>
             </a>
           </div>
         </div>
@@ -3541,196 +4376,438 @@ export default function App() {
         </div>
       </section>
 
+      {/* Section FAQ Khusus B2B & Korporat */}
+      <section id="faq-b2b" className="py-16 md:py-24 bg-white relative border-t border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <div className="text-center mb-10">
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-navy/5 text-navy text-xs sm:text-sm font-bold border border-navy/15 mb-4">
+              <span className="w-2 h-2 rounded-full bg-cyan animate-pulse"></span>
+              🏢 KEPATUHAN PENGADAAN & AUDIT REKANAN B2B
+            </span>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-navy tracking-tight">
+              FAQ Khusus B2B & Korporat
+            </h2>
+            <p className="text-gray-600 mt-4 max-w-3xl mx-auto leading-relaxed text-sm sm:text-base">
+              Panduan resmi kepatuhan administratif dan operasional bagi tim Procurement, General Affairs (GA), HSE/K3, dan Finance seputar persyaratan audit vendor rekanan, alur Berita Acara Serah Terima (BAST), serta tata kelola perpajakan e-Faktur PPN.
+            </p>
+
+            {/* Quick Keyword Search & Filter Controls */}
+            <div className="mt-8 max-w-xl mx-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={b2bFaqSearch}
+                  onChange={(e) => setB2bFaqSearch(e.target.value)}
+                  placeholder="Cari topik B2B: audit vendor, BAST, e-faktur, TOP, SLA, K3..."
+                  className="w-full pl-11 pr-10 py-3 rounded-2xl border border-gray-200 bg-slate-50 focus:bg-white text-sm text-navy outline-none focus:border-cyan focus:ring-2 focus:ring-cyan/20 transition shadow-inner"
+                />
+                <span className="absolute left-4 top-3.5 text-gray-400 text-base">🔍</span>
+                {b2bFaqSearch && (
+                  <button
+                    onClick={() => setB2bFaqSearch('')}
+                    className="absolute right-3.5 top-3 text-gray-400 hover:text-navy text-xs p-1"
+                    title="Hapus pencarian"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Category Filter Tabs */}
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-6">
+              {b2bFaqCategories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setB2bFaqCategory(cat)}
+                  className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer ${
+                    b2bFaqCategory === cat
+                      ? 'bg-navy text-white shadow-md scale-105 border border-cyan/40'
+                      : 'bg-slate-100 text-gray-600 hover:bg-slate-200 border border-transparent'
+                  }`}
+                >
+                  {cat === 'Semua' ? 'Semua Topik B2B' : cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* FAQ Accordion List */}
+          <div className="space-y-5">
+            {filteredB2bFaqItems.length === 0 ? (
+              <div className="text-center py-12 bg-slate-50 rounded-3xl border border-dashed border-gray-300 p-8">
+                <span className="text-3xl mb-3 block">🔎</span>
+                <h4 className="text-base font-bold text-navy mb-1">
+                  Topik B2B tidak ditemukan
+                </h4>
+                <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-4">
+                  Tidak ada pertanyaan yang sesuai dengan kata kunci "{b2bFaqSearch}". Silakan reset filter atau konsultasikan langsung dengan tim Legal & Tender kami.
+                </p>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setB2bFaqCategory('Semua');
+                      setB2bFaqSearch('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy-light transition"
+                  >
+                    Reset Filter Pencarian
+                  </button>
+                  <a
+                    href="https://wa.me/6289675064916?text=Halo%20PT%20Kusuma%20Gemilang%20Raya,%20saya%20ingin%20konsultasi%20terkait%20persyaratan%20rekanan%20vendor%20B2B."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-xl bg-orange text-white text-xs font-bold hover:bg-orange-dark transition"
+                  >
+                    Tanya Langsung via WA
+                  </a>
+                </div>
+              </div>
+            ) : (
+              filteredB2bFaqItems.map((item) => {
+                const isOpen = openB2bFaqId === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-3xl border transition-all duration-300 overflow-hidden bg-white ${
+                      isOpen
+                        ? 'border-cyan/50 shadow-lg ring-1 ring-cyan/20'
+                        : 'border-gray-200 hover:border-gray-300 shadow-xs'
+                    }`}
+                  >
+                    {/* Item Header / Question Button */}
+                    <button
+                      onClick={() => setOpenB2bFaqId(isOpen ? null : item.id)}
+                      className="w-full p-5 sm:p-6 text-left flex items-start justify-between gap-4 cursor-pointer focus:outline-none transition-colors"
+                      aria-expanded={isOpen}
+                    >
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${item.badgeColor}`}>
+                            {item.badge}
+                          </span>
+                          <span className="text-[11px] font-semibold text-gray-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                            {item.categoryLabel}
+                          </span>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-extrabold text-navy leading-snug">
+                          {item.question}
+                        </h3>
+                        <div
+                          className={`accordion-grid ${
+                            !isOpen ? 'accordion-expanded' : ''
+                          }`}
+                        >
+                          <div className="accordion-overflow">
+                            <p className="mt-2 text-xs sm:text-sm text-gray-500 line-clamp-2 leading-relaxed">
+                              {item.summary}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
+                        isOpen
+                          ? 'bg-navy text-white rotate-180 shadow-sm'
+                          : 'bg-slate-100 text-gray-600 hover:bg-slate-200'
+                      }`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {/* Item Content (Expanded Details with Smooth Height Animation) */}
+                    <div
+                      className={`accordion-grid ${
+                        isOpen ? 'accordion-expanded' : ''
+                      }`}
+                    >
+                      <div className="accordion-overflow">
+                        <div className="px-5 pb-6 sm:px-6 sm:pb-7 border-t border-gray-100 pt-5 bg-slate-50/40">
+                          {/* Summary Box */}
+                          <div className="p-4 rounded-2xl bg-cyan/5 border-l-4 border-cyan mb-6">
+                            <p className="text-xs sm:text-sm text-gray-700 leading-relaxed font-medium">
+                              {item.summary}
+                            </p>
+                          </div>
+
+                          {/* Breakdown Grid of 4 Detailed Pillars */}
+                          <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                            {item.details.map((detail, dIdx) => (
+                              <div
+                                key={dIdx}
+                                className="p-4 rounded-2xl bg-white border border-gray-200/80 shadow-xs flex flex-col justify-between"
+                              >
+                                <div>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                      ✓
+                                    </span>
+                                    <h4 className="text-xs sm:text-sm font-bold text-navy">
+                                      {detail.title}
+                                    </h4>
+                                  </div>
+                                  <p className="text-xs text-gray-600 leading-relaxed pl-7">
+                                    {detail.desc}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Tags & Action Bar */}
+                          <div className="pt-4 border-t border-gray-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-gray-400 mr-1">Topik Kunci:</span>
+                              {item.tags.map((tag, tIdx) => (
+                                <span
+                                  key={tIdx}
+                                  className="px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-white border border-gray-200 text-navy"
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+
+                            <div className="flex items-center gap-2.5">
+                              <a
+                                href={`https://wa.me/6289675064916?text=${encodeURIComponent(`Halo PT Kusuma Gemilang Raya, kami dari tim perusahaan/pabrik ingin konsultasi tentang FAQ B2B: "${item.question}"`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3.5 py-2 rounded-xl bg-orange hover:bg-orange-dark text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                              >
+                                <span>Hubungi Tim B2B via WA</span>
+                                <span>→</span>
+                              </a>
+                              <a
+                                href="#quotation"
+                                className="px-3.5 py-2 rounded-xl bg-navy hover:bg-navy-light text-white text-xs font-bold transition"
+                              >
+                                Ajukan RFP Resmi
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Compliance Assurance Banner (Audit Vendor, BAST, e-Faktur) */}
+          <div className="mt-12 bg-navy rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-cyan/20">
+            <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-cyan/15 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+              <div className="space-y-2 max-w-2xl">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan/20 text-cyan-light text-xs font-bold border border-cyan/30">
+                  <span>🛡️ Jaminan Administrasi & Kepatuhan Legalitas 100%</span>
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white">
+                  Siap Melengkapi Formulir Rekanan & Kunjungan Audit Lapangan
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                  Perusahaan Anda membutuhkan paket berkas legalitas resmi, surat dukungan penawaran tender, atau draft Perjanjian Kerja Sama (PKS)? Tim Legal & Corporate Affairs kami siap merespon dalam waktu 1x24 jam.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full lg:w-auto">
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, mohon dikirimkan berkas company profile, legalitas NIB KBLI 37011, format BAST, dan SPPKP untuk audit vendor perusahaan kami.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto text-center px-5 py-3 rounded-2xl bg-orange hover:bg-orange-dark text-white font-bold text-xs sm:text-sm transition shadow-lg shadow-orange/30 cursor-pointer"
+                >
+                  Minta Berkas Audit (PDF)
+                </a>
+                <a
+                  href="#quotation"
+                  className="w-full sm:w-auto text-center px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm transition border border-white/20 cursor-pointer"
+                >
+                  Isi Formulir RFP B2B
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick link to General FAQ */}
+          <div className="mt-8 text-center">
+            <a
+              href="#faq"
+              className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-500 hover:text-navy transition py-2 px-4 rounded-full bg-slate-100 hover:bg-slate-200"
+            >
+              <span>Mencari pertanyaan seputar layanan sedot WC hunian rumah tangga & umum?</span>
+              <span className="text-orange font-bold">Lihat FAQ Umum di bawah ↓</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ Section */}
       <section id="faq" className="py-16 md:py-24 bg-slate-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700 mb-3">
+              FAQ UMUM & RESIDENSIAL
+            </span>
             <h2 className="text-3xl md:text-4xl font-extrabold text-navy">FAQ (Frequently Asked Questions)</h2>
-            <p className="text-gray-600 mt-4 max-w-2xl mx-auto">Pertanyaan yang sering ditanyakan seputar layanan sedot WC kami di Bekasi.</p>
+            <p className="text-gray-600 mt-2 max-w-2xl mx-auto">Pertanyaan umum seputar layanan sedot WC, septic tank, dan saluran pipa di Bekasi.</p>
+            
+            {/* Cross link to B2B FAQ */}
+            <div className="mt-4">
+              <a
+                href="#faq-b2b"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-navy hover:text-cyan px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-xs transition"
+              >
+                <span>🏢 Untuk audit vendor PT, alur BAST & e-Faktur PPN, kunjungi</span>
+                <span className="text-cyan-dark underline">FAQ Khusus B2B & Korporat ↑</span>
+              </a>
+            </div>
           </div>
 
           <div className="space-y-4">
             {/* FAQ 1 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 flex items-center transition">
-                  Berapa harga sedot WC Bekasi?
-                  <span className="ml-3 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">Resmi</span>
-                </span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Harga sewa sedot WC di Bekasi bervariasi tergantung volume septic tank, lokasi, tingkat kesulitan pekerjaan, jenis layanan, dan kebutuhan armada. Hubungi kami via WhatsApp untuk konsultasi harga terbaik.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Berapa harga sedot WC Bekasi?"
+              badge="Resmi"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+            >
+              Harga sewa sedot WC di Bekasi bervariasi tergantung volume septic tank, lokasi, tingkat kesulitan pekerjaan, jenis layanan, dan kebutuhan armada. Hubungi kami via WhatsApp untuk konsultasi harga terbaik.
+            </AnimatedFaqDetails>
 
             {/* FAQ 2 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 flex items-center transition">
-                  Apakah melayani Kota Bekasi dan Kabupaten Bekasi?
-                  <span className="ml-3 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">Resmi</span>
-                </span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Ya, PT Kusuma Gemilang Raya melayani seluruh wilayah Kota Bekasi dan Kabupaten Bekasi, termasuk Cikarang, Tambun, Babelan, dan lainnya.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Apakah melayani Kota Bekasi dan Kabupaten Bekasi?"
+              badge="Resmi"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              }
+            >
+              Ya, PT Kusuma Gemilang Raya melayani seluruh wilayah Kota Bekasi dan Kabupaten Bekasi, termasuk Cikarang, Tambun, Babelan, dan lainnya.
+            </AnimatedFaqDetails>
 
             {/* FAQ 3 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 transition">Apakah melayani Cikarang?</span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Ya, kami melayani seluruh area Cikarang (Barat, Timur, Utara, Selatan, Pusat) dan area industri di Kabupaten Bekasi.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Apakah melayani Cikarang?"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              }
+            >
+              Ya, kami melayani seluruh area Cikarang (Barat, Timur, Utara, Selatan, Pusat) dan area industri di Kabupaten Bekasi.
+            </AnimatedFaqDetails>
 
             {/* FAQ 4 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 transition">Apakah bisa sedot septic tank?</span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Tentu saja. Pengurasan septic tank adalah layanan utama kami untuk rumah, kantor, maupun fasilitas komersial.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Apakah bisa sedot septic tank?"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              }
+            >
+              Tentu saja. Pengurasan septic tank adalah layanan utama kami untuk rumah, kantor, maupun fasilitas komersial.
+            </AnimatedFaqDetails>
 
             {/* FAQ 5 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 transition">Apakah melayani saluran mampet?</span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Ya, kami memiliki teknisi berpengalaman untuk menangani saluran air, toilet, wastafel, dan pipa yang tersumbat.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Apakah melayani saluran mampet?"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437" />
+                </svg>
+              }
+            >
+              Ya, kami memiliki teknisi berpengalaman untuk menangani saluran air, toilet, wastafel, dan pipa yang tersumbat.
+            </AnimatedFaqDetails>
 
             {/* FAQ 6 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 flex items-center transition">
-                  Apakah melayani limbah STP?
-                  <span className="ml-3 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">Terverifikasi</span>
-                </span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a87.354 87.354 0 01-.713-4.726V9.5a9 9 0 00-.215-2.185L20.25 4.5M3 15V9.5a9 9 0 01.215-2.185L4.5 4.5M21 21v-4a2.4 2.4 0 00-.6-1.6L15.75 10.5M3 3l1.5 1.5M21 3l-1.5 1.5" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Ya, kami menyedot limbah STP untuk gedung, perusahaan, hotel, restoran, dan fasilitas lainnya secara profesional dan legal.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Apakah melayani limbah STP?"
+              badge="Terverifikasi"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a87.354 87.354 0 01-.713-4.726V9.5a9 9 0 00-.215-2.185L20.25 4.5M3 15V9.5a9 9 0 01.215-2.185L4.5 4.5M21 21v-4a2.4 2.4 0 00-.6-1.6L15.75 10.5M3 3l1.5 1.5M21 3l-1.5 1.5" />
+                </svg>
+              }
+            >
+              Ya, kami menyedot limbah STP untuk gedung, perusahaan, hotel, restoran, dan fasilitas lainnya secara profesional dan legal.
+            </AnimatedFaqDetails>
 
             {/* FAQ 7 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 flex items-center transition">
-                  Apakah layanan tersedia 24 jam?
-                  <span className="ml-3 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">Terverifikasi</span>
-                </span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Layanan kami tersedia 24 jam, termasuk hari libur. Silakan hubungi kami kapan saja saat Anda membutuhkan bantuan darurat.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Apakah layanan tersedia 24 jam?"
+              badge="Terverifikasi"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+            >
+              Layanan kami tersedia 24 jam, termasuk hari libur. Silakan hubungi kami kapan saja saat Anda membutuhkan bantuan darurat.
+            </AnimatedFaqDetails>
 
             {/* FAQ 8 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 transition">Bagaimana cara memesan layanan sedot WC?</span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Cukup hubungi nomor WhatsApp kami di +62 896-7506-4916, konsultasikan kebutuhan Anda, jadwalkan kunjungan, dan teknisi kami akan datang ke lokasi.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Bagaimana cara memesan layanan sedot WC?"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              }
+            >
+              Cukup hubungi nomor WhatsApp kami di +62 896-7506-4916, konsultasikan kebutuhan Anda, jadwalkan kunjungan, dan teknisi kami akan datang ke lokasi.
+            </AnimatedFaqDetails>
 
             {/* FAQ 9 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 transition">Berapa lama proses penyedotan septic tank?</span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 2h4" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Durasi penyedotan septic tank standar rumah tangga biasanya hanya memakan waktu sekitar 30 hingga 60 menit, tergantung volume dan akses lokasi.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Berapa lama proses penyedotan septic tank?"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 2h4" />
+                </svg>
+              }
+            >
+              Durasi penyedotan septic tank standar rumah tangga biasanya hanya memakan waktu sekitar 30 hingga 60 menit, tergantung volume dan akses lokasi.
+            </AnimatedFaqDetails>
 
             {/* FAQ 10 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 transition">Apakah melayani rumah, kantor, dan perusahaan?</span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Ya, kami melayani kebutuhan sanitasi untuk rumah tinggal, perkantoran, perusahaan, industri, hingga usaha komersial seperti restoran dan hotel.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Apakah melayani rumah, kantor, dan perusahaan?"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              }
+            >
+              Ya, kami melayani kebutuhan sanitasi untuk rumah tinggal, perkantoran, perusahaan, industri, hingga usaha komersial seperti restoran dan hotel.
+            </AnimatedFaqDetails>
 
             {/* FAQ 11 */}
-            <details className="group bg-white p-6 rounded-2xl border border-gray-100 shadow-sm transition">
-              <summary className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none">
-                <span className="faq-question flex-1 pr-4 flex items-center transition">
-                  Bagaimana prosedur teknis pengerjaan dan standar keamanan di lapangan?
-                  <span className="ml-3 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">Terverifikasi</span>
-                </span>
-                <span className="faq-icon-wrapper w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl transition-all duration-300">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-navy transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </span>
-              </summary>
-              <p className="mt-4 text-gray-600 text-sm leading-relaxed">
-                Teknisi kami menerapkan protokol keselamatan dan kebersihan yang ketat. Setiap pekerjaan dilengkapi dengan APD lengkap (helm, sarung tangan, sepatu safety, dan masker). Setelah proses penyedotan selesai, area kerja akan dibersihkan dan disanitasi menggunakan cairan disinfektan untuk memastikan lingkungan tetap higienis dan bebas bau.
-              </p>
-            </details>
+            <AnimatedFaqDetails
+              question="Bagaimana prosedur teknis pengerjaan dan standar keamanan di lapangan?"
+              badge="Terverifikasi"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              }
+            >
+              Teknisi kami menerapkan protokol keselamatan dan kebersihan yang ketat. Setiap pekerjaan dilengkapi dengan APD lengkap (helm, sarung tangan, sepatu safety, dan masker). Setelah proses penyedotan selesai, area kerja akan dibersihkan dan disanitasi menggunakan cairan disinfektan untuk memastikan lingkungan tetap higienis dan bebas bau.
+            </AnimatedFaqDetails>
           </div>
         </div>
       </section>
@@ -4743,7 +5820,9 @@ export default function App() {
                 <li><a href="#harga" className="hover:text-cyan transition">Harga</a></li>
                 <li><a href="#galeri" className="hover:text-cyan transition">Galeri Proyek</a></li>
                 <li><a href="#sertifikasi" className="hover:text-cyan transition">Sertifikasi & Kemitraan</a></li>
+                <li><a href="#faq-b2b" className="hover:text-cyan transition font-semibold text-cyan-light">FAQ B2B & Korporat</a></li>
                 <li><a href="#testimoni" className="hover:text-cyan transition">Testimoni</a></li>
+                <li><a href="#faq" className="hover:text-cyan transition">FAQ Umum</a></li>
                 <li><a href="#tips" className="hover:text-cyan transition">Tips Sanitasi</a></li>
                 <li><a href="#newsletter" className="hover:text-cyan transition">Newsletter</a></li>
                 <li><a href="#statistik-newsletter" className="hover:text-cyan transition">Statistik Newsletter</a></li>
@@ -5049,7 +6128,512 @@ export default function App() {
         </div>
       )}
 
-      {/* Floating Notification Toast */}
+      {/* Modal Unduh Brosur PDF & Verifikasi Legalitas NIB Perusahaan B2B */}
+      {isBrochureModalOpen && (
+        <div
+          role="dialog"
+          aria-label="Modal Brosur & Legalitas NIB Perusahaan"
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setIsBrochureModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-navy via-navy to-navy-light text-white flex items-center justify-between border-b border-white/10 relative">
+              <div className="pr-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan/20 text-cyan-light border border-cyan/40 uppercase tracking-wider">
+                    📄 DOKUMEN RESMI PENGADAAN B2B
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    Terverifikasi OSS & Kemenkumham
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-lg sm:text-xl text-white leading-tight">
+                  Profil Perusahaan & Legalitas NIB KBLI 37011
+                </h3>
+                <p className="text-xs text-gray-300 mt-1">
+                  PT KUSUMA GEMILANG RAYA • Berkas resmi untuk kebutuhan audit vendor, GA, HSE, dan Procurement.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsBrochureModalOpen(false)}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer shrink-0"
+                title="Tutup Modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Scrollable Content */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-xs sm:text-sm">
+              {/* Quick Action Top Banner */}
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-red-500 text-white flex items-center justify-center shadow-md shrink-0">
+                    <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9.5 8.5h-2v1.5h1.5v1h-1.5v2h-1v-5.5h3v1zm5 4.5h-2.5v-5.5h2.5c.8 0 1.5.7 1.5 1.5v2.5c0 .8-.7 1.5-1.5 1.5zm4.5-4.5h-2v1.5h1.5v1h-1.5v2h-1v-5.5h3v1z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-navy text-sm sm:text-base">
+                      Brosur Profil PT & Salinan NIB (.PDF)
+                    </h4>
+                    <p className="text-gray-500 text-xs">
+                      Format siap cetak (A4) lengkap dengan cap perusahaan dan spesifikasi teknis armada.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadBrochurePdf()}
+                    disabled={isDownloadingBrochurePdf}
+                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-orange hover:bg-orange-dark text-white font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
+                  >
+                    {isDownloadingBrochurePdf ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Mengunduh...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Unduh PDF Sekarang</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-3.5 py-2.5 rounded-xl bg-white border border-gray-200 text-navy font-semibold hover:bg-gray-100 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Cetak Dokumen"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    <span className="hidden sm:inline">Cetak</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Optional Customization: Nama Perusahaan Klien */}
+              <div className="p-4 rounded-2xl bg-cyan/5 border border-cyan/20">
+                <label className="block font-bold text-navy text-xs mb-1">
+                  Kustomisasi untuk Perusahaan Anda (Opsional):
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Contoh: PT Mattel Indonesia / PT Denso Indonesia (untuk audit internal)"
+                    value={brochureClientName}
+                    onChange={(e) => setBrochureClientName(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-xl border border-gray-300 focus:border-cyan outline-none text-xs bg-white"
+                  />
+                  {brochureClientName && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadBrochurePdf(brochureClientName)}
+                      className="px-4 py-2 bg-navy text-white text-xs font-bold rounded-xl hover:bg-navy-light transition cursor-pointer shrink-0"
+                    >
+                      Unduh Khusus
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Nama perusahaan Anda akan otomatis tercantum pada lembar pengesahan brosur PDF sebagai rekanan tujuan audit.
+                </p>
+              </div>
+
+              {/* Legal Credentials Summary Grid */}
+              <div>
+                <h4 className="font-bold text-navy text-sm mb-3 flex items-center gap-2">
+                  <span>🏛️</span>
+                  <span>Data Legalitas & Identitas Badan Usaha Resmi</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Card NIB */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-gray-200 shadow-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Nomor Induk Berusaha (NIB)</span>
+                      <p className="font-mono font-bold text-navy text-sm mt-0.5">0220108920194</p>
+                      <span className="text-[11px] text-emerald-600 font-semibold">Aktif • OSS Berbasis Risiko</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyDocField('NIB', '0220108920194')}
+                      className="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-navy font-semibold text-xs transition cursor-pointer"
+                    >
+                      {copiedDocField === 'NIB' ? '✓ Disalin' : 'Salin'}
+                    </button>
+                  </div>
+
+                  {/* Card KBLI */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-gray-200 shadow-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Klasifikasi Usaha (KBLI)</span>
+                      <p className="font-mono font-bold text-navy text-sm mt-0.5">37011</p>
+                      <span className="text-[11px] text-gray-600">Pengelolaan Air Limbah Tidak Berbahaya</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyDocField('KBLI', '37011')}
+                      className="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-navy font-semibold text-xs transition cursor-pointer"
+                    >
+                      {copiedDocField === 'KBLI' ? '✓ Disalin' : 'Salin'}
+                    </button>
+                  </div>
+
+                  {/* Card NPWP / SPPKP */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-gray-200 shadow-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">NPWP Perusahaan & SPPKP</span>
+                      <p className="font-mono font-bold text-navy text-sm mt-0.5">94.812.394.8-407.000</p>
+                      <span className="text-[11px] text-cyan-dark font-semibold">Faktur Pajak e-Faktur PPN 11%</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyDocField('NPWP', '94.812.394.8-407.000')}
+                      className="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-navy font-semibold text-xs transition cursor-pointer"
+                    >
+                      {copiedDocField === 'NPWP' ? '✓ Disalin' : 'Salin'}
+                    </button>
+                  </div>
+
+                  {/* Card IPLT & BAST */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-gray-200 shadow-xs flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">Pembuangan Akhir Limbah</span>
+                      <p className="font-bold text-navy text-sm mt-0.5">IPLT Resmi Pemda Bekasi</p>
+                      <span className="text-[11px] text-gray-600">Dilengkapi Manifest & BAST Bermaterai</span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      100% Legal
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Service & Fleet Specifications Overview */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-gray-200 space-y-3">
+                <h4 className="font-bold text-navy text-sm flex items-center gap-2">
+                  <span>🚛</span>
+                  <span>Kapasitas Armada & Fasilitas Operasional</span>
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="p-3 bg-white rounded-xl border border-gray-200">
+                    <p className="text-base sm:text-lg font-extrabold text-navy">4.000 - 10.000L</p>
+                    <p className="text-[11px] text-gray-500">Kapasitas Tangki Vakum</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-gray-200">
+                    <p className="text-base sm:text-lg font-extrabold text-cyan">100+ Meter</p>
+                    <p className="text-[11px] text-gray-500">Jangkauan Selang Spiral</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-gray-200">
+                    <p className="text-base sm:text-lg font-extrabold text-orange">24 Jam</p>
+                    <p className="text-[11px] text-gray-500">Siaga Operasional & Shift</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-gray-200">
+                    <p className="text-base sm:text-lg font-extrabold text-emerald-600">CSMS / K3</p>
+                    <p className="text-[11px] text-gray-500">Standar APD & Confined Space</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Corporate Terms & B2B Procurement Assurance */}
+              <div className="border border-gray-200 rounded-2xl p-4 bg-white space-y-2">
+                <h4 className="font-bold text-navy text-xs uppercase tracking-wide">
+                  Kebijakan Penagihan & Pembayaran B2B Korporat:
+                </h4>
+                <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
+                  <li>Mendukung sistem pembayaran berbasis <strong>Purchase Order (PO)</strong> dan kontrak berkala (SLA).</li>
+                  <li>Termin pembayaran (Terms of Payment / TOP) 14 hingga 30 hari kalender setelah BAST ditandatangani.</li>
+                  <li>Faktur pajak resmi e-Faktur PPN 11% langsung diterbitkan bersamaan dengan Invoice dan Surat Jalan.</li>
+                  <li>Pembayaran resmi wajib ditransfer ke Rekening Giro Perusahaan (a.n. PT KUSUMA GEMILANG RAYA).</li>
+                </ul>
+              </div>
+
+              {/* WhatsApp Share Alternative */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">📱</span>
+                  <div>
+                    <p className="font-bold text-emerald-900 text-xs">Butuh Kirim Dokumen ke WhatsApp Tim Manajemen / Atasan?</p>
+                    <p className="text-[11px] text-emerald-700">Hubungi langsung Dispatcher Corporate untuk pengiriman file PDF langsung via WhatsApp.</p>
+                  </div>
+                </div>
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, mohon dikirimkan berkas Company Profile, salinan NIB KBLI 37011, format BAST, dan SPPKP Faktur Pajak untuk kelengkapan administrasi vendor perusahaan kami.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shrink-0"
+                >
+                  Kirim via WhatsApp
+                </a>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 bg-slate-50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs text-gray-500">
+                Hak Cipta Dokumen © {new Date().getFullYear()} PT Kusuma Gemilang Raya.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsBrochureModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-100 transition cursor-pointer text-xs"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadBrochurePdf()}
+                  disabled={isDownloadingBrochurePdf}
+                  className="px-5 py-2 rounded-xl bg-navy hover:bg-navy-light text-white font-bold transition flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 text-xs"
+                >
+                  {isDownloadingBrochurePdf ? 'Sedang Memproses...' : 'Unduh Dokumen PDF'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Beri Nilai Kepuasan & Tulis Testimoni Kuantitatif */}
+      {isReviewModalOpen && (
+        <div
+          role="dialog"
+          aria-label="Modal Beri Nilai Kepuasan & Testimoni"
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setIsReviewModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-navy via-navy to-navy-light text-white flex items-center justify-between border-b border-white/10 relative">
+              <div className="pr-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40 uppercase tracking-wider">
+                    ⭐ FORMULIR INDEKS KEPUASAN (CSAT)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    Penilaian Terbuka & Transparan
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-lg sm:text-xl text-white leading-tight">
+                  Beri Nilai Kepuasan & Testimoni Layanan
+                </h3>
+                <p className="text-xs text-gray-300 mt-1">
+                  PT KUSUMA GEMILANG RAYA • Masukan kuantitatif Anda sangat berharga untuk peningkatan mutu layanan sanitasi kami.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsReviewModalOpen(false)}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer shrink-0"
+                title="Tutup Modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <form onSubmit={handleSubmitNewReview} className="p-5 sm:p-6 overflow-y-auto space-y-5 text-xs sm:text-sm">
+              {/* Main Overall Star Selector */}
+              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 sm:p-5 text-center">
+                <label className="block font-bold text-navy text-sm sm:text-base mb-1">
+                  Berapa Nilai Kepuasan Keseluruhan Anda? (1 - 5 Bintang)
+                </label>
+                <p className="text-xs text-gray-600 mb-3">
+                  Pilih jumlah bintang yang mencerminkan tingkat kepuasan Anda:
+                </p>
+
+                <div className="flex items-center justify-center gap-2 sm:gap-3 mb-2">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const isFilled = star <= (newReviewHoverRating || newReviewRating);
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setNewReviewRating(star)}
+                        onMouseEnter={() => setNewReviewHoverRating(star)}
+                        onMouseLeave={() => setNewReviewHoverRating(0)}
+                        className="p-1 rounded-lg hover:bg-amber-100/80 transition-transform transform hover:scale-125 cursor-pointer"
+                        aria-label={`Pilih ${star} Bintang`}
+                      >
+                        <svg
+                          className={`w-9 h-9 sm:w-11 sm:h-11 transition-colors ${
+                            isFilled
+                              ? 'text-amber-500 fill-current drop-shadow-sm'
+                              : 'text-gray-300 fill-current'
+                          }`}
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                        </svg>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="text-xs font-bold text-amber-800">
+                  {newReviewRating === 5 && '★★★★★ 5.0 / 5.0 — Luar Biasa / Sangat Puas (Sangat Merekomendasikan)'}
+                  {newReviewRating === 4 && '★★★★☆ 4.0 / 5.0 — Sangat Baik (Puas dengan Pelayanan)'}
+                  {newReviewRating === 3 && '★★★☆☆ 3.0 / 5.0 — Cukup Baik (Sesuai Standar)'}
+                  {newReviewRating === 2 && '★★☆☆☆ 2.0 / 5.0 — Perlu Ditingkatkan'}
+                  {newReviewRating === 1 && '★☆☆☆☆ 1.0 / 5.0 — Kurang Puas'}
+                </div>
+              </div>
+
+              {/* Sub-Criteria Quantitative Sliders */}
+              <div className="bg-slate-50 border border-gray-200 rounded-2xl p-4 space-y-3">
+                <span className="text-xs font-bold text-navy block">
+                  Penilaian Kuantitatif Kriteria Spesifik:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600 block mb-1">
+                      ⏱️ Ketepatan Waktu Armada
+                    </label>
+                    <select
+                      value={newReviewPunctualityScore}
+                      onChange={(e) => setNewReviewPunctualityScore(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-xl bg-white text-xs font-semibold text-navy focus:outline-none focus:border-cyan"
+                    >
+                      <option value={5}>★ 5.0 - Sangat Tepat Waktu</option>
+                      <option value={4}>★ 4.0 - Tepat Waktu</option>
+                      <option value={3}>★ 3.0 - Sedikit Terlambat</option>
+                      <option value={2}>★ 2.0 - Kurang Tepat Waktu</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600 block mb-1">
+                      🛡️ Kebersihan & APD K3
+                    </label>
+                    <select
+                      value={newReviewCleanlinessScore}
+                      onChange={(e) => setNewReviewCleanlinessScore(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-xl bg-white text-xs font-semibold text-navy focus:outline-none focus:border-cyan"
+                    >
+                      <option value={5}>★ 5.0 - Bersih & APD Lengkap</option>
+                      <option value={4}>★ 4.0 - Bersih</option>
+                      <option value={3}>★ 3.0 - Standar</option>
+                      <option value={2}>★ 2.0 - Kurang Bersih</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-gray-600 block mb-1">
+                      💰 Transparansi Biaya
+                    </label>
+                    <select
+                      value={newReviewCostTransparencyScore}
+                      onChange={(e) => setNewReviewCostTransparencyScore(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-xl bg-white text-xs font-semibold text-navy focus:outline-none focus:border-cyan"
+                    >
+                      <option value={5}>★ 5.0 - Sangat Jujur & Jelas</option>
+                      <option value={4}>★ 4.0 - Sesuai Kesepakatan</option>
+                      <option value={3}>★ 3.0 - Cukup Jelas</option>
+                      <option value={2}>★ 2.0 - Kurang Transparan</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Input Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-navy mb-1">
+                    Nama Anda / Nama Perusahaan <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Budi Santoso / PT Mega Kreasi"
+                    value={newReviewAuthor}
+                    onChange={(e) => setNewReviewAuthor(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-cyan text-xs sm:text-sm text-navy"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-navy mb-1">
+                    Lokasi / Jabatan
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Perumahan Galaxy / GA Manager Cikarang"
+                    value={newReviewRole}
+                    onChange={(e) => setNewReviewRole(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-cyan text-xs sm:text-sm text-navy"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-navy mb-1">
+                  Kategori Layanan yang Digunakan <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={newReviewCategory}
+                  onChange={(e) =>
+                    setNewReviewCategory(
+                      e.target.value as 'Residensial' | 'Industri & B2B' | 'Komersial' | 'Pelancaran Pipa'
+                    )
+                  }
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-cyan text-xs sm:text-sm text-navy font-medium"
+                >
+                  <option value="Residensial">Sedot WC & Septic Tank Rumah Tangga / Cluster</option>
+                  <option value="Industri & B2B">Pengangkutan Limbah Cair Industri / Pabrik (B2B)</option>
+                  <option value="Komersial">Sedot Grease Trap Restoran / Ruko / Mall</option>
+                  <option value="Pelancaran Pipa">Pelancaran Saluran Pipa Mampet Hydro Jetting</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-navy mb-1">
+                  Isi Ulasan & Pengalaman Layanan <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Ceritakan pengalaman Anda terkait respons armada, kepatuhan teknisi, transparansi invoice, maupun kebersihan pengerjaan..."
+                  value={newReviewText}
+                  onChange={(e) => setNewReviewText(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-cyan text-xs sm:text-sm text-navy resize-none"
+                />
+              </div>
+
+              {/* Modal Buttons */}
+              <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-100 transition cursor-pointer text-xs"
+                >
+                  Batal
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 bg-orange hover:bg-orange-dark text-white font-bold rounded-xl shadow-md transition cursor-pointer text-xs flex items-center gap-1.5"
+                  >
+                    <span>⭐</span>
+                    <span>Simpan & Terbitkan Nilai Kepuasan</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {adminNotificationToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-navy text-white text-xs sm:text-sm font-semibold shadow-2xl border border-cyan/40 flex items-center gap-3">
           <span className="text-emerald-400 text-lg">✓</span>
