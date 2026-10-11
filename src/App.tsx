@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { generateBrochurePdf } from './utils/generateBrochurePdf';
+import { generateInvoiceBastPdf } from './utils/generateInvoiceBastPdf';
+import { downloadAreaMapPng } from './utils/exportAreaMapToPng';
 import teknisiSedotWcImg from './assets/images/teknisi_lapangan_sedot_wc_1791530702926.jpg';
 import teknisiPipaImg from './assets/images/teknisi_pelancaran_pipa_1791530724142.jpg';
 import logoBekasiImg from './assets/images/logo_bekasi.jpeg';
@@ -13,18 +15,25 @@ import heroKusumaImg from './assets/images/hero_kusuma.jpg';
 interface AnimatedFaqDetailsProps {
   question: React.ReactNode;
   badge?: string;
+  category?: string;
   icon: React.ReactNode;
   children: React.ReactNode;
+  answerText?: string;
+  onCopy?: (copiedText: string) => void;
 }
 
 function AnimatedFaqDetails({
   question,
   badge,
+  category,
   icon,
   children,
+  answerText,
+  onCopy,
 }: AnimatedFaqDetailsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleToggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -43,12 +52,62 @@ function AnimatedFaqDetails({
     }
   };
 
+  const extractTextContent = (node: React.ReactNode): string => {
+    if (!node) return '';
+    if (typeof node === 'string') return node;
+    if (typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(extractTextContent).join(' ');
+    if (React.isValidElement(node)) {
+      const elProps = node.props as { children?: React.ReactNode };
+      if (elProps && elProps.children) {
+        return extractTextContent(elProps.children);
+      }
+    }
+    return '';
+  };
+
+  const handleCopyAnswer = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Avoid triggering details accordion toggle
+
+    const textToCopy = (answerText || extractTextContent(children)).trim();
+    if (!textToCopy) return;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+        setCopied(true);
+        if (onCopy) onCopy(textToCopy);
+        setTimeout(() => setCopied(false), 2200);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+    } catch {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = textToCopy;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        if (onCopy) onCopy(textToCopy);
+        setTimeout(() => setCopied(false), 2200);
+      } catch (err) {
+        console.error('Gagal menyalin jawaban:', err);
+      }
+    }
+  };
+
   const isDetailsOpen = isOpen || isClosing;
 
   return (
     <details
       open={isDetailsOpen}
-      className={`faq-accordion-animated group bg-white p-6 rounded-2xl border transition-all duration-300 ${
+      className={`faq-accordion-animated group bg-white p-5 sm:p-6 rounded-2xl border transition-all duration-300 ${
         isOpen
           ? 'border-cyan/40 shadow-md ring-1 ring-cyan/20'
           : 'border-gray-100 hover:border-gray-200 shadow-sm'
@@ -56,17 +115,62 @@ function AnimatedFaqDetails({
     >
       <summary
         onClick={handleToggle}
-        className="flex justify-between items-center font-semibold text-navy cursor-pointer list-none select-none"
+        className="flex justify-between items-start sm:items-center font-semibold text-navy cursor-pointer list-none select-none gap-3"
       >
-        <span className={`faq-question flex-1 pr-4 flex items-center transition-colors duration-200 ${isOpen ? 'text-cyan font-bold' : ''}`}>
-          {question}
-          {badge && (
-            <span className="ml-3 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">
-              {badge}
+        <div className="flex-1 min-w-0 pr-1 sm:pr-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className={`faq-question text-sm sm:text-base leading-snug transition-colors duration-200 ${isOpen ? 'text-cyan font-bold' : ''}`}>
+              {question}
             </span>
-          )}
-        </span>
-        <span className={`faq-icon-wrapper w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 flex-shrink-0 ${
+            {category && (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border flex-shrink-0 ${
+                category === 'Harga'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : category === 'Layanan'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : category === 'Area'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}>
+                {category}
+              </span>
+            )}
+            {badge && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20 flex-shrink-0">
+                {badge}
+              </span>
+            )}
+            {/* Copy Answer Button next to question header */}
+            <button
+              type="button"
+              onClick={handleCopyAnswer}
+              aria-label="Salin jawaban pertanyaan ini ke clipboard"
+              title={copied ? 'Jawaban berhasil disalin ke clipboard!' : 'Salin jawaban pertanyaan ini ke clipboard'}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 border cursor-pointer active:scale-95 flex-shrink-0 ${
+                copied
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-xs ring-1 ring-emerald-300/40'
+                  : 'bg-slate-50 hover:bg-cyan/10 text-slate-600 hover:text-cyan-dark border-slate-200 hover:border-cyan/30'
+              }`}
+            >
+              {copied ? (
+                <>
+                  <svg className="w-3.5 h-3.5 text-emerald-600 animate-pop-check" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="font-bold text-emerald-700">Tersalin!</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-dark transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                  <span>Salin Jawaban</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        <span className={`faq-icon-wrapper w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl transition-all duration-300 flex-shrink-0 mt-0.5 sm:mt-0 ${
           isOpen ? 'bg-cyan text-white shadow-sm' : 'bg-slate-100 text-navy hover:bg-slate-200'
         }`}>
           {icon}
@@ -198,6 +302,121 @@ const initialTestimonialsData: TestimonialItem[] = [
   },
 ];
 
+export interface DocumentationItem {
+  id: number;
+  image: string;
+  title: string;
+  category: 'Industri & B2B' | 'Residensial' | 'Komersial & Resto' | 'Pelancaran Pipa';
+  location: string;
+  date: string;
+  tag: string;
+  description: string;
+  lastUpdated?: string;
+}
+
+const initialDocumentationItems: DocumentationItem[] = [
+  {
+    id: 1,
+    image: 'https://z-cdn-media.chatglm.cn/files/a663f5a2-9679-4548-bc6d-ee86fc0faf38.jpg?auth_key=1891530048-f58de94b45dd4195b1e4eb5c4db34d04-0-bf9997ee3b449021bddfe6a237af2b95',
+    title: 'Truk Tangki Masuk Area Industri GIIC',
+    category: 'Industri & B2B',
+    location: 'Kawasan Industri GIIC Cikarang Pusat',
+    date: '10 Okt 2026',
+    tag: 'Pabrik Manufaktur',
+    description: 'Armada truk tangki resmi berkapasitas besar memasuki pabrik manufaktur otomotif untuk pengurasan rutin bak pengolahan limbah STP sesuai SOP K3.',
+  },
+  {
+    id: 2,
+    image: 'https://z-cdn-media.chatglm.cn/files/f0a0ebfc-d359-467e-818a-1eeb6670dbb3.jpg?auth_key=1891530048-1ea4bfb5615c415cb07dde8aa8708456-0-33efc077a48f2f99bf7f5ce0e12e9bf9',
+    title: 'Penyedotan Limbah Industri Berizin IPLT',
+    category: 'Industri & B2B',
+    location: 'Kawasan Industri MM2100 Cikarang Barat',
+    date: '08 Okt 2026',
+    tag: 'Manifest & BAST',
+    description: 'Pengoperasian selang spiral kedap udara berdaya hisap tinggi tanpa kebocoran, dengan pengangkutan limbah langsung ke IPLT resmi Pemda Bekasi.',
+  },
+  {
+    id: 3,
+    image: 'https://z-cdn-media.chatglm.cn/files/4f3e0e12-39b6-49b9-898d-956ffdd2b291.jpg?auth_key=1891530048-b2c975c52af9462bb934e295016c1b9f-0-8acc724df47b2f017edd7607128792d7',
+    title: 'Teknisi APD Lengkap & Sterilisasi Area',
+    category: 'Residensial',
+    location: 'Cluster Perumahan Jatiasih, Bekasi',
+    date: '07 Okt 2026',
+    tag: 'Higienis & Steril',
+    description: 'Penyemprotan disinfektan anti bakteri dan pembersihan menyeluruh area tutup septic tank pasca proses penyedotan agar steril kembali.',
+  },
+  {
+    id: 4,
+    image: 'https://z-cdn-media.chatglm.cn/files/33054cf6-266f-447d-9081-464b93cc7cc7.jpg?auth_key=1891530048-aebcdd0fe66b48f880f5bc962fef5f6d-0-e05a985cd94e16de3b4a0110c366e099',
+    title: 'Penyedotan Septic Tank Akses Gang Perumahan',
+    category: 'Residensial',
+    location: 'Perumahan Grand Galaxy, Bekasi Selatan',
+    date: '06 Okt 2026',
+    tag: 'Selang Panjang 100m',
+    description: 'Armada menyiagakan selang spiral fleksibel hingga puluhan meter menjangkau gang perumahan tanpa merusak tanaman pekarangan klien.',
+  },
+  {
+    id: 5,
+    image: 'https://z-cdn-media.chatglm.cn/files/4da00e2f-49dd-4f4c-b983-2d496721c934.jpg?auth_key=1891530048-bc9acd819e9a48949530ccd303af95d0-0-73f082a39d6164cf5019ea6210e389ad',
+    title: 'Kuras Grease Trap Dapur Restoran & Kuliner',
+    category: 'Komersial & Resto',
+    location: 'Sentra Kuliner Summarecon Bekasi',
+    date: '04 Okt 2026',
+    tag: 'Restoran & F&B',
+    description: 'Pembersihan kerak minyak dan lemak jenuh pada bak grease trap dapur komersial untuk mencegah luapan dan bau busuk di area pengunjung.',
+  },
+  {
+    id: 6,
+    image: 'https://z-cdn-media.chatglm.cn/files/4bdc93a6-c220-4dbe-948f-36bbaa87b841.jpg?auth_key=1891530048-2bec263d4a5c497387667e9798780d5d-0-ef3c26848e67413f81c9c3311b1d5018',
+    title: 'Pemompaan Limbah Minyak & Lemak Padat',
+    category: 'Komersial & Resto',
+    location: 'Ruko Niaga Harapan Indah, Bekasi',
+    date: '03 Okt 2026',
+    tag: 'Zero Odor Tech',
+    description: 'Pengerjaan malam hari saat toko tutup menggunakan pompa vakum bertekanan kedap udara sehingga lingkungan sekitar tetap bersih dan higienis.',
+  },
+  {
+    id: 7,
+    image: teknisiPipaImg,
+    title: 'Pelancaran Pipa Mampet Hydro Jetting',
+    category: 'Pelancaran Pipa',
+    location: 'Gedung Komersial Cikarang Barat',
+    date: '02 Okt 2026',
+    tag: 'Tanpa Bongkar Keramik',
+    description: 'Mesin hydro jetting dan kabel spiral baja melancarkan sumbatan pipa air kotor dan wastafel mampet tanpa perlu merusak keramik lantai.',
+  },
+  {
+    id: 8,
+    image: 'https://z-cdn-media.chatglm.cn/files/f376cf34-d467-42fc-a752-92f97c36ed1b.jpg?auth_key=1891530048-5d5ab972979f442aa2ac45be1b8be3e6-0-b727bf4bfb372d573d4996732a6c874e',
+    title: 'Pengurasan Septic Tank Gedung Bertingkat',
+    category: 'Komersial & Resto',
+    location: 'Kawasan Bisnis Medan Satria, Bekasi',
+    date: '29 Sep 2026',
+    tag: 'Kapasitas Besar',
+    description: 'Penanganan volume limbah septic tank gedung perkantoran bertingkat secara simultan dengan armada tangki ganda.',
+  },
+  {
+    id: 9,
+    image: teknisiSedotWcImg,
+    title: 'Armada Truk Tangki Siaga di Pool Bekasi',
+    category: 'Industri & B2B',
+    location: 'Pool Armada Tambun & Cikarang',
+    date: '28 Sep 2026',
+    tag: 'Siaga 24 Jam',
+    description: 'Kesiapan unit armada tangki vakum resmi dan teknisi bersertifikat siaga 24 jam untuk panggilan darurat di seluruh Bekasi.',
+  },
+  {
+    id: 10,
+    image: heroKusumaImg,
+    title: 'Pengangkutan Limbah Legal Sesuai SOP LH',
+    category: 'Industri & B2B',
+    location: 'EJIP Industrial Park, Cikarang Selatan',
+    date: '26 Sep 2026',
+    tag: 'BAST & IPLT Sah',
+    description: 'Penyerahan Berita Acara Serah Terima (BAST) dan bukti timbang resmi IPLT Pemda Bekasi untuk lampiran audit ISO & HSE perusahaan.',
+  },
+];
+
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
@@ -206,9 +425,44 @@ export default function App() {
   const [selectedGalleryCategory, setSelectedGalleryCategory] = useState('Semua');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [activeMapHubIndex, setActiveMapHubIndex] = useState(0);
+  const [hoveredMapHubIndex, setHoveredMapHubIndex] = useState<number | null>(null);
+  const [mapZoom, setMapZoom] = useState(13);
+  const [mapCenteringNotice, setMapCenteringNotice] = useState<string | null>(null);
+  const [isCardHighlighted, setIsCardHighlighted] = useState(false);
+  const [isPinInteractiveMode, setIsPinInteractiveMode] = useState(true);
+  const [copiedMapCoords, setCopiedMapCoords] = useState(false);
+  const [copiedHubPhone, setCopiedHubPhone] = useState<string | null>(null);
+  const [isExportingMapPng, setIsExportingMapPng] = useState(false);
+  const hubCardRef = useRef<HTMLDivElement>(null);
   const [selectedBlogCategory, setSelectedBlogCategory] = useState('Semua');
   const [activeArticleModal, setActiveArticleModal] = useState<number | null>(null);
   const [selectedCertCategory, setSelectedCertCategory] = useState<'Semua' | 'Regulator' | 'K3 & Mutu' | 'Asosiasi & Kawasan'>('Semua');
+
+  // Dokumentasi Pekerjaan Responsive Carousel & Quick Edit States
+  const [documentationItems, setDocumentationItems] = useState<DocumentationItem[]>(initialDocumentationItems);
+  const [docCarouselIndex, setDocCarouselIndex] = useState(0);
+  const [docCategoryFilter, setDocCategoryFilter] = useState<'Semua' | 'Industri & B2B' | 'Residensial' | 'Komersial & Resto' | 'Pelancaran Pipa'>('Semua');
+  const [isDocAutoPlay, setIsDocAutoPlay] = useState(true);
+  const [activeDocPreview, setActiveDocPreview] = useState<DocumentationItem | null>(null);
+  const [docTouchStartX, setDocTouchStartX] = useState<number | null>(null);
+  const [docTouchEndX, setDocTouchEndX] = useState<number | null>(null);
+  const [docItemsPerView, setDocItemsPerView] = useState(3);
+
+  // Quick Edit States for Dokumentasi Pekerjaan (Authorized Users)
+  const [isDocAuthorized, setIsDocAuthorized] = useState(false);
+  const [isDocAuthModalOpen, setIsDocAuthModalOpen] = useState(false);
+  const [docAuthPin, setDocAuthPin] = useState('');
+  const [docAuthError, setDocAuthError] = useState('');
+  const [isEditingDocPreview, setIsEditingDocPreview] = useState(false);
+  const [editDocDate, setEditDocDate] = useState('');
+  const [editDocDescription, setEditDocDescription] = useState('');
+  const [isDocSaving, setIsDocSaving] = useState(false);
+
+  // Invoice & BAST PDF Download States for Dokumentasi Pekerjaan
+  const [isDownloadingDocInvoicePdf, setIsDownloadingDocInvoicePdf] = useState(false);
+  const [docInvoicePoNumber, setDocInvoicePoNumber] = useState('');
+  const [docInvoiceClientName, setDocInvoiceClientName] = useState('');
+  const [showDocInvoiceOptions, setShowDocInvoiceOptions] = useState(false);
 
   // Newsletter Subscription State
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -216,6 +470,15 @@ export default function App() {
   const [newsletterInterest, setNewsletterInterest] = useState<'residensial' | 'komersial'>('residensial');
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [newsletterMsg, setNewsletterMsg] = useState('');
+
+  // Slide-in Newsletter Subscription Popup States (Inactivity 10s)
+  const [isNewsletterSlideInOpen, setIsNewsletterSlideInOpen] = useState(false);
+  const [isNewsletterPopupDismissed, setIsNewsletterPopupDismissed] = useState(false);
+  const [slideInEmail, setSlideInEmail] = useState('');
+  const [slideInName, setSlideInName] = useState('');
+  const [slideInInterest, setSlideInInterest] = useState<'residensial' | 'komersial'>('residensial');
+  const [slideInStatus, setSlideInStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [slideInMsg, setSlideInMsg] = useState('');
 
   // Newsletter Statistics & Admin Monitor State
   interface SubscriberRecord {
@@ -366,6 +629,14 @@ export default function App() {
   const [b2bFaqCategory, setB2bFaqCategory] = useState<'Semua' | 'Audit Vendor' | 'BAST' | 'e-Faktur & PPN' | 'K3 & IPLT'>('Semua');
   const [b2bFaqSearch, setB2bFaqSearch] = useState('');
   const [openB2bFaqId, setOpenB2bFaqId] = useState<number | null>(1);
+  const [isB2bFaqShaking, setIsB2bFaqShaking] = useState(false);
+  const [b2bFaqShakeKey, setB2bFaqShakeKey] = useState(0);
+
+  // General & Residential FAQ Filter States
+  const [generalFaqCategory, setGeneralFaqCategory] = useState<'Semua' | 'Harga' | 'Layanan' | 'Area' | 'Teknis'>('Semua');
+  const [generalFaqSearch, setGeneralFaqSearch] = useState('');
+  const [isGeneralFaqShaking, setIsGeneralFaqShaking] = useState(false);
+  const [generalFaqShakeKey, setGeneralFaqShakeKey] = useState(0);
 
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [subscriberCategoryFilter, setSubscriberCategoryFilter] = useState<'Semua' | 'komersial' | 'residensial'>('Semua');
@@ -373,6 +644,11 @@ export default function App() {
   const [isMaskEmail, setIsMaskEmail] = useState(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
   const [adminNotificationToast, setAdminNotificationToast] = useState<string | null>(null);
+
+  // Legalitas & SEO Metadata Section States
+  const [legalTableFilter, setLegalTableFilter] = useState<'Semua' | 'Izin Berusaha' | 'Perpajakan' | 'Lingkungan & K3' | 'SEO & Identitas'>('Semua');
+  const [legalTableSearchQuery, setLegalTableSearchQuery] = useState('');
+  const [legalTableViewMode, setLegalTableViewMode] = useState<'table' | 'cards'>('table');
 
   const BASE_PREVIOUS_SUBSCRIBERS = 1422;
   const totalSubscribersCount = BASE_PREVIOUS_SUBSCRIBERS + subscribersList.length;
@@ -397,6 +673,46 @@ export default function App() {
       });
     } else {
       triggerToast(`📋 ${fieldName}: ${value}`);
+    }
+  };
+
+  const handleCopyLegalField = (id: string, label: string, value: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(value).then(() => {
+        setCopiedDocField(id);
+        triggerToast(`📋 ${label} (${value}) berhasil disalin ke clipboard!`);
+        setTimeout(() => setCopiedDocField(null), 2500);
+      }).catch(() => {
+        triggerToast(`📋 ${label}: ${value}`);
+      });
+    } else {
+      triggerToast(`📋 ${label}: ${value}`);
+    }
+  };
+
+  const handleCopyAllLegalInfo = () => {
+    const fullText = `BERKAS LEGALITAS RESMI & SEO METADATA PT KUSUMA GEMILANG RAYA:
+1. Badan Usaha: PT Kusuma Gemilang Raya (Perseroan Terbatas)
+2. Nomor Induk Berusaha (NIB): 0220108920194 (Sistem OSS Berbasis Risiko)
+3. NPWP Badan Usaha: 94.812.394.8-407.000 (Direktorat Jenderal Pajak RI)
+4. Klasifikasi KBLI: 37011 (Pengelolaan dan Pembuangan Air Limbah Tidak Berbahaya)
+5. SPPKP / Faktur Pajak: S-184PKP/WPJ.22/KP.0303/2021 (e-Faktur PPN 11%)
+6. SK Pengesahan Kemenkumham: AHU-0018924.AH.01.01.TAHUN 2021
+7. Pembuangan Akhir Limbah: REG-IPLT/DLH-BKS/2026/0411 (IPLT Resmi DLH Pemda Bekasi)
+8. Rekening Giro Bank PT: Mandiri 156-00-1892401-2 a.n PT Kusuma Gemilang Raya
+9. Structured Data SEO: https://jasasedotwcbekasi.web.id/ (Schema.org LocalBusiness 24/7)
+10. Kontak WhatsApp Resmi: +62 896-7506-4916 (Layanan 24 Jam Bekasi)`;
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(fullText).then(() => {
+        setCopiedDocField('ALL_LEGAL_DOSSIER');
+        triggerToast('📋 Seluruh ringkasan legalitas NIB, NPWP & KBLI berhasil disalin ke clipboard!');
+        setTimeout(() => setCopiedDocField(null), 3000);
+      }).catch(() => {
+        triggerToast('📋 Ringkasan legalitas siap disalin.');
+      });
+    } else {
+      triggerToast('📋 Ringkasan legalitas siap disalin.');
     }
   };
 
@@ -428,6 +744,25 @@ export default function App() {
   const [rfpVolume, setRfpVolume] = useState('10 - 20 m³');
   const [rfpNeedTaxInvoice, setRfpNeedTaxInvoice] = useState(true);
   const [rfpStatus, setRfpStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+
+  // Quick Quote Navigation Launcher & Highlight State
+  const rfpCompanyInputRef = useRef<HTMLInputElement>(null);
+  const [isRfpHighlighted, setIsRfpHighlighted] = useState(false);
+
+  const handleLaunchQuickQuote = () => {
+    const quotationSection = document.getElementById('quotation');
+    if (quotationSection) {
+      quotationSection.scrollIntoView({ behavior: 'smooth' });
+      setIsRfpHighlighted(true);
+      setTimeout(() => {
+        rfpCompanyInputRef.current?.focus();
+      }, 550);
+      setTimeout(() => {
+        setIsRfpHighlighted(false);
+      }, 3500);
+      triggerToast('⚡ Membuka Portal Permintaan Penawaran Resmi PT (Quick Quote RFP B2B)...');
+    }
+  };
 
   // Chatbot FAQ State
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
@@ -467,7 +802,12 @@ export default function App() {
     {
       id: 'pusat',
       name: 'Pool Pusat & Kota Bekasi',
+      shortName: 'Pool Pusat (Kota Bekasi)',
       badge: 'Pool Induk Armada',
+      phone: '+62 896-7506-4916',
+      contactNumber: '0896-7506-4916',
+      phoneRaw: '+6289675064916',
+      hotlineLabel: 'Hotline Dispatcher 24 Jam',
       address: 'Jl. Jendral Ahmad Yani & Grand Galaxy, Kota Bekasi',
       coverage: 'Bekasi Barat, Bekasi Timur, Bekasi Selatan, Bekasi Utara, Jatiasih, Medan Satria, Rawalumbu, Pondok Gede, Bantar Gebang, Jatisampurna, Mustika Jaya.',
       response: '15 - 20 Menit',
@@ -476,11 +816,20 @@ export default function App() {
       mapsDirectUrl: 'https://www.google.com/maps/search/?api=1&query=Bekasi+Jawa+Barat',
       lat: '-6.2349',
       lng: '106.9966',
+      pinPos: { left: '22%', top: '38%' },
+      pinIcon: '🏢',
+      pinColor: 'cyan',
+      highlightArea: 'Kota Bekasi & Sekitarnya',
     },
     {
       id: 'cikarang',
       name: 'Pos Cikarang & Kawasan Industri',
+      shortName: 'Pos Cikarang (Industri)',
       badge: 'Pos Industri & Residensial',
+      phone: '+62 896-7506-4916',
+      contactNumber: '0896-7506-4916',
+      phoneRaw: '+6289675064916',
+      hotlineLabel: 'Dispatch Kawasan Industri Cikarang',
       address: 'Kawasan Industri Cikarang (Jababeka, MM2100, EJIP, GIIC, Deltamas)',
       coverage: 'Cikarang Barat, Timur, Utara, Selatan, Pusat, Cibarusah, Bojongmangu, Serang Baru, Setu, Karangbahagia, Kedungwaringin.',
       response: '15 - 25 Menit',
@@ -489,11 +838,20 @@ export default function App() {
       mapsDirectUrl: 'https://www.google.com/maps/search/?api=1&query=Cikarang+Bekasi+Jawa+Barat',
       lat: '-6.3023',
       lng: '107.1517',
+      pinPos: { left: '78%', top: '64%' },
+      pinIcon: '🏭',
+      pinColor: 'orange',
+      highlightArea: 'Kawasan Industri Cikarang & Kab. Bekasi',
     },
     {
       id: 'tambun',
       name: 'Pos Tambun, Cibitung & Pantura',
+      shortName: 'Pos Tambun (Pantura)',
       badge: 'Pos Jalur Pantura',
+      phone: '+62 896-7506-4916',
+      contactNumber: '0896-7506-4916',
+      phoneRaw: '+6289675064916',
+      hotlineLabel: 'Dispatch Koridor Pantura & Cibitung',
       address: 'Jl. Raya Diponegoro & Teuku Umar, Tambun Selatan & Cibitung, Bekasi',
       coverage: 'Tambun Selatan, Tambun Utara, Cibitung, Babelan, Tarumajaya, Sukatani, Sukakarya, Pebayuran, Sukawangi, Tambelang.',
       response: '20 - 30 Menit',
@@ -502,6 +860,10 @@ export default function App() {
       mapsDirectUrl: 'https://www.google.com/maps/search/?api=1&query=Tambun+Selatan+Bekasi+Jawa+Barat',
       lat: '-6.2625',
       lng: '107.0583',
+      pinPos: { left: '50%', top: '48%' },
+      pinIcon: '🚛',
+      pinColor: 'emerald',
+      highlightArea: 'Koridor Tambun, Cibitung & Babelan',
     },
   ];
 
@@ -540,6 +902,7 @@ export default function App() {
     kontak: 'saya melihat profil legalitas dan ingin menghubungi Anda.',
     faq: 'saya membaca FAQ dan ingin bertanya lebih lanjut.',
     'cta-akhir': 'saya ingin segera memesan layanan sedot WC.',
+    'legalitas-seo': 'saya melihat tabel Legalitas & SEO Metadata (NIB, NPWP, KBLI 37011) di website dan ingin memverifikasi dokumen resmi vendor.',
   };
 
   // Device detection
@@ -806,6 +1169,254 @@ export default function App() {
       ? galleryProjects
       : galleryProjects.filter((p) => p.category === selectedGalleryCategory);
 
+  // Responsive Items Per View for Dokumentasi Carousel
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) {
+        setDocItemsPerView(1);
+      } else if (window.innerWidth < 1024) {
+        setDocItemsPerView(2);
+      } else {
+        setDocItemsPerView(3);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const filteredDocumentation =
+    docCategoryFilter === 'Semua'
+      ? documentationItems
+      : documentationItems.filter((item) => item.category === docCategoryFilter);
+
+  const maxDocIndex = Math.max(0, filteredDocumentation.length - docItemsPerView);
+
+  // Auto-slide for Dokumentasi Pekerjaan Carousel
+  useEffect(() => {
+    if (!isDocAutoPlay || filteredDocumentation.length <= docItemsPerView) return;
+    const timer = setInterval(() => {
+      setDocCarouselIndex((prev) => (prev >= maxDocIndex ? 0 : prev + 1));
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [isDocAutoPlay, filteredDocumentation.length, maxDocIndex, docItemsPerView]);
+
+  const handleDocNext = () => {
+    setDocCarouselIndex((prev) => (prev >= maxDocIndex ? 0 : prev + 1));
+  };
+
+  const handleDocPrev = () => {
+    setDocCarouselIndex((prev) => (prev <= 0 ? maxDocIndex : prev - 1));
+  };
+
+  const handleDocTouchStart = (e: React.TouchEvent) => {
+    setDocTouchStartX(e.targetTouches[0].clientX);
+    setDocTouchEndX(null);
+  };
+
+  const handleDocTouchMove = (e: React.TouchEvent) => {
+    setDocTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleDocTouchEnd = () => {
+    if (docTouchStartX === null || docTouchEndX === null) return;
+    const distance = docTouchStartX - docTouchEndX;
+    const minSwipeDistance = 40;
+
+    if (distance > minSwipeDistance) {
+      handleDocNext();
+    } else if (distance < -minSwipeDistance) {
+      handleDocPrev();
+    }
+
+    setDocTouchStartX(null);
+    setDocTouchEndX(null);
+  };
+
+  // Quick Edit Handlers for Dokumentasi Pekerjaan (Authorized Users)
+  const handleStartQuickEdit = () => {
+    if (!activeDocPreview) return;
+    if (!isDocAuthorized) {
+      setDocAuthPin('');
+      setDocAuthError('');
+      setIsDocAuthModalOpen(true);
+      return;
+    }
+    setEditDocDate(activeDocPreview.date);
+    setEditDocDescription(activeDocPreview.description);
+    setIsEditingDocPreview(true);
+  };
+
+  const handleVerifyDocAuth = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanPin = docAuthPin.trim();
+    if (cleanPin === '1234' || cleanPin === 'admin' || cleanPin === 'admin2026' || cleanPin === 'kusuma') {
+      setIsDocAuthorized(true);
+      setIsDocAuthModalOpen(false);
+      setDocAuthError('');
+      triggerToast('🔑 Akses Petugas Terverifikasi! Mode Quick Edit diaktifkan.');
+      if (activeDocPreview) {
+        setEditDocDate(activeDocPreview.date);
+        setEditDocDescription(activeDocPreview.description);
+        setIsEditingDocPreview(true);
+      }
+    } else {
+      setDocAuthError('PIN otorisasi tidak valid. Silakan coba kembali atau gunakan tombol Otorisasi Cepat.');
+    }
+  };
+
+  const handleQuickAuthorizeDirect = () => {
+    setIsDocAuthorized(true);
+    setIsDocAuthModalOpen(false);
+    setDocAuthError('');
+    triggerToast('🔑 Otorisasi Petugas Berhasil Diberikan!');
+    if (activeDocPreview) {
+      setEditDocDate(activeDocPreview.date);
+      setEditDocDescription(activeDocPreview.description);
+      setIsEditingDocPreview(true);
+    }
+  };
+
+  const handleSaveQuickEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeDocPreview) return;
+    if (!editDocDescription.trim()) {
+      triggerToast('⚠️ Deskripsi pekerjaan tidak boleh kosong.');
+      return;
+    }
+    if (!editDocDate.trim()) {
+      triggerToast('⚠️ Tanggal pengerjaan tidak boleh kosong.');
+      return;
+    }
+
+    setIsDocSaving(true);
+    setTimeout(() => {
+      const nowStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      const updatedItem: DocumentationItem = {
+        ...activeDocPreview,
+        date: editDocDate.trim(),
+        description: editDocDescription.trim(),
+        lastUpdated: `Hari ini pk ${nowStr}`,
+      };
+
+      setDocumentationItems((prev) =>
+        prev.map((item) => (item.id === activeDocPreview.id ? updatedItem : item))
+      );
+      setActiveDocPreview(updatedItem);
+      setIsEditingDocPreview(false);
+      setIsDocSaving(false);
+      triggerToast(`✓ Deskripsi & tanggal dokumentasi #${updatedItem.id} berhasil diperbarui langsung dari modal!`);
+    }, 350);
+  };
+
+  const handleCancelQuickEdit = () => {
+    setIsEditingDocPreview(false);
+  };
+
+  const handleCloseDocPreview = () => {
+    setActiveDocPreview(null);
+    setIsEditingDocPreview(false);
+  };
+
+  // Handler Unduh Invoice PDF & BAST untuk Dokumentasi Pekerjaan
+  const handleDownloadDocInvoicePdf = async (itemToDownload?: DocumentationItem) => {
+    const targetItem = itemToDownload || activeDocPreview;
+    if (!targetItem) return;
+
+    setIsDownloadingDocInvoicePdf(true);
+    try {
+      const doc = generateInvoiceBastPdf(targetItem, {
+        clientCompanyName: docInvoiceClientName.trim() || undefined,
+        poNumber: docInvoicePoNumber.trim() || undefined,
+      });
+      const sanitizedTitle = targetItem.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      const filename = `Invoice_BAST_PT_KGR_DOC_${targetItem.id}_${sanitizedTitle}.pdf`;
+      doc.save(filename);
+      triggerToast(`📄 Salinan Invoice & BAST PDF untuk "${targetItem.title}" berhasil diunduh!`);
+    } catch (error) {
+      console.error('Error generating Invoice BAST PDF:', error);
+      triggerToast('Gagal memproses file Invoice PDF. Silakan coba lagi.');
+    } finally {
+      setIsDownloadingDocInvoicePdf(false);
+    }
+  };
+
+  // Map Hub Interactive Pin & Auto-Centering Handlers
+  const handleSelectMapHub = (idx: number, shouldScroll = false) => {
+    setActiveMapHubIndex(idx);
+    const selectedHub = mapHubs[idx];
+    setMapCenteringNotice(`Peta dipusatkan ke ${selectedHub.name} (Koordinat: ${selectedHub.lat}, ${selectedHub.lng})`);
+    setIsCardHighlighted(true);
+    triggerToast(`📍 Peta dipusatkan ke ${selectedHub.name}! Kartu info diperbarui otomatis.`);
+
+    setTimeout(() => {
+      setMapCenteringNotice(null);
+    }, 4000);
+
+    setTimeout(() => {
+      setIsCardHighlighted(false);
+    }, 1800);
+
+    if (shouldScroll || (typeof window !== 'undefined' && window.innerWidth < 1024)) {
+      setTimeout(() => {
+        hubCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 150);
+    }
+  };
+
+  const handleCopyMapCoords = (coords: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(coords);
+    }
+    setCopiedMapCoords(true);
+    triggerToast(`📋 Koordinat GPS (${coords}) berhasil disalin!`);
+    setTimeout(() => {
+      setCopiedMapCoords(false);
+    }, 2500);
+  };
+
+  const handleCopyHubPhone = (e: React.MouseEvent, phone: string, hubName: string) => {
+    e.stopPropagation();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(phone);
+    }
+    setCopiedHubPhone(phone);
+    triggerToast(`📞 Nomor kontak ${hubName} (${phone}) berhasil disalin!`);
+    setTimeout(() => {
+      setCopiedHubPhone(null);
+    }, 2500);
+  };
+
+  const handleZoomIn = () => {
+    setMapZoom((prev) => Math.min(prev + 1, 16));
+  };
+
+  const handleZoomOut = () => {
+    setMapZoom((prev) => Math.max(prev - 1, 11));
+  };
+
+  // Handler Export Area Map View as PNG for B2B Presentations
+  const handleExportAreaMapPng = async () => {
+    const selectedHub = mapHubs[activeMapHubIndex];
+    setIsExportingMapPng(true);
+    triggerToast(`📸 Sedang merender Peta Area "${selectedHub.name}" format PNG...`);
+
+    try {
+      await downloadAreaMapPng({
+        activeHub: selectedHub,
+        allHubs: mapHubs,
+        companyName: 'PT KUSUMA GEMILANG RAYA',
+        clientTarget: 'Presentasi Internal & Penawaran Kerjasama B2B',
+      });
+      triggerToast(`✅ Peta Area "${selectedHub.name}" berhasil diunduh sebagai gambar PNG!`);
+    } catch (error) {
+      console.error('Failed to export map PNG:', error);
+      triggerToast('Gagal mengekspor gambar peta. Silakan coba kembali.');
+    } finally {
+      setIsExportingMapPng(false);
+    }
+  };
+
   // Blog / Tips Sanitasi Data (SEO-Rich Articles)
   const blogArticles = [
     {
@@ -1069,6 +1680,251 @@ export default function App() {
     return matchCategory && matchSearch;
   });
 
+  // Subtle shake animation trigger when B2B FAQ search keyword yields zero results
+  useEffect(() => {
+    if (b2bFaqSearch.trim() !== '' && filteredB2bFaqItems.length === 0) {
+      setIsB2bFaqShaking(true);
+      setB2bFaqShakeKey((prev) => prev + 1);
+      const timer = setTimeout(() => {
+        setIsB2bFaqShaking(false);
+      }, 450);
+      return () => clearTimeout(timer);
+    } else {
+      setIsB2bFaqShaking(false);
+    }
+  }, [b2bFaqSearch, filteredB2bFaqItems.length]);
+
+  // General & Residential FAQ Categories & Data
+  const generalFaqCategories = [
+    'Semua',
+    'Harga',
+    'Layanan',
+    'Area',
+    'Teknis',
+  ] as const;
+
+  const generalFaqItems: {
+    id: number;
+    category: 'Harga' | 'Layanan' | 'Area' | 'Teknis';
+    question: string;
+    badge?: string;
+    answer: string;
+    keywords: string[];
+    icon: React.ReactNode;
+  }[] = [
+    {
+      id: 1,
+      category: 'Harga',
+      question: 'Berapa harga sedot WC di Bekasi?',
+      badge: 'Harga Transparan',
+      answer: 'Biaya jasa sedot WC di Bekasi disesuaikan dengan volume septic tank (per rit armada engkel / double), jarak selang, dan jenis limbah. Estimasi biaya sedot WC hunian mulai dari Rp 350.000 – Rp 450.000/rit dengan konfirmasi harga pasti di awal tanpa pungutan liar.',
+      keywords: ['harga', 'biaya', 'tarif', 'ongkos', 'berapa', 'sewa', 'rit', 'murah'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: 2,
+      category: 'Harga',
+      question: 'Apakah ada biaya tambahan untuk panjang selang di atas 50 meter?',
+      badge: 'Bebas Biaya Siluman',
+      answer: 'Kami menerapkan transparansi penuh tanpa biaya siluman. Layanan standar sudah mencakup panjang selang gratis hingga 50 meter. Apabila titik septic tank berada di dalam gang sempit berjarak di atas 50 meter dari titik parkir truk tangki, teknisi kami akan menginformasikan rincian biaya selang ekstra di awal sebelum pekerjaan dimulai.',
+      keywords: ['biaya tambahan', 'selang panjang', 'gang sempit', 'transparan', 'biaya siluman', 'tarif jujur', 'ongkos'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: 3,
+      category: 'Harga',
+      question: 'Apakah ada jaminan garansi pengerjaan setelah sedot WC atau pelancaran pipa?',
+      badge: 'Garansi Resmi',
+      answer: 'Ya, seluruh pekerjaan pengurasan septic tank dan pelancaran pipa saluran mampet kami bergaransi resmi. Jika timbul kendala mampet kembali dalam masa garansi tanpa adanya faktor benda asing baru yang masuk, teknisi kami siap melakukan inspeksi dan penanganan ulang secara gratis.',
+      keywords: ['garansi', 'jaminan', 'gratis', 'klaim garansi', 'kompensasi', 'service ulang'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+    },
+    {
+      id: 4,
+      category: 'Layanan',
+      question: 'Apakah bisa sedot septic tank rumah tinggal & gedung komersial?',
+      badge: 'Layanan Utama',
+      answer: 'Tentu saja. Pengurasan septic tank adalah layanan utama kami untuk rumah hunian, perumahan cluster, ruko, perkantoran, sekolah, masjid, hingga fasilitas komersial dan industri berskala besar.',
+      keywords: ['septic tank', 'septictank', 'kuras', 'sedot', 'wc', 'tinja', 'hunian', 'komersial'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      ),
+    },
+    {
+      id: 5,
+      category: 'Layanan',
+      question: 'Apakah melayani saluran pipa mampet tanpa bongkar keramik?',
+      badge: 'Tanpa Bongkar',
+      answer: 'Ya, kami menggunakan mesin mechanical spiral drain cleaner (rooter machine) dan vacuum suction bertekanan tinggi untuk mengurai sumbatan rambut, lemak beku, dan kotoran pipa tanpa merusak lantai keramik.',
+      keywords: ['mampet', 'tersumbat', 'pipa', 'wastafel', 'toilet', 'kloset', 'saluran', 'bongkar', 'rooter'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437" />
+        </svg>
+      ),
+    },
+    {
+      id: 6,
+      category: 'Layanan',
+      question: 'Apakah melayani pengurasan limbah STP, grease trap & lumpur?',
+      badge: 'Izin Resmi DLH',
+      answer: 'Ya, kami melayani penyedotan limbah STP perkantoran/pabrik, penangkap lemak dapur restoran (grease trap), serta endapan lumpur proyek dengan pembuangan legal ke IPLT resmi Sumur Batu Bekasi.',
+      keywords: ['stp', 'limbah', 'hotel', 'ipal', 'restoran', 'b2b', 'gedung', 'grease trap', 'lemak', 'lumpur'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a87.354 87.354 0 01-.713-4.726V9.5a9 9 0 00-.215-2.185L20.25 4.5M3 15V9.5a9 9 0 01.215-2.185L4.5 4.5M21 21v-4a2.4 2.4 0 00-.6-1.6L15.75 10.5M3 3l1.5 1.5M21 3l-1.5 1.5" />
+        </svg>
+      ),
+    },
+    {
+      id: 7,
+      category: 'Layanan',
+      question: 'Apakah layanan darurat tersedia 24 jam non-stop?',
+      badge: '24 Jam Siaga',
+      answer: 'Layanan kami aktif 24 jam penuh setiap hari, termasuk akhir pekan dan hari libur nasional. Dispatcher armada siap merespon panggilan darurat malam hari dengan respon cepat dan tanggap.',
+      keywords: ['24 jam', 'darurat', 'malam', 'libur', 'minggu', 'kapan saja', 'siaga', 'emergency'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: 8,
+      category: 'Layanan',
+      question: 'Bagaimana cara memesan layanan sedot WC PT Kusuma Gemilang Raya?',
+      badge: 'Respon Cepat',
+      answer: 'Cukup hubungi WhatsApp kami di 0896-7506-4916 atau klik tombol pemesanan, sampaikan alamat lengkap dan keluhan Anda, tentukan jadwal kedatangan, dan armada terdekat kami akan segera meluncur.',
+      keywords: ['pesan', 'order', 'booking', 'cara', 'hubungi', 'wa', 'whatsapp'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      ),
+    },
+    {
+      id: 9,
+      category: 'Area',
+      question: 'Apakah melayani seluruh Kota Bekasi dan Kabupaten Bekasi?',
+      badge: 'Cakupan Lengkap',
+      answer: 'Ya, PT Kusuma Gemilang Raya melayani seluruh 12 kecamatan di Kota Bekasi dan 23 kecamatan di Kabupaten Bekasi, termasuk Tambun, Cibitung, Cikarang, Babelan, Mustika Jaya, Pondok Gede, Jatiasih, hingga Tarumajaya.',
+      keywords: ['kota', 'kabupaten', 'wilayah', 'area', 'cakupan', 'bekasi', 'tambun', 'babelan'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+    },
+    {
+      id: 10,
+      category: 'Area',
+      question: 'Apakah melayani area Cikarang dan kawasan industri?',
+      badge: 'Pos Cikarang Siaga',
+      answer: 'Ya, kami memiliki pos operasional di Cikarang yang melayani Cikarang Barat, Timur, Utara, Selatan, Pusat serta seluruh kawasan industri MM2100, Jababeka I-VI, EJIP, GIIC, BIIE Hyundai, dan Delta Silicon.',
+      keywords: ['cikarang', 'industri', 'jababeka', 'ejip', 'mm2100', 'deltamas', 'giic', 'hyundai'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      ),
+    },
+    {
+      id: 11,
+      category: 'Area',
+      question: 'Bagaimana jika lokasi rumah berada di dalam gang sempit pemukiman padat?',
+      badge: 'Armada Gang Sempit',
+      answer: 'Kami mengoperasikan armada tangki engkel compact khusus jalan lingkungan yang sempit serta sambungan selang vakum bertekanan tinggi hingga lebih dari 100-150 meter. Kami dapat melayani pemukiman padat tanpa memblokir jalan.',
+      keywords: ['gang sempit', 'gang kecil', 'padat', 'selang panjang', 'truk engkel', 'akses', 'jalan sempit'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+        </svg>
+      ),
+    },
+    {
+      id: 12,
+      category: 'Teknis',
+      question: 'Berapa lama estimasi durasi proses penyedotan septic tank?',
+      badge: 'Durasi Cepat',
+      answer: 'Penyedotan septic tank standar rumah tangga (volume 2–4 m³) rata-rata memakan waktu 30 hingga 60 menit dengan mesin vakum rotary bertenaga tinggi, tergantung kepadatan lumpur dan jarak selang.',
+      keywords: ['lama', 'waktu', 'durasi', 'berapa lama', 'menit', 'kecepatan', 'proses'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 2h4" />
+        </svg>
+      ),
+    },
+    {
+      id: 13,
+      category: 'Teknis',
+      question: 'Bagaimana prosedur teknis pengerjaan dan standar keselamatan (K3) di lapangan?',
+      badge: 'K3 & SOP Higienis',
+      answer: 'Teknisi kami menerapkan SOP keselamatan dan kebersihan ketat: menggunakan APD lengkap (helm, masker respirator, sarung tangan heavy-duty, dan safety boots). Setelah penyedotan selesai, lubang ditutup rapat kembali dan disemprot disinfektan pembasmi kuman.',
+      keywords: ['k3', 'prosedur', 'keamanan', 'apd', 'disinfektan', 'higienis', 'sop', 'standar'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+    },
+    {
+      id: 14,
+      category: 'Teknis',
+      question: 'Apa perbedaan septic tank penuh dengan kloset mampet biasa?',
+      badge: 'Diagnosa Masalah',
+      answer: 'Septic tank penuh ditandai dengan air kloset meluap atau menyusut sangat lambat secara merata di seluruh kamar mandi rumah serta tercium aroma gas dari pipa ventilasi. Sedangkan sumbatan mekanis biasanya terjadi mendadak di leher angsa satu kloset akibat tisu atau benda asing.',
+      keywords: ['septic tank penuh', 'ventilasi', 'tanda penuh', 'perbedaan', 'diagnosa', 'tersumbat', 'kloset', 'leher angsa'],
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+        </svg>
+      ),
+    },
+  ];
+
+  const filteredGeneralFaqItems = generalFaqItems.filter((item) => {
+    const matchCategory =
+      generalFaqCategory === 'Semua' || item.category === generalFaqCategory;
+    if (!matchCategory) return false;
+    if (generalFaqSearch.trim() === '') return true;
+    const q = generalFaqSearch.toLowerCase().trim();
+    return (
+      item.question.toLowerCase().includes(q) ||
+      item.answer.toLowerCase().includes(q) ||
+      item.keywords.some((k) => k.toLowerCase().includes(q))
+    );
+  });
+
+  // Subtle shake animation trigger when General FAQ search keyword yields zero results
+  useEffect(() => {
+    if (generalFaqSearch.trim() !== '' && filteredGeneralFaqItems.length === 0) {
+      setIsGeneralFaqShaking(true);
+      setGeneralFaqShakeKey((prev) => prev + 1);
+      const timer = setTimeout(() => {
+        setIsGeneralFaqShaking(false);
+      }, 450);
+      return () => clearTimeout(timer);
+    } else {
+      setIsGeneralFaqShaking(false);
+    }
+  }, [generalFaqSearch, generalFaqCategory, filteredGeneralFaqItems.length]);
+
   // Keyboard navigation for lightbox & article modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1104,6 +1960,52 @@ export default function App() {
       chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [chatMessages, isBotTyping, isChatbotOpen]);
+
+  // 10-second Inactivity Detector for Newsletter Subscription Slide-in Popup
+  useEffect(() => {
+    // If dismissed in this session, already open, or already subscribed, skip
+    if (isNewsletterPopupDismissed || isNewsletterSlideInOpen || slideInStatus === 'success') {
+      return;
+    }
+
+    try {
+      if (sessionStorage.getItem('kusuma_newsletter_popup_dismissed') === 'true') {
+        setIsNewsletterPopupDismissed(true);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    let inactivityTimer: NodeJS.Timeout | null = null;
+
+    const resetInactivityTimer = () => {
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+      }
+      inactivityTimer = setTimeout(() => {
+        setIsNewsletterSlideInOpen(true);
+      }, 10000); // 10 seconds of inactivity
+    };
+
+    // Listen to user interactions to detect activity and reset timer
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach((evt) => {
+      window.addEventListener(evt, resetInactivityTimer, { passive: true });
+    });
+
+    // Start 10-second timer
+    resetInactivityTimer();
+
+    return () => {
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+      }
+      activityEvents.forEach((evt) => {
+        window.removeEventListener(evt, resetInactivityTimer);
+      });
+    };
+  }, [isNewsletterPopupDismissed, isNewsletterSlideInOpen, slideInStatus]);
 
   // Chatbot FAQ Response Logic
   const getFaqBotResponse = (query: string) => {
@@ -1404,6 +2306,74 @@ export default function App() {
       }
       triggerToast(`Email ${cleanEmail} berhasil didaftarkan dan data ringkasan statistik terupdate!`);
     }, 500);
+  };
+
+  const handleSlideInNewsletterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = slideInEmail.trim();
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      setSlideInStatus('error');
+      setSlideInMsg('Mohon masukkan alamat email yang valid.');
+      return;
+    }
+
+    setSlideInStatus('loading');
+    setTimeout(() => {
+      setSlideInStatus('success');
+      setSlideInMsg(`Terima kasih! Panduan sanitasi & tips perawatan telah kami kirimkan ke ${cleanEmail}.`);
+
+      const newSubscriber: SubscriberRecord = {
+        id: 'sub-' + Date.now(),
+        email: cleanEmail,
+        name: slideInName.trim() || 'Pembaca Tips Sanitasi',
+        company: slideInInterest === 'komersial' ? (slideInName.trim() || 'Perusahaan Mitra B2B') : 'Residensial Bekasi',
+        interest: slideInInterest,
+        date: new Date().toISOString(),
+        formattedDate: 'Baru saja',
+        status: 'Terkonfirmasi',
+        source: 'Popup Tips Sanitasi (Inactivity 10s)',
+      };
+
+      setSubscribersList((prev) => {
+        const nextList = [newSubscriber, ...prev];
+        try {
+          localStorage.setItem('kusuma_subscribers_extended', JSON.stringify(nextList));
+        } catch {
+          // ignore
+        }
+        return nextList;
+      });
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('kusuma_subscribers') || '[]');
+        stored.push({
+          email: cleanEmail,
+          name: slideInName.trim(),
+          interest: slideInInterest,
+          date: new Date().toISOString(),
+        });
+        localStorage.setItem('kusuma_subscribers', JSON.stringify(stored));
+        sessionStorage.setItem('kusuma_newsletter_popup_dismissed', 'true');
+      } catch {
+        // ignore
+      }
+
+      triggerToast(`🎉 Selamat datang! Email ${cleanEmail} telah terdaftar untuk tips sanitasi berkala.`);
+
+      setTimeout(() => {
+        setIsNewsletterSlideInOpen(false);
+      }, 4500);
+    }, 500);
+  };
+
+  const handleDismissSlideInPopup = () => {
+    setIsNewsletterSlideInOpen(false);
+    setIsNewsletterPopupDismissed(true);
+    try {
+      sessionStorage.setItem('kusuma_newsletter_popup_dismissed', 'true');
+    } catch {
+      // ignore
+    }
   };
 
   const handleExportSubscribersCsv = () => {
@@ -1846,6 +2816,7 @@ export default function App() {
               <li><a href="#spesialis" className="text-sm font-medium text-navy hover:text-cyan transition">Sektor Industri</a></li>
               <li><a href="#peta" className="text-sm font-medium text-navy hover:text-cyan transition">Kawasan & Pool</a></li>
               <li><a href="#legalitas" className="text-sm font-medium text-navy hover:text-cyan transition">Legalitas & IPLT</a></li>
+              <li><a href="#legalitas-seo" className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition">Tabel NIB & SEO</a></li>
               <li><a href="#sertifikasi" className="text-sm font-medium text-navy hover:text-cyan transition">Sertifikasi & Mitra</a></li>
               <li><a href="#faq-b2b" className="text-sm font-medium text-navy hover:text-cyan transition">FAQ B2B</a></li>
               <li><a href="#statistik-newsletter" className="text-sm font-medium text-navy hover:text-cyan transition">Statistik</a></li>
@@ -1855,10 +2826,30 @@ export default function App() {
             </ul>
 
             {/* Desktop CTA */}
-            <div className="hidden lg:flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2.5 xl:gap-3">
+              {/* Floating Quick Quote Button for B2B RFP Lead Generation */}
+              <button
+                type="button"
+                onClick={handleLaunchQuickQuote}
+                className="group relative inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange via-amber-500 to-orange text-white text-xs font-bold rounded-full hover:from-orange-dark hover:to-orange shadow-md hover:shadow-lg shadow-orange/30 border border-amber-300/50 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer overflow-hidden animate-pulse hover:animate-none"
+                title="Buka Formulir Permintaan Penawaran Resmi PT (RFP B2B)"
+              >
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="text-sm">⚡</span>
+                  <span className="tracking-wide">Quick Quote</span>
+                </span>
+                <span className="hidden xl:inline-block px-1.5 py-0.5 rounded-full text-[9px] font-black bg-white/25 text-white uppercase tracking-wider">
+                  RFP B2B
+                </span>
+              </button>
+
               <a
                 href="#quotation"
-                className="inline-flex items-center px-4 py-2 bg-navy text-white text-xs font-bold rounded-full hover:bg-navy-light transition shadow-sm border border-cyan/30"
+                className="inline-flex items-center px-3.5 py-2 bg-navy text-white text-xs font-bold rounded-full hover:bg-navy-light transition shadow-sm border border-cyan/30"
               >
                 Minta Quotation
               </a>
@@ -1867,23 +2858,35 @@ export default function App() {
                 href={getDynamicWaLink()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center px-4 py-2 bg-orange text-white text-xs font-bold rounded-full hover:bg-orange-dark transition shadow-md"
+                className="inline-flex items-center px-3.5 py-2 bg-orange text-white text-xs font-bold rounded-full hover:bg-orange-dark transition shadow-md"
               >
                 WhatsApp 24 Jam
               </a>
             </div>
 
-            {/* Mobile Menu Button */}
-            <button
-              id="menu-btn"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-navy focus:outline-none"
-              aria-label="Buka Menu"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+            {/* Mobile Actions: Quick Quote Button + Hamburger Menu Button */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <button
+                type="button"
+                onClick={handleLaunchQuickQuote}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-orange to-amber-500 text-white shadow-sm border border-amber-300/50 cursor-pointer active:scale-95 transition"
+                aria-label="Quick Quote RFP B2B"
+              >
+                <span>⚡</span>
+                <span>Quick Quote</span>
+              </button>
+
+              <button
+                id="menu-btn"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 text-navy focus:outline-none"
+                aria-label="Buka Menu"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
           </div>
         </nav>
 
@@ -1891,11 +2894,30 @@ export default function App() {
         {mobileMenuOpen && (
           <div id="mobile-menu" className="lg:hidden bg-white border-t border-gray-100 shadow-md">
             <ul className="flex flex-col px-4 py-4 space-y-3">
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleLaunchQuickQuote();
+                  }}
+                  className="w-full text-left py-2.5 px-3.5 rounded-xl bg-orange/10 border border-orange/30 text-orange font-bold flex items-center justify-between cursor-pointer"
+                >
+                  <span className="flex items-center gap-2 text-sm">
+                    <span>⚡</span>
+                    <span>Quick Quote (RFP B2B Perusahaan)</span>
+                  </span>
+                  <span className="text-[11px] bg-orange text-white px-2 py-0.5 rounded-full font-semibold">
+                    Buka
+                  </span>
+                </button>
+              </li>
               <li><a href="#hero" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Beranda</a></li>
               <li><a href="#layanan" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Layanan Korporat</a></li>
               <li><a href="#spesialis" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Sektor Industri</a></li>
               <li><a href="#peta" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Kawasan & Pool</a></li>
               <li><a href="#legalitas" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Legalitas & IPLT</a></li>
+              <li><a href="#legalitas-seo" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-semibold text-emerald-600">Legalitas & SEO Metadata</a></li>
               <li><a href="#sertifikasi" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Sertifikasi & Kemitraan</a></li>
               <li><a href="#faq-b2b" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-semibold text-cyan-dark">FAQ B2B & Korporat</a></li>
               <li><a href="#statistik-newsletter" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Statistik Newsletter</a></li>
@@ -2446,89 +3468,507 @@ export default function App() {
               {mapHubs.map((hub, idx) => (
                 <button
                   key={hub.id}
-                  onClick={() => setActiveMapHubIndex(idx)}
+                  onClick={() => handleSelectMapHub(idx, false)}
+                  onMouseEnter={() => setHoveredMapHubIndex(idx)}
+                  onMouseLeave={() => setHoveredMapHubIndex(null)}
                   className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
                     activeMapHubIndex === idx
-                      ? 'bg-navy text-white shadow-lg scale-105 border border-cyan/40'
+                      ? 'bg-navy text-white shadow-lg scale-105 border border-cyan/40 ring-2 ring-cyan/50'
                       : 'bg-slate-100 text-gray-700 hover:bg-slate-200 border border-gray-200'
                   }`}
+                  aria-label={`Pilih hub ${hub.name}`}
+                  title={`${hub.name} • Kontak: ${hub.phone}`}
                 >
                   <span className={`w-2.5 h-2.5 rounded-full ${activeMapHubIndex === idx ? 'bg-cyan animate-pulse' : 'bg-gray-400'}`}></span>
                   <span>{hub.name}</span>
                 </button>
               ))}
             </div>
+            <p className="text-xs text-gray-500 mt-3 flex items-center justify-center gap-1.5 flex-wrap">
+              <span>💡</span>
+              <span>Arahkan kursor (<strong>hover</strong>) pada pin peta untuk melihat nama dan nomor kontak pos secara instan, atau klik untuk memusatkan peta.</span>
+            </p>
           </div>
 
           <div className="grid lg:grid-cols-12 gap-8 items-stretch">
-            {/* Google Maps Embed iframe Container */}
+            {/* Google Maps Embed iframe Container with Interactive Pins Overlay */}
             <div className="lg:col-span-7 xl:col-span-8 flex flex-col">
-              <div className="relative rounded-3xl overflow-hidden shadow-xl border border-gray-200 bg-slate-100 h-full min-h-[420px] md:min-h-[500px]">
-                {/* Live Status Overlay Header */}
-                <div className="absolute top-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-                  <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-navy/90 backdrop-blur-md text-white border border-white/20 shadow-md flex items-center gap-2 pointer-events-auto">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                    Armada Siap Berangkat (24 Jam)
-                  </span>
-                  <a
-                    href={mapHubs[activeMapHubIndex].mapsDirectUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/95 hover:bg-white text-navy shadow-md border border-gray-200 transition pointer-events-auto flex items-center gap-1.5"
-                  >
-                    <span>Buka di Google Maps</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
+              <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-gray-200 bg-slate-900 h-full min-h-[460px] md:min-h-[540px]">
+                {/* Live Status & Controls Overlay Header */}
+                <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+                  <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
+                    <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-navy/90 backdrop-blur-md text-white border border-white/20 shadow-md flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                      Armada Siap Berangkat (24 Jam)
+                    </span>
+                    {mapCenteringNotice && (
+                      <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-lg border border-emerald-400/50 flex items-center gap-1.5 animate-fadeIn">
+                        <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                        <span className="truncate max-w-[200px] sm:max-w-xs">{mapCenteringNotice}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 pointer-events-auto">
+                    {/* Mode Toggle: Interactive Pin Overlay vs Free Google Maps Pan */}
+                    <button
+                      type="button"
+                      onClick={() => setIsPinInteractiveMode(!isPinInteractiveMode)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md transition flex items-center gap-1.5 border ${
+                        isPinInteractiveMode
+                          ? 'bg-cyan text-navy border-cyan-light'
+                          : 'bg-white/95 text-gray-700 hover:bg-white border-gray-200'
+                      }`}
+                      title="Klik untuk beralih mode pin atau interaksi bebas peta"
+                    >
+                      <span>{isPinInteractiveMode ? '📍 Mode Pin Aktif' : '🌐 Mode Peta Bebas'}</span>
+                    </button>
+
+                    {/* Zoom In & Out Controls */}
+                    <div className="flex items-center bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-200 overflow-hidden text-navy">
+                      <button
+                        type="button"
+                        onClick={handleZoomIn}
+                        className="px-2.5 py-1 text-xs font-bold hover:bg-gray-100 transition border-r border-gray-200"
+                        title="Perbesar Peta (Zoom In)"
+                        aria-label="Perbesar Peta"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleZoomOut}
+                        className="px-2.5 py-1 text-xs font-bold hover:bg-gray-100 transition"
+                        title="Perkecil Peta (Zoom Out)"
+                        aria-label="Perkecil Peta"
+                      >
+                        −
+                      </button>
+                    </div>
+
+                    {/* Save Area Map PNG Button for B2B Presentations */}
+                    <button
+                      type="button"
+                      onClick={handleExportAreaMapPng}
+                      disabled={isExportingMapPng}
+                      className="px-3 py-1.5 rounded-full text-xs font-bold bg-navy text-cyan hover:bg-navy/90 hover:text-cyan-light shadow-md border border-cyan/40 transition flex items-center gap-1.5 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                      title="Unduh Peta Area terpilih sebagai gambar PNG untuk materi presentasi B2B"
+                    >
+                      {isExportingMapPng ? (
+                        <>
+                          <span className="w-2.5 h-2.5 rounded-full border-2 border-cyan border-t-transparent animate-spin" />
+                          <span>Menyimpan...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>📸</span>
+                          <span>Save Area Map</span>
+                        </>
+                      )}
+                    </button>
+
+                    <a
+                      href={mapHubs[activeMapHubIndex].mapsDirectUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/95 hover:bg-white text-navy shadow-md border border-gray-200 transition flex items-center gap-1"
+                      title="Buka langsung di aplikasi Google Maps"
+                    >
+                      <span className="hidden sm:inline">Google Maps</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  </div>
                 </div>
 
                 {/* Google Maps Iframe */}
                 <iframe
                   title={`Peta Lokasi ${mapHubs[activeMapHubIndex].name}`}
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(mapHubs[activeMapHubIndex].mapQuery)}&t=&z=13&ie=UTF8&iwloc=&output=embed`}
-                  className="w-full h-full min-h-[420px] md:min-h-[500px] border-0"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(mapHubs[activeMapHubIndex].mapQuery)}&t=&z=${mapZoom}&ie=UTF8&iwloc=&output=embed`}
+                  className="w-full h-full min-h-[460px] md:min-h-[540px] border-0"
                   loading="lazy"
                   allowFullScreen
                 ></iframe>
 
+                {/* Interactive Hub Pins Overlay (Active when isPinInteractiveMode is ON) */}
+                {isPinInteractiveMode && (
+                  <div className="absolute inset-0 pointer-events-none z-20">
+                    {/* Route Corridor Network Vector Lines connecting hubs */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-60" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <path
+                        d="M 22 38 Q 36 43, 50 48 T 78 64"
+                        fill="none"
+                        stroke="#06b6d4"
+                        strokeWidth="0.7"
+                        strokeDasharray="2,2"
+                        className="animate-pulse"
+                      />
+                    </svg>
+
+                    {/* Interactive Clickable Pins with Hover Tooltip / Popover */}
+                    {mapHubs.map((hub, idx) => {
+                      const isActive = activeMapHubIndex === idx;
+                      const isHovered = hoveredMapHubIndex === idx;
+
+                      // Popover alignment class so it stays neatly within the map viewport
+                      const popoverAlignClass =
+                        idx === 1
+                          ? 'right-[-20px] sm:right-auto sm:left-1/2 sm:-translate-x-3/4'
+                          : idx === 0
+                          ? 'left-[-20px] sm:left-1/2 sm:-translate-x-1/4'
+                          : 'left-1/2 -translate-x-1/2';
+
+                      const popoverArrowClass =
+                        idx === 1
+                          ? 'right-8 sm:left-3/4 sm:-translate-x-1/2'
+                          : idx === 0
+                          ? 'left-8 sm:left-1/4 sm:-translate-x-1/2'
+                          : 'left-1/2 -translate-x-1/2';
+
+                      return (
+                        <div
+                          key={hub.id}
+                          style={{
+                            left: hub.pinPos?.left || '50%',
+                            top: hub.pinPos?.top || '50%',
+                          }}
+                          className={`absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-transform ${
+                            isHovered ? 'z-50' : isActive ? 'z-40' : 'z-30'
+                          }`}
+                          onMouseEnter={() => setHoveredMapHubIndex(idx)}
+                          onMouseLeave={() => setHoveredMapHubIndex(null)}
+                        >
+                          {/* Centering radar waves for active hub */}
+                          {isActive && (
+                            <>
+                              <span className="absolute -inset-3.5 rounded-full bg-cyan/30 animate-ping pointer-events-none" />
+                              <span className="absolute -inset-7 rounded-full border-2 border-cyan/50 animate-pulse pointer-events-none" />
+                            </>
+                          )}
+
+                          {/* Pin Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleSelectMapHub(idx, true)}
+                            onFocus={() => setHoveredMapHubIndex(idx)}
+                            onBlur={() => setHoveredMapHubIndex(null)}
+                            className={`group relative flex items-center gap-1.5 p-1.5 sm:p-2 rounded-2xl shadow-xl transition-all duration-300 transform active:scale-95 cursor-pointer ${
+                              isActive
+                                ? 'bg-navy text-white ring-4 ring-cyan shadow-cyan/60 scale-110 -translate-y-1'
+                                : 'bg-white/95 text-navy hover:bg-white hover:scale-105 border-2 border-navy/20 hover:border-cyan shadow-md'
+                            }`}
+                            aria-label={`Pusatkan peta ke ${hub.name}. Kontak: ${hub.phone}`}
+                            title={`${hub.name} • Kontak: ${hub.phone} (Arahkan kursor untuk info cepat)`}
+                          >
+                            {/* Pin icon container */}
+                            <div
+                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center font-bold text-sm sm:text-base shadow-sm ${
+                                isActive ? 'bg-cyan text-navy' : 'bg-slate-100 text-navy group-hover:bg-cyan/20'
+                              }`}
+                            >
+                              {hub.pinIcon}
+                            </div>
+
+                            <div className="text-left pr-1 hidden xs:block sm:block">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] sm:text-xs font-black tracking-tight leading-tight">
+                                  {hub.shortName || hub.name}
+                                </span>
+                                {isActive && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-ping" />
+                                )}
+                              </div>
+                              <p className={`text-[9px] sm:text-[10px] leading-tight ${isActive ? 'text-cyan-200 font-semibold' : 'text-gray-500'}`}>
+                                ⚡ {hub.response} • {hub.armadaCount.split(' ')[0]} Armada
+                              </p>
+                            </div>
+
+                            {/* Downward pin triangle point */}
+                            <div
+                              className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] transition-colors ${
+                                isActive ? 'border-t-navy' : 'border-t-white/95 group-hover:border-t-cyan'
+                              }`}
+                            />
+                          </button>
+
+                          {/* Rich Discoverability Tooltip / Popover on Hover */}
+                          {isHovered && (
+                            <div
+                              className={`absolute bottom-full mb-3.5 ${popoverAlignClass} w-64 sm:w-72 p-3 bg-navy/95 backdrop-blur-md text-white rounded-2xl border-2 border-cyan/60 shadow-2xl z-50 pointer-events-auto text-left animate-fadeIn`}
+                              role="tooltip"
+                              onMouseEnter={() => setHoveredMapHubIndex(idx)}
+                              onMouseLeave={() => setHoveredMapHubIndex(null)}
+                            >
+                              {/* Header & Badges */}
+                              <div className="flex items-center justify-between text-[10px] font-bold mb-1.5 gap-1">
+                                <span className="px-2 py-0.5 rounded-full bg-cyan/20 text-cyan text-[9px] font-black tracking-wide truncate">
+                                  {hub.badge}
+                                </span>
+                                <span className="flex items-center gap-1 text-[9px] text-emerald-400 font-bold shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  Online 24 Jam
+                                </span>
+                              </div>
+
+                              {/* Hub Name */}
+                              <h4 className="text-xs sm:text-sm font-extrabold text-white leading-tight mb-0.5">
+                                {hub.name}
+                              </h4>
+
+                              <p className="text-[10px] text-gray-300 leading-tight mb-2 truncate">
+                                📍 {hub.address}
+                              </p>
+
+                              {/* Contact Number Popover Highlight Box */}
+                              <div className="bg-white/10 rounded-xl p-2 mb-2 border border-white/15 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="w-6 h-6 rounded-lg bg-cyan/20 text-cyan flex items-center justify-center text-xs shrink-0">
+                                    📞
+                                  </span>
+                                  <div className="min-w-0">
+                                    <span className="block text-[8px] uppercase tracking-wider text-cyan-200 font-bold leading-none mb-0.5">
+                                      Kontak Langsung Pos
+                                    </span>
+                                    <span className="text-xs font-mono font-black text-white truncate block leading-none">
+                                      {hub.phone || '+62 896-7506-4916'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleCopyHubPhone(e, hub.phone || '+62 896-7506-4916', hub.name)}
+                                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/20 hover:bg-white/30 text-white transition shrink-0 active:scale-95"
+                                  title="Salin nomor kontak pos ini"
+                                >
+                                  {copiedHubPhone === (hub.phone || '+62 896-7506-4916') ? '✓ Tersalin' : 'Salin'}
+                                </button>
+                              </div>
+
+                              {/* Quick Action Contact Links */}
+                              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                                <a
+                                  href={`tel:${(hub.phoneRaw || '+6289675064916')}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="px-2 py-1.5 rounded-lg text-[10px] font-bold bg-cyan text-navy hover:bg-cyan/90 transition text-center flex items-center justify-center gap-1 shadow-sm active:scale-95"
+                                  title={`Panggil langsung pos ${hub.name}`}
+                                >
+                                  <span>📞</span>
+                                  <span>Telepon</span>
+                                </a>
+                                <a
+                                  href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Halo PT Kusuma Gemilang Raya, saya melihat Peta Lokasi titik "${hub.name}" (Kontak: ${hub.phone}). Mohon info ketersediaan armada.`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="px-2 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition text-center flex items-center justify-center gap-1 shadow-sm active:scale-95"
+                                  title="Kirim pesan WhatsApp ke dispatcher"
+                                >
+                                  <span>💬</span>
+                                  <span>WhatsApp</span>
+                                </a>
+                              </div>
+
+                              {/* Response time and Fleet info */}
+                              <div className="text-[10px] text-gray-300 flex items-center justify-between pt-1 border-t border-white/10">
+                                <span>⚡ Respon: <strong className="text-orange">{hub.response}</strong></span>
+                                <span className="font-semibold text-gray-200">🚛 {hub.armadaCount.split(' ')[0]} Armada</span>
+                              </div>
+
+                              {/* Click prompt or Active status */}
+                              <div className="mt-1.5 pt-1 text-[9px] text-center border-t border-white/10 font-medium">
+                                {isActive ? (
+                                  <span className="text-cyan font-bold">✓ Pos ini sedang menjadi pusat peta aktif</span>
+                                ) : (
+                                  <span className="text-gray-300">💡 Klik pin untuk memusatkan peta ke lokasi ini</span>
+                                )}
+                              </div>
+
+                              {/* Caret pointing to pin */}
+                              <div
+                                className={`absolute -bottom-2 ${popoverArrowClass} w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-navy/95`}
+                              />
+                            </div>
+                          )}
+
+                          {/* Default Floating Detail Badge anchored to active pin when NOT hovered */}
+                          {!isHovered && isActive && (
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3.5 w-48 sm:w-56 p-2.5 bg-navy/95 backdrop-blur-md text-white rounded-2xl border border-cyan/40 shadow-2xl pointer-events-none text-center animate-fadeIn">
+                              <div className="flex items-center justify-between text-[10px] font-bold text-cyan mb-1">
+                                <span className="flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-ping"></span>
+                                  PUSAT PETA AKTIF
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded bg-cyan/20 text-cyan text-[9px] font-black">TERPILIH</span>
+                              </div>
+                              <p className="text-xs font-extrabold text-white truncate">{hub.name}</p>
+                              <p className="text-[10px] text-cyan-200 font-mono mt-0.5 font-bold">
+                                📞 {hub.phone || '+62 896-7506-4916'}
+                              </p>
+                              <p className="text-[9px] text-gray-300 mt-0.5">
+                                Respon: <strong className="text-orange">{hub.response}</strong> • {hub.armadaCount}
+                              </p>
+                              <p className="text-[8px] text-gray-400 mt-1">
+                                (Arahkan kursor / hover untuk info lengkap)
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Floating Quick Pin Dock inside Map Viewport */}
+                <div className="absolute bottom-16 left-3.5 right-3.5 z-20 pointer-events-none">
+                  <div className="bg-navy/85 backdrop-blur-md border border-white/10 rounded-2xl p-2 sm:p-2.5 shadow-xl flex flex-wrap items-center justify-between gap-2 pointer-events-auto">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] sm:text-xs font-bold text-cyan flex items-center gap-1">
+                        <span>📍</span>
+                        <span className="hidden xs:inline">Pusatkan Peta:</span>
+                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {mapHubs.map((hub, idx) => (
+                          <button
+                            key={hub.id}
+                            type="button"
+                            onClick={() => handleSelectMapHub(idx, true)}
+                            onMouseEnter={() => setHoveredMapHubIndex(idx)}
+                            onMouseLeave={() => setHoveredMapHubIndex(null)}
+                            className={`px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition flex items-center gap-1 ${
+                              activeMapHubIndex === idx
+                                ? 'bg-cyan text-navy shadow-md font-black scale-105'
+                                : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                            }`}
+                            title={`Pusatkan ke ${hub.name} • Kontak: ${hub.phone}`}
+                          >
+                            <span>{hub.pinIcon}</span>
+                            <span>{hub.shortName?.split(' ')[0] || hub.name.split(' ')[0]} {hub.shortName?.split(' ')[1] || ''}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] text-gray-300 hidden md:inline-block">
+                      {isPinInteractiveMode ? '🎯 Klik pin di peta untuk pusatkan' : '⚠️ Mode peta bebas aktif'}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Bottom Coordinates Bar */}
-                <div className="absolute bottom-4 left-4 right-4 z-10 pointer-events-none">
-                  <div className="bg-navy/90 backdrop-blur-md text-white p-3.5 rounded-2xl border border-white/10 shadow-lg flex items-center justify-between text-xs pointer-events-auto">
+                <div className="absolute bottom-3.5 left-3.5 right-3.5 z-20 pointer-events-none">
+                  <div className="bg-navy/95 backdrop-blur-md text-white p-3 rounded-2xl border border-white/10 shadow-lg flex items-center justify-between text-xs pointer-events-auto">
                     <div className="flex items-center gap-2 truncate">
                       <span className="text-orange font-bold">📍 Pusat Koordinat:</span>
-                      <span className="text-gray-200 font-mono">{mapHubs[activeMapHubIndex].lat}, {mapHubs[activeMapHubIndex].lng}</span>
+                      <span className="text-gray-200 font-mono font-medium">{mapHubs[activeMapHubIndex].lat}, {mapHubs[activeMapHubIndex].lng}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMapCoords(`${mapHubs[activeMapHubIndex].lat}, ${mapHubs[activeMapHubIndex].lng}`)}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-cyan transition ml-1"
+                        title="Salin Koordinat GPS"
+                      >
+                        {copiedMapCoords ? '✓ Tersalin' : 'Salin GPS'}
+                      </button>
                     </div>
-                    <span className="text-cyan font-semibold hidden sm:inline-block">Radius Pelayanan 50+ KM</span>
+                    <span className="text-cyan font-semibold hidden sm:inline-block">Radius Pelayanan 50+ KM (Kota & Kab. Bekasi)</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Detail Information Card */}
+            {/* Reactive Detail Information Card (Auto-Updated on Hub Pin Click) */}
             <div className="lg:col-span-5 xl:col-span-4 flex flex-col justify-between space-y-6">
-              <div className="bg-slate-50 p-6 md:p-8 rounded-3xl border border-gray-100 shadow-sm flex-1 flex flex-col justify-between">
+              <div
+                ref={hubCardRef}
+                id="hub-info-card"
+                className={`p-6 md:p-8 rounded-3xl border transition-all duration-500 flex-1 flex flex-col justify-between ${
+                  isCardHighlighted
+                    ? 'bg-cyan/5 border-cyan ring-4 ring-cyan/40 shadow-2xl scale-[1.01]'
+                    : 'bg-slate-50 border-gray-100 shadow-sm'
+                }`}
+              >
                 <div>
+                  {/* Card Status & Live Dispatcher Banner */}
                   <div className="flex items-center justify-between mb-4">
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange/10 text-orange border border-orange/20">
                       {mapHubs[activeMapHubIndex].badge}
                     </span>
                     <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                       Online Dispatcher
                     </span>
+                  </div>
+
+                  {/* Auto-update indication badge */}
+                  <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold text-cyan-dark bg-cyan/10 px-3 py-1 rounded-xl border border-cyan/20">
+                    <span className="w-2 h-2 rounded-full bg-cyan animate-ping"></span>
+                    <span>✓ Peta Sedang Terpusat di Titik Ini</span>
                   </div>
 
                   <h3 className="text-xl font-extrabold text-navy mb-2">
                     {mapHubs[activeMapHubIndex].name}
                   </h3>
-                  <p className="text-xs text-gray-500 mb-6 flex items-start gap-1.5">
+                  <p className="text-xs text-gray-500 mb-4 flex items-start gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     <span>{mapHubs[activeMapHubIndex].address}</span>
                   </p>
+
+                  {/* Hub Direct Contact Banner */}
+                  <div className="mb-4 p-3 rounded-2xl bg-gradient-to-r from-navy via-slate-900 to-navy text-white border border-cyan/40 shadow-md flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-cyan/20 border border-cyan/40 text-cyan flex items-center justify-center text-sm shrink-0">
+                        📞
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-[10px] uppercase tracking-wider text-cyan-200 font-bold">
+                          {mapHubs[activeMapHubIndex].hotlineLabel || 'Kontak Dispatcher Pos'}:
+                        </span>
+                        <span className="text-sm font-mono font-black text-white tracking-tight truncate block">
+                          {mapHubs[activeMapHubIndex].phone || '+62 896-7506-4916'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyHubPhone(e, mapHubs[activeMapHubIndex].phone || '+62 896-7506-4916', mapHubs[activeMapHubIndex].name)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white/15 hover:bg-white/25 text-white transition active:scale-95"
+                        title="Salin Nomor Kontak Pos Ini"
+                      >
+                        {copiedHubPhone === (mapHubs[activeMapHubIndex].phone || '+62 896-7506-4916') ? '✓ Tersalin' : 'Salin'}
+                      </button>
+                      <a
+                        href={`tel:${mapHubs[activeMapHubIndex].phoneRaw || '+6289675064916'}`}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan text-navy hover:bg-cyan/90 transition shadow-sm font-extrabold flex items-center gap-1"
+                        title="Telepon Pos Sekarang"
+                      >
+                        <span>Hubungi</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* GPS & Area Tag */}
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-white border border-gray-200 text-gray-600 flex items-center gap-1">
+                      <span>📍</span>
+                      <span>{mapHubs[activeMapHubIndex].lat}, {mapHubs[activeMapHubIndex].lng}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyMapCoords(`${mapHubs[activeMapHubIndex].lat}, ${mapHubs[activeMapHubIndex].lng}`)}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-200 hover:bg-slate-300 text-navy transition"
+                    >
+                      {copiedMapCoords ? '✓ Tersalin!' : 'Salin Koordinat'}
+                    </button>
+                    {mapHubs[activeMapHubIndex].highlightArea && (
+                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                        {mapHubs[activeMapHubIndex].highlightArea}
+                      </span>
+                    )}
+                  </div>
 
                   <div className="space-y-4 pt-4 border-t border-gray-200 text-sm">
                     <div>
@@ -2554,21 +3994,75 @@ export default function App() {
 
                     <div>
                       <span className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Cakupan Wilayah Terdekat:</span>
-                      <p className="text-xs text-gray-600 leading-relaxed bg-white p-3 rounded-xl border border-gray-100">
+                      <p className="text-xs text-gray-600 leading-relaxed bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
                         {mapHubs[activeMapHubIndex].coverage}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-gray-200">
+                {/* Hub Navigation and WhatsApp CTA */}
+                <div className="pt-6 mt-6 border-t border-gray-200 space-y-3">
+                  {/* Previous / Next Hub Navigator Buttons */}
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMapHub((activeMapHubIndex - 1 + mapHubs.length) % mapHubs.length, true)}
+                      className="px-3 py-2 text-xs font-bold text-gray-600 bg-white hover:bg-slate-100 rounded-xl border border-gray-200 transition flex items-center gap-1"
+                      title="Lihat titik hub sebelumnya"
+                    >
+                      <span>←</span>
+                      <span>Pos Sebelumnya</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMapHub(activeMapHubIndex, true)}
+                      className="px-3 py-2 text-xs font-bold text-navy bg-cyan/15 hover:bg-cyan/25 rounded-xl border border-cyan/30 transition flex items-center gap-1"
+                      title="Pusatkan ulang peta ke titik ini"
+                    >
+                      <span>📍</span>
+                      <span>Pusatkan Ulang</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMapHub((activeMapHubIndex + 1) % mapHubs.length, true)}
+                      className="px-3 py-2 text-xs font-bold text-gray-600 bg-white hover:bg-slate-100 rounded-xl border border-gray-200 transition flex items-center gap-1"
+                      title="Lihat titik hub berikutnya"
+                    >
+                      <span>Pos Berikutnya</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+
+                  {/* Save Area Map PNG for B2B Presentation */}
+                  <button
+                    type="button"
+                    onClick={handleExportAreaMapPng}
+                    disabled={isExportingMapPng}
+                    className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-navy hover:bg-navy/90 text-white text-xs font-bold rounded-xl border border-cyan/40 hover:border-cyan transition shadow-md text-center gap-2 active:scale-98 disabled:opacity-60 disabled:cursor-not-allowed"
+                    title="Unduh visual peta area hub ini dalam format PNG resolusi tinggi untuk slide presentasi B2B"
+                  >
+                    {isExportingMapPng ? (
+                      <>
+                        <span className="w-3.5 h-3.5 rounded-full border-2 border-cyan border-t-transparent animate-spin" />
+                        <span>Menyiapkan Gambar PNG Peta...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>📸</span>
+                        <span>Save Area Map (Export PNG B2B)</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-cyan/20 text-cyan font-mono">16:9 HD</span>
+                      </>
+                    )}
+                  </button>
+
                   <a
                     href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Halo PT Kusuma Gemilang Raya, saya melihat Peta Lokasi titik "${mapHubs[activeMapHubIndex].name}". Apakah bisa kirim armada sedot WC ke lokasi saya sekarang?`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full inline-flex items-center justify-center px-6 py-3.5 bg-orange text-white text-sm font-bold rounded-xl hover:bg-orange-dark transition shadow-lg shadow-orange/30 text-center gap-2"
                   >
-                    <span>Panggil Armada Terdekat</span>
+                    <span>Panggil Armada Terdekat ({mapHubs[activeMapHubIndex].shortName || mapHubs[activeMapHubIndex].name})</span>
                     <span>→</span>
                   </a>
                 </div>
@@ -2709,7 +4203,14 @@ export default function App() {
 
             {/* Right Column: RFP Quotation Form Card */}
             <div className="lg:col-span-7">
-              <div className="bg-white text-navy p-6 sm:p-10 rounded-3xl shadow-2xl border border-white/20">
+              <div
+                id="b2b-rfp-form-card"
+                className={`bg-white text-navy p-6 sm:p-10 rounded-3xl shadow-2xl border transition-all duration-500 ${
+                  isRfpHighlighted
+                    ? 'ring-4 ring-orange border-orange shadow-orange/40 scale-[1.01]'
+                    : 'border-white/20'
+                }`}
+              >
                 {rfpStatus === 'success' ? (
                   <div className="text-center py-6 space-y-4">
                     <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold">
@@ -2783,12 +4284,17 @@ export default function App() {
                           Nama PT / CV / Perusahaan <span className="text-orange">*</span>
                         </label>
                         <input
+                          ref={rfpCompanyInputRef}
                           type="text"
                           required
                           value={rfpCompanyName}
                           onChange={(e) => setRfpCompanyName(e.target.value)}
                           placeholder="Contoh: PT Surya Manufaktur Indonesia"
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-cyan focus:ring-2 focus:ring-cyan/20 outline-none text-xs sm:text-sm text-navy transition"
+                          className={`w-full px-4 py-2.5 rounded-xl border focus:border-cyan focus:ring-2 focus:ring-cyan/20 outline-none text-xs sm:text-sm text-navy transition ${
+                            isRfpHighlighted
+                              ? 'border-orange ring-2 ring-orange/40 bg-orange/5'
+                              : 'border-gray-200'
+                          }`}
                         />
                       </div>
                       <div>
@@ -3306,53 +4812,838 @@ export default function App() {
         </div>
       </section>
 
-      {/* Dokumentasi Section */}
-      <section id="dokumentasi" className="py-16 md:py-24 bg-slate-50">
+      {/* Dokumentasi Section dengan Responsive Image Carousel & Swipe Gestures */}
+      <section id="dokumentasi" className="py-16 md:py-24 bg-gradient-to-b from-slate-50 via-white to-slate-50 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-navy">Dokumentasi Pekerjaan</h2>
-            <p className="text-gray-600 mt-4 max-w-2xl mx-auto">Bukti kerja nyata dan profesionalisme kami di lapangan.</p>
+          {/* Section Header */}
+          <div className="text-center mb-10">
+            <span className="px-3.5 py-1 rounded-full text-xs font-bold bg-cyan/10 text-cyan-dark border border-cyan/20 inline-flex items-center gap-1.5 uppercase tracking-wider mb-3">
+              📷 BUKTI KERJA NYATA LAPANGAN
+            </span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-navy mt-1">
+              Dokumentasi Pekerjaan Lapangan
+            </h2>
+            <p className="text-gray-600 mt-3 max-w-2xl mx-auto text-sm sm:text-base">
+              Kompilasi foto dokumentasi pengerjaan nyata armada dan teknisi PT Kusuma Gemilang Raya di pabrik industri B2B, perumahan, dan pusat komersial Bekasi.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <img
-              src="https://z-cdn-media.chatglm.cn/files/a663f5a2-9679-4548-bc6d-ee86fc0faf38.jpg?auth_key=1891530048-f58de94b45dd4195b1e4eb5c4db34d04-0-bf9997ee3b449021bddfe6a237af2b95"
-              alt="Truk masuk area industri"
-              className="w-full h-48 md:h-64 object-cover rounded-2xl hover:opacity-90 transition"
-              loading="lazy"
-            />
-            <img
-              src="https://z-cdn-media.chatglm.cn/files/f0a0ebfc-d359-467e-818a-1eeb6670dbb3.jpg?auth_key=1891530048-1ea4bfb5615c415cb07dde8aa8708456-0-33efc077a48f2f99bf7f5ce0e12e9bf9"
-              alt="Truk sedot limbah industri"
-              className="w-full h-48 md:h-64 object-cover rounded-2xl hover:opacity-90 transition"
-              loading="lazy"
-            />
-            <img
-              src="https://z-cdn-media.chatglm.cn/files/4f3e0e12-39b6-49b9-898d-956ffdd2b291.jpg?auth_key=1891530048-b2c975c52af9462bb934e295016c1b9f-0-8acc724df47b2f017edd7607128792d7"
-              alt="Teknisi melayani vakum lingkungan"
-              className="w-full h-48 md:h-64 object-cover rounded-2xl hover:opacity-90 transition"
-              loading="lazy"
-            />
-            <img
-              src="https://z-cdn-media.chatglm.cn/files/33054cf6-266f-447d-9081-464b93cc7cc7.jpg?auth_key=1891530048-aebcdd0fe66b48f880f5bc962fef5f6d-0-e05a985cd94e16de3b4a0110c366e099"
-              alt="Teknisi servis vakum di perumahan"
-              className="w-full h-48 md:h-64 object-cover rounded-2xl hover:opacity-90 transition"
-              loading="lazy"
-            />
-            <img
-              src="https://z-cdn-media.chatglm.cn/files/4da00e2f-49dd-4f4c-b983-2d496721c934.jpg?auth_key=1891530048-bc9acd819e9a48949530ccd303af95d0-0-73f082a39d6164cf5019ea6210e389ad"
-              alt="Petugas membersihkan grease trap restoran"
-              className="w-full h-48 md:h-64 object-cover rounded-2xl hover:opacity-90 transition"
-              loading="lazy"
-            />
-            <img
-              src="https://z-cdn-media.chatglm.cn/files/4bdc93a6-c220-4dbe-948f-36bbaa87b841.jpg?auth_key=1891530048-2bec263d4a5c497387667e9798780d5d-0-ef3c26848e67413f81c9c3311b1d5018"
-              alt="Pekerja memompa limbah grease trap"
-              className="w-full h-48 md:h-64 object-cover rounded-2xl hover:opacity-90 transition"
-              loading="lazy"
-            />
+          {/* Carousel Controls & Filter Bar */}
+          <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-200 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* Filter Category Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 scrollbar-none">
+              <span className="text-xs font-semibold text-gray-500 mr-2 shrink-0 hidden sm:inline">
+                Kategori:
+              </span>
+              {(['Semua', 'Industri & B2B', 'Residensial', 'Komersial & Resto', 'Pelancaran Pipa'] as const).map((cat) => {
+                const count =
+                  cat === 'Semua'
+                    ? documentationItems.length
+                    : documentationItems.filter((i) => i.category === cat).length;
+
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setDocCategoryFilter(cat);
+                      setDocCarouselIndex(0);
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                      docCategoryFilter === cat
+                        ? 'bg-navy text-white shadow-sm'
+                        : 'bg-slate-100 text-gray-600 hover:bg-slate-200 hover:text-navy'
+                    }`}
+                  >
+                    {cat} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Carousel Navigation Actions */}
+            <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-navy bg-slate-100 px-3 py-1.5 rounded-xl border border-gray-200">
+                  Foto {docCarouselIndex + 1} - {Math.min(docCarouselIndex + docItemsPerView, filteredDocumentation.length)} dari {filteredDocumentation.length}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDocAutoPlay(!isDocAutoPlay)}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1 cursor-pointer ${
+                    isDocAutoPlay
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-slate-50 text-gray-600 border-gray-200'
+                  }`}
+                  title={isDocAutoPlay ? 'Jeda Putar Otomatis' : 'Mulai Putar Otomatis'}
+                >
+                  <span>{isDocAutoPlay ? '⏸ Auto' : '▶ Play'}</span>
+                </button>
+              </div>
+
+              {/* Prev / Next Buttons */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleDocPrev}
+                  className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-navy hover:text-white text-navy flex items-center justify-center transition border border-gray-200 cursor-pointer shadow-sm active:scale-95"
+                  aria-label="Foto Sebelumnya"
+                  title="Foto Sebelumnya"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDocNext}
+                  className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-navy hover:text-white text-navy flex items-center justify-center transition border border-gray-200 cursor-pointer shadow-sm active:scale-95"
+                  aria-label="Foto Selanjutnya"
+                  title="Foto Selanjutnya"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Swipe Hint for Touch Devices */}
+          <div className="flex items-center justify-between mb-3 px-1 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5 text-cyan-dark font-medium">
+              <span>👉</span>
+              <span>Geser kartu (swipe) pada layar sentuh untuk menelusuri foto</span>
+            </span>
+            <span className="hidden sm:inline text-gray-400 text-[11px]">
+              Klik pada foto untuk melihat ukuran penuh
+            </span>
+          </div>
+
+          {/* Responsive Carousel Viewport */}
+          <div
+            className="overflow-hidden relative rounded-3xl touch-pan-y"
+            onTouchStart={handleDocTouchStart}
+            onTouchMove={handleDocTouchMove}
+            onTouchEnd={handleDocTouchEnd}
+          >
+            <div
+              className="flex transition-transform duration-500 ease-out py-2"
+              style={{
+                transform: `translateX(-${(docCarouselIndex * 100) / docItemsPerView}%)`,
+              }}
+            >
+              {filteredDocumentation.map((item) => (
+                <div
+                  key={item.id}
+                  className="w-full sm:w-1/2 lg:w-1/3 flex-shrink-0 px-2 sm:px-3"
+                >
+                  <div className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-full group">
+                    {/* Image Container with Zoom & Badges */}
+                    <div
+                      className="relative h-52 sm:h-60 overflow-hidden bg-slate-900 cursor-pointer"
+                      onClick={() => setActiveDocPreview(item)}
+                    >
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-transparent to-black/30 pointer-events-none"></div>
+
+                      {/* Top Badges */}
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-navy/80 backdrop-blur-md text-white border border-white/20">
+                          {item.category}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-orange/90 backdrop-blur-md text-white">
+                          {item.tag}
+                        </span>
+                      </div>
+
+                      {/* Hover Overlay Button */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-[2px]">
+                        <span className="px-4 py-2 rounded-xl bg-white text-navy font-bold text-xs shadow-lg transform -translate-y-1 group-hover:translate-y-0 transition-all flex items-center gap-1.5">
+                          <span>🔍</span>
+                          <span>Lihat Resolusi Penuh</span>
+                        </span>
+                      </div>
+
+                      {/* Location Chip on Image Bottom */}
+                      <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
+                        <span className="text-[11px] font-bold text-cyan-light flex items-center gap-1 drop-shadow-md">
+                          <span>📍</span>
+                          <span className="truncate">{item.location}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Content Details */}
+                    <div className="p-5 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-extrabold text-navy text-base leading-snug group-hover:text-cyan transition-colors mb-2">
+                          {item.title}
+                        </h4>
+                        <p className="text-gray-600 text-xs line-clamp-3 leading-relaxed mb-4">
+                          {item.description}
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-medium text-gray-400">
+                            📅 {item.date}
+                          </span>
+                          {item.lastUpdated && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title={`Diperbarui: ${item.lastUpdated}`}></span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDocPreview(item)}
+                          className="text-xs font-bold text-orange hover:text-orange-dark transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Detail</span>
+                          <span>→</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Space-Saving Interactive Thumbnail Strip */}
+          <div className="mt-6 pt-5 border-t border-gray-200">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="text-xs font-bold text-navy flex items-center gap-1.5">
+                <span>📑</span>
+                <span>Pilih Foto Cepat ({filteredDocumentation.length} Dokumentasi):</span>
+              </span>
+              <span className="text-[11px] text-gray-500">
+                Klik thumbnail untuk berpindah foto
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+              {filteredDocumentation.map((item, idx) => {
+                const isActive =
+                  idx >= docCarouselIndex && idx < docCarouselIndex + docItemsPerView;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setDocCarouselIndex(Math.min(idx, maxDocIndex));
+                    }}
+                    className={`relative w-16 sm:w-20 h-12 sm:h-14 rounded-xl overflow-hidden flex-shrink-0 transition-all border cursor-pointer ${
+                      isActive
+                        ? 'ring-2 ring-orange border-orange scale-105 shadow-md opacity-100'
+                        : 'border-gray-200 opacity-60 hover:opacity-100'
+                    }`}
+                    title={item.title}
+                  >
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] text-white text-center py-0.5 truncate px-1">
+                      #{item.id}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
+
+        {/* Modal Detail & Fullscreen Preview Dokumentasi dengan Fitur Quick Edit */}
+        {activeDocPreview && (
+          <div
+            role="dialog"
+            aria-label="Pratinjau Foto Dokumentasi"
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+            onClick={handleCloseDocPreview}
+          >
+            <div
+              className="bg-white rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="p-4 sm:p-5 bg-navy text-white flex items-center justify-between border-b border-white/10 gap-3">
+                <div className="pr-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan/20 text-cyan-light border border-cyan/40">
+                      {activeDocPreview.category}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange/20 text-orange border border-orange/40">
+                      {activeDocPreview.tag}
+                    </span>
+                    {activeDocPreview.lastUpdated && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hidden sm:inline-flex items-center gap-1">
+                        <span>✓</span>
+                        <span>Diperbarui</span>
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-extrabold text-base sm:text-lg text-white leading-snug">
+                    {activeDocPreview.title}
+                  </h3>
+                </div>
+
+                {/* Header Action Buttons (Download Invoice PDF, Quick Edit & Close) */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadDocInvoicePdf()}
+                    disabled={isDownloadingDocInvoicePdf}
+                    className="px-3 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/40 disabled:opacity-60"
+                    title="Unduh Salinan Resmi Invoice & BAST PDF untuk Finance Klien"
+                  >
+                    {isDownloadingDocInvoicePdf ? (
+                      <>
+                        <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span className="hidden sm:inline">Mengunduh...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>📄</span>
+                        <span className="hidden sm:inline">Unduh</span>
+                        <span>Invoice PDF</span>
+                      </>
+                    )}
+                  </button>
+
+                  {!isEditingDocPreview ? (
+                    <button
+                      type="button"
+                      onClick={handleStartQuickEdit}
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                        isDocAuthorized
+                          ? 'bg-amber-400 hover:bg-amber-500 text-navy'
+                          : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                      }`}
+                      title={isDocAuthorized ? 'Edit deskripsi atau tanggal' : 'Masuk sebagai petugas berwenang untuk Quick Edit'}
+                    >
+                      <span>✏️</span>
+                      <span>Quick Edit</span>
+                      {isDocAuthorized && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleCancelQuickEdit}
+                      className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition cursor-pointer"
+                    >
+                      Batal Edit
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleCloseDocPreview}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer shrink-0"
+                    title="Tutup Pratinjau"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-4">
+                {/* Image Container with Badge */}
+                <div className="relative rounded-2xl overflow-hidden bg-slate-950 max-h-[380px] sm:max-h-[420px] flex items-center justify-center shadow-inner group">
+                  <img
+                    src={activeDocPreview.image}
+                    alt={activeDocPreview.title}
+                    className="w-full max-h-[380px] sm:max-h-[420px] object-contain"
+                  />
+                  {isEditingDocPreview && (
+                    <div className="absolute top-3 left-3 bg-amber-500/90 backdrop-blur-md text-navy font-black text-[10px] px-3 py-1 rounded-full shadow-lg border border-amber-300 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-navy animate-ping"></span>
+                      <span>MODE EDIT AKTIF</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Normal View vs Inline Quick Edit Mode */}
+                {!isEditingDocPreview ? (
+                  <div className="space-y-3 text-xs sm:text-sm">
+                    {/* Metadata Row: Location, Date & LastUpdated */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-gray-500 text-xs pb-3 border-b border-gray-100">
+                      <span className="font-bold text-navy flex items-center gap-1.5">
+                        <span>📍</span> {activeDocPreview.location}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-gray-200">
+                          📅 {activeDocPreview.date}
+                        </span>
+                        {activeDocPreview.lastUpdated && (
+                          <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                            🔄 {activeDocPreview.lastUpdated}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Description Paragraph */}
+                    <div className="p-3.5 bg-slate-50/70 rounded-2xl border border-gray-100">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                          Uraian Pekerjaan Lapangan:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleStartQuickEdit}
+                          className="text-xs text-amber-700 hover:text-amber-900 font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>✏️ Ubah</span>
+                        </button>
+                      </div>
+                      <p className="text-gray-700 leading-relaxed text-xs sm:text-sm whitespace-pre-line">
+                        {activeDocPreview.description}
+                      </p>
+                    </div>
+
+                    {/* Quick Edit Status Banner */}
+                    <div className="flex items-center justify-between p-3 rounded-2xl border transition-all text-xs bg-gradient-to-r from-slate-50 to-amber-50/40 border-amber-200/70">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{isDocAuthorized ? '🟢' : '🔐'}</span>
+                        <div>
+                          <div className="font-bold text-navy">
+                            {isDocAuthorized
+                              ? 'Akses Petugas Berwenang Aktif'
+                              : 'Fitur Quick Edit untuk Petugas'}
+                          </div>
+                          <div className="text-[11px] text-gray-500">
+                            {isDocAuthorized
+                              ? 'Anda dapat memperbarui deskripsi dan tanggal dokumentasi ini secara instan.'
+                              : 'Perbarui tanggal pengerjaan atau catatan deskripsi lapangan.'}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleStartQuickEdit}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-navy font-bold text-xs transition shrink-0 cursor-pointer shadow-sm flex items-center gap-1"
+                      >
+                        <span>✏️</span>
+                        <span>{isDocAuthorized ? 'Edit Sekarang' : 'Otorisasi & Edit'}</span>
+                      </button>
+                    </div>
+
+                    {/* Finance Team & BAST Document Card */}
+                    <div className="p-4 bg-gradient-to-br from-emerald-50/80 via-teal-50/50 to-slate-50 rounded-2xl border-2 border-emerald-300/80 shadow-sm space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-emerald-200/80">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-base font-bold shadow-sm shrink-0">
+                            📄
+                          </span>
+                          <div>
+                            <div className="font-extrabold text-navy text-xs sm:text-sm flex items-center gap-2 flex-wrap">
+                              <span>Salinan Invoice Resmi & Berita Acara (BAST)</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 border border-emerald-300">
+                                NIB: 0220108920194
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-gray-600">
+                              Disediakan khusus untuk tim Finance, Purchasing & HSE klien guna verifikasi tagihan, pelaporan pajak (PPN 11%) & audit IPLT mandiri.
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadDocInvoicePdf()}
+                          disabled={isDownloadingDocInvoicePdf}
+                          className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition shadow-md hover:shadow-lg cursor-pointer flex items-center justify-center gap-2 shrink-0 disabled:opacity-60"
+                          title="Unduh berkas PDF Invoice & BAST resmi"
+                        >
+                          {isDownloadingDocInvoicePdf ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                              <span>Menyiapkan PDF...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>📥</span>
+                              <span>Unduh Invoice PDF</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Info grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                        <div className="bg-white/80 p-2 rounded-xl border border-emerald-100">
+                          <span className="text-gray-500 block text-[10px] font-semibold">NO. INVOICE</span>
+                          <span className="font-bold text-navy">INV/KGR/2026/{String(activeDocPreview.id).padStart(4, '0')}</span>
+                        </div>
+                        <div className="bg-white/80 p-2 rounded-xl border border-emerald-100">
+                          <span className="text-gray-500 block text-[10px] font-semibold">NO. BAST RESMI</span>
+                          <span className="font-bold text-navy">BAST/KGR/2026/DOC-{String(activeDocPreview.id).padStart(4, '0')}</span>
+                        </div>
+                        <div className="bg-white/80 p-2 rounded-xl border border-emerald-100">
+                          <span className="text-gray-500 block text-[10px] font-semibold">TANGGAL SELESAI</span>
+                          <span className="font-bold text-emerald-700">📅 {activeDocPreview.date}</span>
+                        </div>
+                        <div className="bg-white/80 p-2 rounded-xl border border-emerald-100">
+                          <span className="text-gray-500 block text-[10px] font-semibold">STATUS AUDIT</span>
+                          <span className="font-bold text-emerald-700">✓ Berizin IPLT & K3</span>
+                        </div>
+                      </div>
+
+                      {/* Customizable PO / Client Name Toggle */}
+                      <div className="pt-0.5">
+                        {!showDocInvoiceOptions ? (
+                          <button
+                            type="button"
+                            onClick={() => setShowDocInvoiceOptions(true)}
+                            className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1.5 cursor-pointer underline decoration-dotted"
+                          >
+                            <span>⚙️ Kustomisasi No. PO atau Nama PT Klien sebelum unduh (Opsional)</span>
+                          </button>
+                        ) : (
+                          <div className="bg-white/95 p-3 rounded-xl border border-emerald-200 space-y-2 animate-in fade-in duration-150">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-navy">
+                              <span>Kustomisasi Header Invoice & BAST</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowDocInvoiceOptions(false)}
+                                className="text-gray-400 hover:text-gray-600 text-xs cursor-pointer"
+                              >
+                                ✕ Tutup
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Nama Perusahaan / Unit Finance Klien</label>
+                                <input
+                                  type="text"
+                                  value={docInvoiceClientName}
+                                  onChange={(e) => setDocInvoiceClientName(e.target.value)}
+                                  placeholder={`Contoh: Tim Procurement (${activeDocPreview.location})`}
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Nomor Purchase Order (PO) Klien</label>
+                                <input
+                                  type="text"
+                                  value={docInvoicePoNumber}
+                                  onChange={(e) => setDocInvoicePoNumber(e.target.value)}
+                                  placeholder="Contoh: PO-KLIEN/2026/089"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-end pt-1">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadDocInvoicePdf()}
+                                disabled={isDownloadingDocInvoicePdf}
+                                className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                              >
+                                <span>📥 Unduh PDF dengan Kustomisasi</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* WhatsApp Inquiry CTA */}
+                    <div className="p-3 bg-slate-50 rounded-2xl border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <span className="text-xs text-gray-600">
+                        Butuh penanganan serupa untuk pabrik atau properti Anda?
+                      </span>
+                      <a
+                        href={`https://wa.me/6289675064916?text=${encodeURIComponent(`Halo PT Kusuma Gemilang Raya, saya melihat dokumentasi proyek "${activeDocPreview.title}" (${activeDocPreview.location}) dan ingin konsultasi kebutuhan sanitasi serupa.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shrink-0 flex items-center gap-1.5 shadow-sm"
+                      >
+                        <span>💬 Tanya via WhatsApp</span>
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  /* Inline Quick Edit Form */
+                  <form onSubmit={handleSaveQuickEdit} className="space-y-4 bg-amber-50/70 p-4 sm:p-5 rounded-2xl border-2 border-amber-300 shadow-sm animate-in fade-in duration-200">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
+                        <h4 className="font-extrabold text-navy text-xs sm:text-sm uppercase tracking-wide">
+                          Quick Edit: Formulir Pembaruan Dokumentasi
+                        </h4>
+                      </div>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        ✓ Petugas Berwenang
+                      </span>
+                    </div>
+
+                    {/* Input: Tanggal Dokumentasi */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-navy flex items-center gap-1">
+                          <span>📅 Tanggal Pengerjaan Dokumentasi</span>
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const now = new Date();
+                              const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+                              setEditDocDate(`${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`);
+                            }}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer"
+                          >
+                            Hari Ini
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const y = new Date();
+                              y.setDate(y.getDate() - 1);
+                              const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+                              setEditDocDate(`${y.getDate()} ${months[y.getMonth()]} ${y.getFullYear()}`);
+                            }}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer"
+                          >
+                            Kemarin
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        value={editDocDate}
+                        onChange={(e) => setEditDocDate(e.target.value)}
+                        placeholder="Contoh: 11 Okt 2026"
+                        required
+                        className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white font-medium"
+                      />
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Format tanggal tampilan publik (misal: 11 Okt 2026).
+                      </p>
+                    </div>
+
+                    {/* Input: Deskripsi Pekerjaan */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-navy flex items-center gap-1">
+                          <span>📝 Deskripsi Detail Pekerjaan Lapangan</span>
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <span className="text-[10px] text-gray-500">{editDocDescription.length} karakter</span>
+                      </div>
+                      <textarea
+                        value={editDocDescription}
+                        onChange={(e) => setEditDocDescription(e.target.value)}
+                        rows={4}
+                        placeholder="Tuliskan laporan kondisi lapangan, jenis armada, volume limbah, dan SOP pengerjaan..."
+                        required
+                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white leading-relaxed font-normal"
+                      />
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Uraian ini akan langsung diperbarui pada kartu carousel dan pratinjau modal.
+                      </p>
+                    </div>
+
+                    {/* Action buttons inside edit form */}
+                    <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-amber-200">
+                      <button
+                        type="button"
+                        onClick={handleCancelQuickEdit}
+                        disabled={isDocSaving}
+                        className="px-4 py-2 rounded-xl bg-white hover:bg-gray-100 text-gray-700 font-bold text-xs border border-gray-300 transition cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isDocSaving}
+                        className="px-5 py-2 rounded-xl bg-navy hover:bg-navy-dark text-white font-bold text-xs transition shadow-md cursor-pointer flex items-center gap-2"
+                      >
+                        {isDocSaving ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>Menyimpan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>💾</span>
+                            <span>Simpan Perubahan</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-slate-50 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-400">
+                  Dokumentasi Resmi PT Kusuma Gemilang Raya
+                </span>
+                <div className="flex items-center gap-2">
+                  {!isEditingDocPreview ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadDocInvoicePdf()}
+                        disabled={isDownloadingDocInvoicePdf}
+                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-60"
+                        title="Unduh Salinan Berkas Invoice & BAST Resmi (.PDF)"
+                      >
+                        {isDownloadingDocInvoicePdf ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            <span>Mengunduh...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>📄</span>
+                            <span>Unduh Invoice PDF</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleStartQuickEdit}
+                        className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-navy font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      >
+                        <span>✏️</span>
+                        <span>Quick Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCloseDocPreview}
+                        className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs transition cursor-pointer"
+                      >
+                        Tutup
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleCancelQuickEdit}
+                      className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs transition cursor-pointer"
+                    >
+                      Batal Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Otorisasi Petugas Lapangan untuk Quick Edit */}
+        {isDocAuthModalOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Verifikasi Otorisasi Petugas Lapangan"
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+            onClick={() => setIsDocAuthModalOpen(false)}
+          >
+            <div
+              className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-gray-200 flex flex-col animate-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 bg-navy text-white flex items-center justify-between border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center font-bold text-lg border border-amber-400/40">
+                    🔐
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base text-white">
+                      Otorisasi Petugas Lapangan
+                    </h3>
+                    <p className="text-[11px] text-gray-300">
+                      PT Kusuma Gemilang Raya
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDocAuthModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Fitur <strong>Quick Edit</strong> diperuntukkan bagi staf, supervisor lapangan, dan tim dokumentasi resmi untuk memperbarui deskripsi dan tanggal pengerjaan secara langsung dari modal pratinjau.
+                </p>
+
+                <form onSubmit={handleVerifyDocAuth} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-navy mb-1">
+                      Masukkan PIN Petugas / Kredensial:
+                    </label>
+                    <input
+                      type="password"
+                      value={docAuthPin}
+                      onChange={(e) => {
+                        setDocAuthPin(e.target.value);
+                        if (docAuthError) setDocAuthError('');
+                      }}
+                      placeholder="Masukkan PIN (e.g. 1234)"
+                      autoFocus
+                      className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-slate-50"
+                    />
+                    {docAuthError && (
+                      <p className="text-xs text-red-600 font-medium mt-1">
+                        {docAuthError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-800">
+                    💡 <strong>Akses Cepat Pengujian:</strong> Masukkan PIN <code>1234</code> atau klik tombol otorisasi langsung di bawah.
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="submit"
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-navy hover:bg-navy-dark text-white font-bold text-xs transition shadow-sm cursor-pointer"
+                    >
+                      Verifikasi PIN
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleQuickAuthorizeDirect}
+                      className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition shadow-sm cursor-pointer whitespace-nowrap"
+                    >
+                      ✓ Otorisasi Langsung
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="p-3 bg-slate-50 border-t border-gray-100 text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsDocAuthModalOpen(false)}
+                  className="text-xs text-gray-500 hover:text-gray-700 font-semibold cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Galeri Foto Proyek Teknisi di Lapangan */}
@@ -4394,25 +6685,59 @@ export default function App() {
 
             {/* Quick Keyword Search & Filter Controls */}
             <div className="mt-8 max-w-xl mx-auto">
-              <div className="relative">
+              <div
+                key={`b2b-faq-search-wrapper-${b2bFaqShakeKey}`}
+                className={`relative transition-all duration-300 ${
+                  isB2bFaqShaking ? 'animate-subtle-shake' : ''
+                }`}
+              >
                 <input
                   type="text"
                   value={b2bFaqSearch}
                   onChange={(e) => setB2bFaqSearch(e.target.value)}
                   placeholder="Cari topik B2B: audit vendor, BAST, e-faktur, TOP, SLA, K3..."
-                  className="w-full pl-11 pr-10 py-3 rounded-2xl border border-gray-200 bg-slate-50 focus:bg-white text-sm text-navy outline-none focus:border-cyan focus:ring-2 focus:ring-cyan/20 transition shadow-inner"
+                  className={`w-full pl-11 pr-10 py-3 rounded-2xl border text-sm text-navy outline-none transition duration-200 shadow-inner ${
+                    filteredB2bFaqItems.length === 0 && b2bFaqSearch.trim() !== ''
+                      ? 'border-rose-400 bg-rose-50/40 text-rose-950 focus:border-rose-500 ring-2 ring-rose-400/25 placeholder:text-rose-400'
+                      : 'border-gray-200 bg-slate-50 focus:bg-white focus:border-cyan focus:ring-2 focus:ring-cyan/20'
+                  }`}
+                  aria-invalid={filteredB2bFaqItems.length === 0 && b2bFaqSearch.trim() !== ''}
                 />
-                <span className="absolute left-4 top-3.5 text-gray-400 text-base">🔍</span>
+                <span className={`absolute left-4 top-3.5 text-base transition-transform duration-200 ${
+                  filteredB2bFaqItems.length === 0 && b2bFaqSearch.trim() !== '' ? 'scale-110 text-rose-500' : 'text-gray-400'
+                }`}>
+                  {filteredB2bFaqItems.length === 0 && b2bFaqSearch.trim() !== '' ? '⚠️' : '🔍'}
+                </span>
                 {b2bFaqSearch && (
                   <button
+                    type="button"
                     onClick={() => setB2bFaqSearch('')}
-                    className="absolute right-3.5 top-3 text-gray-400 hover:text-navy text-xs p-1"
+                    className="absolute right-3.5 top-3 text-gray-400 hover:text-navy text-xs p-1 rounded-full hover:bg-gray-200/60 transition"
                     title="Hapus pencarian"
                   >
                     ✕
                   </button>
                 )}
               </div>
+
+              {/* Zero Results Visual Feedback Indicator */}
+              {filteredB2bFaqItems.length === 0 && b2bFaqSearch.trim() !== '' && (
+                <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between gap-2 shadow-xs animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping flex-shrink-0" />
+                    <span>
+                      Tidak ada topik B2B yang cocok dengan <strong>"{b2bFaqSearch}"</strong> (0 hasil).
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setB2bFaqSearch('')}
+                    className="text-[11px] font-bold text-rose-700 hover:text-rose-900 underline flex-shrink-0 cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Category Filter Tabs */}
@@ -4667,147 +6992,152 @@ export default function App() {
                 <span className="text-cyan-dark underline">FAQ Khusus B2B & Korporat ↑</span>
               </a>
             </div>
+
+            {/* Quick General FAQ Search Bar with Subtle Shake on Zero Results */}
+            <div className="mt-6 max-w-xl mx-auto">
+              <div
+                key={`general-faq-search-wrapper-${generalFaqShakeKey}`}
+                className={`relative transition-all duration-300 ${
+                  isGeneralFaqShaking ? 'animate-subtle-shake' : ''
+                }`}
+              >
+                <input
+                  type="text"
+                  value={generalFaqSearch}
+                  onChange={(e) => setGeneralFaqSearch(e.target.value)}
+                  placeholder="Cari pertanyaan umum: harga, septic tank, mampet, 24 jam, area..."
+                  className={`w-full pl-11 pr-10 py-3 rounded-2xl border text-sm text-navy outline-none transition duration-200 shadow-inner ${
+                    filteredGeneralFaqItems.length === 0 && generalFaqSearch.trim() !== ''
+                      ? 'border-rose-400 bg-rose-50/40 text-rose-950 focus:border-rose-500 ring-2 ring-rose-400/25 placeholder:text-rose-400'
+                      : 'border-gray-200 bg-white focus:border-cyan focus:ring-2 focus:ring-cyan/20'
+                  }`}
+                  aria-invalid={filteredGeneralFaqItems.length === 0 && generalFaqSearch.trim() !== ''}
+                />
+                <span className={`absolute left-4 top-3.5 text-base transition-transform duration-200 ${
+                  filteredGeneralFaqItems.length === 0 && generalFaqSearch.trim() !== '' ? 'scale-110 text-rose-500' : 'text-gray-400'
+                }`}>
+                  {filteredGeneralFaqItems.length === 0 && generalFaqSearch.trim() !== '' ? '⚠️' : '🔍'}
+                </span>
+                {generalFaqSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setGeneralFaqSearch('')}
+                    className="absolute right-3.5 top-3 text-gray-400 hover:text-navy text-xs p-1 rounded-full hover:bg-gray-100 transition"
+                    title="Hapus pencarian"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Zero Results Visual Feedback Indicator */}
+              {filteredGeneralFaqItems.length === 0 && (generalFaqSearch.trim() !== '' || generalFaqCategory !== 'Semua') && (
+                <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between gap-2 shadow-xs animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping flex-shrink-0" />
+                    <span>
+                      Tidak ada pertanyaan yang cocok
+                      {generalFaqSearch.trim() !== '' ? <> dengan <strong>"{generalFaqSearch}"</strong></> : null}
+                      {generalFaqCategory !== 'Semua' ? <> pada kategori <strong>"{generalFaqCategory}"</strong></> : null} (0 hasil).
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGeneralFaqSearch('');
+                      setGeneralFaqCategory('Semua');
+                    }}
+                    className="text-[11px] font-bold text-rose-700 hover:text-rose-900 underline flex-shrink-0 cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Category Filter Tabs */}
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-6">
+              {generalFaqCategories.map((cat) => {
+                const isSelected = generalFaqCategory === cat;
+                const count =
+                  cat === 'Semua'
+                    ? generalFaqItems.length
+                    : generalFaqItems.filter((i) => i.category === cat).length;
+
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setGeneralFaqCategory(cat)}
+                    className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer inline-flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-navy text-white shadow-md scale-105 border border-cyan/40'
+                        : 'bg-white text-gray-600 hover:bg-slate-200 border border-gray-200 shadow-2xs'
+                    }`}
+                  >
+                    <span>{cat === 'Semua' ? 'Semua Pertanyaan' : cat}</span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors ${
+                        isSelected
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-100 text-gray-600'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="space-y-4">
-            {/* FAQ 1 */}
-            <AnimatedFaqDetails
-              question="Berapa harga sedot WC Bekasi?"
-              badge="Resmi"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-            >
-              Harga sewa sedot WC di Bekasi bervariasi tergantung volume septic tank, lokasi, tingkat kesulitan pekerjaan, jenis layanan, dan kebutuhan armada. Hubungi kami via WhatsApp untuk konsultasi harga terbaik.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 2 */}
-            <AnimatedFaqDetails
-              question="Apakah melayani Kota Bekasi dan Kabupaten Bekasi?"
-              badge="Resmi"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              }
-            >
-              Ya, PT Kusuma Gemilang Raya melayani seluruh wilayah Kota Bekasi dan Kabupaten Bekasi, termasuk Cikarang, Tambun, Babelan, dan lainnya.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 3 */}
-            <AnimatedFaqDetails
-              question="Apakah melayani Cikarang?"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              }
-            >
-              Ya, kami melayani seluruh area Cikarang (Barat, Timur, Utara, Selatan, Pusat) dan area industri di Kabupaten Bekasi.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 4 */}
-            <AnimatedFaqDetails
-              question="Apakah bisa sedot septic tank?"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              }
-            >
-              Tentu saja. Pengurasan septic tank adalah layanan utama kami untuk rumah, kantor, maupun fasilitas komersial.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 5 */}
-            <AnimatedFaqDetails
-              question="Apakah melayani saluran mampet?"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437" />
-                </svg>
-              }
-            >
-              Ya, kami memiliki teknisi berpengalaman untuk menangani saluran air, toilet, wastafel, dan pipa yang tersumbat.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 6 */}
-            <AnimatedFaqDetails
-              question="Apakah melayani limbah STP?"
-              badge="Terverifikasi"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a87.354 87.354 0 01-.713-4.726V9.5a9 9 0 00-.215-2.185L20.25 4.5M3 15V9.5a9 9 0 01.215-2.185L4.5 4.5M21 21v-4a2.4 2.4 0 00-.6-1.6L15.75 10.5M3 3l1.5 1.5M21 3l-1.5 1.5" />
-                </svg>
-              }
-            >
-              Ya, kami menyedot limbah STP untuk gedung, perusahaan, hotel, restoran, dan fasilitas lainnya secara profesional dan legal.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 7 */}
-            <AnimatedFaqDetails
-              question="Apakah layanan tersedia 24 jam?"
-              badge="Terverifikasi"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-            >
-              Layanan kami tersedia 24 jam, termasuk hari libur. Silakan hubungi kami kapan saja saat Anda membutuhkan bantuan darurat.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 8 */}
-            <AnimatedFaqDetails
-              question="Bagaimana cara memesan layanan sedot WC?"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              }
-            >
-              Cukup hubungi nomor WhatsApp kami di +62 896-7506-4916, konsultasikan kebutuhan Anda, jadwalkan kunjungan, dan teknisi kami akan datang ke lokasi.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 9 */}
-            <AnimatedFaqDetails
-              question="Berapa lama proses penyedotan septic tank?"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 2h4" />
-                </svg>
-              }
-            >
-              Durasi penyedotan septic tank standar rumah tangga biasanya hanya memakan waktu sekitar 30 hingga 60 menit, tergantung volume dan akses lokasi.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 10 */}
-            <AnimatedFaqDetails
-              question="Apakah melayani rumah, kantor, dan perusahaan?"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              }
-            >
-              Ya, kami melayani kebutuhan sanitasi untuk rumah tinggal, perkantoran, perusahaan, industri, hingga usaha komersial seperti restoran dan hotel.
-            </AnimatedFaqDetails>
-
-            {/* FAQ 11 */}
-            <AnimatedFaqDetails
-              question="Bagaimana prosedur teknis pengerjaan dan standar keamanan di lapangan?"
-              badge="Terverifikasi"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              }
-            >
-              Teknisi kami menerapkan protokol keselamatan dan kebersihan yang ketat. Setiap pekerjaan dilengkapi dengan APD lengkap (helm, sarung tangan, sepatu safety, dan masker). Setelah proses penyedotan selesai, area kerja akan dibersihkan dan disanitasi menggunakan cairan disinfektan untuk memastikan lingkungan tetap higienis dan bebas bau.
-            </AnimatedFaqDetails>
+            {filteredGeneralFaqItems.length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-300 p-6">
+                <span className="text-3xl mb-2 block">🔍</span>
+                <h4 className="text-base font-bold text-navy mb-1">
+                  Pertanyaan tidak ditemukan
+                </h4>
+                <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-4">
+                  Tidak ada pertanyaan umum yang cocok dengan kata kunci "{generalFaqSearch}"
+                  {generalFaqCategory !== 'Semua' ? ` di kategori "${generalFaqCategory}"` : ''}. Silakan reset filter atau tanyakan langsung melalui WhatsApp.
+                </p>
+                <div className="flex justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGeneralFaqSearch('');
+                      setGeneralFaqCategory('Semua');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy-light transition cursor-pointer"
+                  >
+                    Reset Filter & Pencarian
+                  </button>
+                  <a
+                    href="https://wa.me/6289675064916?text=Halo%20PT%20Kusuma%20Gemilang%20Raya,%20saya%20ingin%20bertanya%20seputar%20layanan%20sedot%20WC."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded-xl bg-orange text-white text-xs font-bold hover:bg-orange-dark transition"
+                  >
+                    Tanya via WA
+                  </a>
+                </div>
+              </div>
+            ) : (
+              filteredGeneralFaqItems.map((item) => (
+                <AnimatedFaqDetails
+                  key={item.id}
+                  question={item.question}
+                  badge={item.badge}
+                  category={item.category}
+                  icon={item.icon}
+                  answerText={item.answer}
+                  onCopy={() => triggerToast(`📋 Jawaban untuk "${item.question.length > 32 ? item.question.slice(0, 32) + '...' : item.question}" berhasil disalin!`)}
+                >
+                  {item.answer}
+                </AnimatedFaqDetails>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -5791,6 +8121,659 @@ export default function App() {
         </div>
       </section>
 
+      {/* Legalitas & SEO Metadata Section (End of Page) */}
+      <section
+        id="legalitas-seo"
+        className="py-16 md:py-24 bg-gradient-to-b from-slate-900 via-navy-dark to-slate-900 text-gray-200 border-t border-white/10 relative overflow-hidden"
+      >
+        {/* Decorative Glows */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-cyan/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          {/* Section Header */}
+          <div className="text-center max-w-4xl mx-auto mb-10 md:mb-12">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+              <span className="px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold bg-cyan/20 text-cyan-light border border-cyan/40 tracking-wider uppercase flex items-center gap-1.5">
+                <span>🏛️</span>
+                <span>TRANSPARANSI BADAN USAHA RESMI</span>
+              </span>
+              <span className="px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5">
+                <span>✓</span>
+                <span>TERVERIFIKASI OSS RBA & KEMENKEU RI</span>
+              </span>
+              <span className="px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5">
+                <span>🔍</span>
+                <span>VALIDASI SCHEMA.ORG & GOOGLE SEO</span>
+              </span>
+            </div>
+
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-white tracking-tight mb-4 leading-tight">
+              Legalitas & SEO Metadata
+            </h2>
+            <p className="text-sm md:text-base text-gray-300 leading-relaxed max-w-3xl mx-auto">
+              Tabel transparansi sertifikasi perizinan resmi <strong className="text-white font-bold">PT Kusuma Gemilang Raya</strong>.
+              Menjamin kepatuhan hukum 100% untuk audit HSE, CSMS, Procurement korporat B2B, serta reputasi E-E-A-T mesin pencari Google.
+              Setiap parameter dilengkapi fitur <strong className="text-cyan-light font-bold">Salin ke Clipboard</strong> sekali klik.
+            </p>
+
+            {/* Quick Master Actions */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleCopyAllLegalInfo}
+                className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer shadow-lg ${
+                  copiedDocField === 'ALL_LEGAL_DOSSIER'
+                    ? 'bg-emerald-500 text-white shadow-emerald-500/30 ring-2 ring-emerald-300'
+                    : 'bg-gradient-to-r from-cyan to-cyan-dark hover:from-cyan-dark hover:to-cyan text-navy shadow-cyan/20 hover:scale-[1.02]'
+                }`}
+                title="Salin seluruh nomor registrasi legalitas perusahaan untuk audit procurement"
+              >
+                <span>{copiedDocField === 'ALL_LEGAL_DOSSIER' ? '✓' : '📋'}</span>
+                <span>
+                  {copiedDocField === 'ALL_LEGAL_DOSSIER'
+                    ? 'Seluruh Legalitas Berhasil Disalin!'
+                    : 'Salin Seluruh Ringkasan Legalitas'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDownloadBrochurePdf()}
+                disabled={isDownloadingBrochurePdf}
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <span>📄</span>
+                <span>{isDownloadingBrochurePdf ? 'Mengunduh PDF...' : 'Unduh Brosur & Salinan NIB (.PDF)'}</span>
+              </button>
+
+              <a
+                href={getDynamicWaLink('legalitas-seo')}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 font-bold text-xs sm:text-sm transition flex items-center gap-2"
+              >
+                <span>💬</span>
+                <span>Verifikasi Legalitas via WA</span>
+              </a>
+            </div>
+          </div>
+
+          {/* 4 Primary Certification Highlight Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {/* Card 1: NIB */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-emerald-500/30 shadow-lg relative overflow-hidden group hover:border-emerald-400 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-base">
+                  🏛️
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
+                  OSS-RBA Aktif
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                Nomor Induk Berusaha
+              </span>
+              <p className="font-mono font-black text-lg sm:text-xl text-white mt-0.5 tracking-wider">
+                0220108920194
+              </p>
+              <p className="text-[11px] text-gray-300 mt-1 line-clamp-1">
+                Kementerian Investasi / BKPM RI
+              </p>
+              <div className="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
+                <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <span>✓</span> Berbasis Risiko
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyLegalField('NIB', 'Nomor Induk Berusaha (NIB)', '0220108920194')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                    copiedDocField === 'NIB'
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                  }`}
+                  aria-label="Salin Nomor Induk Berusaha NIB"
+                >
+                  {copiedDocField === 'NIB' ? '✓ Tersalin' : 'Salin'}
+                </button>
+              </div>
+            </div>
+
+            {/* Card 2: KBLI 37011 */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-cyan/30 shadow-lg relative overflow-hidden group hover:border-cyan transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="w-8 h-8 rounded-xl bg-cyan/20 text-cyan-light flex items-center justify-center text-base">
+                  📑
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/20 text-cyan-light border border-cyan/40 uppercase">
+                  Standar Usaha
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                Klasifikasi KBLI
+              </span>
+              <p className="font-mono font-black text-lg sm:text-xl text-cyan-300 mt-0.5 tracking-wider">
+                37011
+              </p>
+              <p className="text-[11px] text-gray-300 mt-1 line-clamp-1">
+                Air Limbah Tidak Berbahaya
+              </p>
+              <div className="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
+                <span className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1">
+                  <span>✓</span> BPS & OSS Terdaftar
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyLegalField('KBLI', 'Klasifikasi KBLI 37011', '37011')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                    copiedDocField === 'KBLI'
+                      ? 'bg-cyan text-navy'
+                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                  }`}
+                  aria-label="Salin Kode KBLI 37011"
+                >
+                  {copiedDocField === 'KBLI' ? '✓ Tersalin' : 'Salin'}
+                </button>
+              </div>
+            </div>
+
+            {/* Card 3: NPWP Perusahaan */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-blue-500/30 shadow-lg relative overflow-hidden group hover:border-blue-400 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center text-base">
+                  💳
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase">
+                  SPPKP e-Faktur
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                NPWP Badan Usaha
+              </span>
+              <p className="font-mono font-black text-sm sm:text-base text-white mt-1 tracking-wider truncate">
+                94.812.394.8-407.000
+              </p>
+              <p className="text-[11px] text-gray-300 mt-1 line-clamp-1">
+                Ditjen Pajak Kemenkeu RI
+              </p>
+              <div className="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
+                <span className="text-[10px] text-blue-300 font-semibold flex items-center gap-1">
+                  <span>✓</span> PPh 23 & PPN 11%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyLegalField('NPWP', 'NPWP Badan Usaha', '94.812.394.8-407.000')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                    copiedDocField === 'NPWP'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                  }`}
+                  aria-label="Salin NPWP Badan Usaha"
+                >
+                  {copiedDocField === 'NPWP' ? '✓ Tersalin' : 'Salin'}
+                </button>
+              </div>
+            </div>
+
+            {/* Card 4: IPLT & Manifest Pemda */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-amber-500/30 shadow-lg relative overflow-hidden group hover:border-amber-400 transition-all">
+              <div className="flex items-center justify-between mb-2">
+                <span className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center text-base">
+                  🌱
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                  Manifest Sah
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                Destinasi Pembuangan
+              </span>
+              <p className="font-bold text-base sm:text-lg text-amber-300 mt-0.5 tracking-tight">
+                IPLT Pemda Bekasi
+              </p>
+              <p className="text-[11px] text-gray-300 mt-1 line-clamp-1">
+                Sumur Batu & Babelan DLH
+              </p>
+              <div className="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
+                <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
+                  <span>✓</span> Bebas Pidana AMDAL
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyLegalField('IPLT', 'Nomor Registrasi Manifest IPLT', 'REG-IPLT/DLH-BKS/2026/0411')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                    copiedDocField === 'IPLT'
+                      ? 'bg-amber-500 text-navy'
+                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                  }`}
+                  aria-label="Salin Registrasi Manifest IPLT"
+                >
+                  {copiedDocField === 'IPLT' ? '✓ Tersalin' : 'Salin'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Filter Pills & Search Input Toolbar */}
+          <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mb-6 backdrop-blur-md shadow-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-gray-400 mr-1 hidden sm:inline">Kategori:</span>
+              {[
+                { key: 'Semua', label: 'Semua Parameter (8)' },
+                { key: 'Izin Berusaha', label: 'Izin Berusaha & NIB' },
+                { key: 'Perpajakan', label: 'Perpajakan & SPPKP' },
+                { key: 'Lingkungan & K3', label: 'Lingkungan & IPLT' },
+                { key: 'SEO & Identitas', label: 'SEO & Schema.org' },
+              ].map((filterTab) => (
+                <button
+                  key={filterTab.key}
+                  type="button"
+                  onClick={() => setLegalTableFilter(filterTab.key as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    legalTableFilter === filterTab.key
+                      ? 'bg-cyan text-navy shadow-sm shadow-cyan/20'
+                      : 'bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10'
+                  }`}
+                >
+                  {filterTab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input & View Switcher */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 sm:w-64">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">
+                  🔍
+                </span>
+                <input
+                  type="text"
+                  placeholder="Cari NIB, NPWP, 37011, Kemenkumham..."
+                  value={legalTableSearchQuery}
+                  onChange={(e) => setLegalTableSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-8 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyan"
+                />
+                {legalTableSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setLegalTableSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-white text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* View Switcher (Table vs Cards) */}
+              <div className="hidden sm:flex items-center bg-slate-900 p-1 rounded-xl border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setLegalTableViewMode('table')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                    legalTableViewMode === 'table' ? 'bg-cyan text-navy' : 'text-gray-400 hover:text-white'
+                  }`}
+                  title="Tampilan Tabel Standar"
+                >
+                  <span>▦</span>
+                  <span>Tabel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLegalTableViewMode('cards')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                    legalTableViewMode === 'cards' ? 'bg-cyan text-navy' : 'text-gray-400 hover:text-white'
+                  }`}
+                  title="Tampilan Kartu Lengkap"
+                >
+                  <span>🗂️</span>
+                  <span>Kartu</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Full Tabular View */}
+          {(() => {
+            const rawLegalData = [
+              {
+                id: 'NIB',
+                category: 'Izin Berusaha',
+                icon: '🏛️',
+                name: 'Nomor Induk Berusaha (NIB)',
+                code: 'NIB OSS-RBA',
+                value: '0220108920194',
+                status: 'Aktif & Terverifikasi',
+                statusColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                issuer: 'Kementerian Investasi / BKPM RI (Sistem OSS Berbasis Risiko)',
+                description: 'Identitas legal primer tunggal kegiatan operasional seluruh armada vacuum truck, penanganan limbah domestik & industri, serta jasa sanitasi komersial.',
+                auditRelevance: 'Wajib ada untuk registrasi e-procurement vendor & audit kepatuhan hukum RI.',
+              },
+              {
+                id: 'NPWP',
+                category: 'Perpajakan',
+                icon: '💳',
+                name: 'Nomor Pokok Wajib Pajak (NPWP Badan)',
+                code: 'NPWP PT KGR',
+                value: '94.812.394.8-407.000',
+                status: 'Wajib Pajak Badan Terdaftar',
+                statusColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+                issuer: 'Direktorat Jenderal Pajak (DJP) - Kementerian Keuangan RI',
+                description: 'Entitas Wajib Pajak Badan Hukum resmi PT Kusuma Gemilang Raya untuk penerbitan bukti potong PPh 23, pelaporan SPT Tahunan, dan tertib administrasi fiskal.',
+                auditRelevance: 'Kelengkapan bukti potong PPh 23 & verifikasi identitas NPWP Badan resmi.',
+              },
+              {
+                id: 'KBLI',
+                category: 'Izin Berusaha',
+                icon: '📑',
+                name: 'Klasifikasi Baku Lapangan Usaha (KBLI)',
+                code: 'KBLI 37011',
+                value: '37011',
+                status: 'Standar Kompetensi Sah',
+                statusColor: 'bg-cyan/20 text-cyan-light border-cyan/40',
+                issuer: 'Badan Pusat Statistik (BPS) & Kementerian Investasi / OSS RBA',
+                description: 'Pengelolaan dan Pembuangan Air Limbah Tidak Berbahaya: jasa kuras tangki septik, pengangkutan lumpur tinja, pembersihan grease trap & pelancaran saluran air limbah.',
+                auditRelevance: 'Memastikan legalitas jenis pengerjaan sesuai dengan akta pendirian dan perizinan.',
+              },
+              {
+                id: 'SPPKP',
+                category: 'Perpajakan',
+                icon: '🧾',
+                name: 'Surat Pengukuhan Pengusaha Kena Pajak (SPPKP)',
+                code: 'SPPKP e-Faktur PPN',
+                value: 'S-184PKP/WPJ.22/KP.0303/2021',
+                status: 'PKP Aktif (e-Faktur PPN 11%)',
+                statusColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+                issuer: 'Kantor Pelayanan Pajak (KPP) - DJP Kemenkeu RI',
+                description: 'Menerbitkan faktur pajak resmi e-Faktur PPN 11% untuk klaim pajak masukan bagi perusahaan klien manufaktur, pabrik kawasan industri, dan instansi B2B.',
+                auditRelevance: 'Penerbitan e-Faktur sah untuk keperluan restitusi atau kredit pajak PPN masukan.',
+              },
+              {
+                id: 'KEMENKUMHAM',
+                category: 'Izin Berusaha',
+                icon: '⚖️',
+                name: 'SK Pengesahan Badan Hukum Kemenkumham RI',
+                code: 'SK AHU PT KGR',
+                value: 'AHU-0018924.AH.01.01.TAHUN 2021',
+                status: 'Perseroan Terbatas Sah',
+                statusColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+                issuer: 'Ditjen Administrasi Hukum Umum (AHU) Kemenkumham RI',
+                description: 'Akta Notaris pendirian dan pengesahan badan usaha resmi berbadan hukum Perseroan Terbatas (PT) dengan domisili hukum di Bekasi.',
+                auditRelevance: 'Bukti badan hukum PT sah, bukan CV fiktif ataupun perorangan tanpa pertanggungjawaban.',
+              },
+              {
+                id: 'IPLT',
+                category: 'Lingkungan & K3',
+                icon: '🌱',
+                name: 'Izin Pembuangan & Manifest Resmi IPLT Pemda',
+                code: 'Manifest IPLT DLH',
+                value: 'REG-IPLT/DLH-BKS/2026/0411',
+                status: '100% Legal & Bebas AMDAL',
+                statusColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                issuer: 'Dinas Lingkungan Hidup (DLH) Pemkab & Pemkot Bekasi',
+                description: 'Jaminan seluruh muatan limbah dibuang ke Instalasi Pengolahan Lumpur Tinja (IPLT) Pemda resmi disertai dokumen Manifest & BAST bertanda tangan, bebas sanksi pembuangan liar.',
+                auditRelevance: 'Kepatuhan mutlak audit ISO 14001, audit PROPER KLHK, dan bebas denda pidana lingkungan.',
+              },
+              {
+                id: 'REK_GIRO',
+                category: 'Perpajakan',
+                icon: '🏦',
+                name: 'Rekening Giro Perusahaan (Anti-Fraud)',
+                code: 'Bank Mandiri PT',
+                value: '156-00-1892401-2 (Bank Mandiri a.n PT KUSUMA GEMILANG RAYA)',
+                status: 'Rekening PT Resmi',
+                statusColor: 'bg-teal-500/20 text-teal-300 border-teal-500/40',
+                issuer: 'PT Bank Mandiri (Persero) Tbk Kantor Cabang Bekasi',
+                description: 'Rekening giro resmi atas nama badan usaha PT Kusuma Gemilang Raya (bukan rekening pribadi) guna menjamin integritas transaksi keuangan tim finance klien.',
+                auditRelevance: 'Perlindungan tata kelola keuangan korporat & mencegah penipuan nomor rekening.',
+              },
+              {
+                id: 'SCHEMA_ORG',
+                category: 'SEO & Identitas',
+                icon: '🌐',
+                name: 'Structured Data Schema.org (Google SEO Trust)',
+                code: 'Schema LocalBusiness',
+                value: 'https://jasasedotwcbekasi.web.id/#localbusiness',
+                status: 'Google Schema Valid',
+                statusColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                issuer: 'Schema.org & Google Search Console Structured Data Engine',
+                description: 'Entitas terverifikasi web crawler: @type: LocalBusiness, koordinat GPS -6.2349, 106.9966, jam kerja 24 Jam, telp +6289675064916, dan sameAs media sosial resmi.',
+                auditRelevance: 'Transparansi digital, validasi knowledge graph pencarian Google, dan konsistensi data NAP.',
+              },
+            ];
+
+            const filteredLegalData = rawLegalData.filter((item) => {
+              const matchesFilter = legalTableFilter === 'Semua' || item.category === legalTableFilter;
+              const matchesSearch =
+                !legalTableSearchQuery ||
+                item.name.toLowerCase().includes(legalTableSearchQuery.toLowerCase()) ||
+                item.value.toLowerCase().includes(legalTableSearchQuery.toLowerCase()) ||
+                item.code.toLowerCase().includes(legalTableSearchQuery.toLowerCase()) ||
+                item.issuer.toLowerCase().includes(legalTableSearchQuery.toLowerCase()) ||
+                item.description.toLowerCase().includes(legalTableSearchQuery.toLowerCase());
+              return matchesFilter && matchesSearch;
+            });
+
+            return (
+              <div className="bg-slate-800/80 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
+                {/* Desktop Tabular View (Visible when mode is table) */}
+                {legalTableViewMode === 'table' ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-slate-900/90 text-gray-300 border-b border-slate-700 text-[11px] sm:text-xs uppercase tracking-wider font-bold">
+                          <th scope="col" className="py-4 px-4 sm:px-6">Dokumen & Parameter</th>
+                          <th scope="col" className="py-4 px-4 sm:px-6">Nomor / Nilai Registrasi</th>
+                          <th scope="col" className="py-4 px-4 sm:px-6 hidden md:table-cell">Otoritas Penerbit & Sistem</th>
+                          <th scope="col" className="py-4 px-4 sm:px-6 hidden lg:table-cell">Ruang Lingkup & Kepatuhan Audit</th>
+                          <th scope="col" className="py-4 px-4 sm:px-6 text-center">Salin ke Clipboard</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-700/60">
+                        {filteredLegalData.length > 0 ? (
+                          filteredLegalData.map((record) => (
+                            <tr
+                              key={record.id}
+                              className="hover:bg-slate-700/40 transition-colors group"
+                            >
+                              {/* Parameter Name & Icon */}
+                              <td className="py-4 px-4 sm:px-6 align-top">
+                                <div className="flex items-start gap-3">
+                                  <span className="text-xl shrink-0 mt-0.5">{record.icon}</span>
+                                  <div>
+                                    <div className="font-bold text-white text-xs sm:text-sm group-hover:text-cyan transition-colors">
+                                      {record.name}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-gray-300">
+                                        {record.code}
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${record.statusColor}`}>
+                                        {record.status}
+                                      </span>
+                                    </div>
+                                    {/* Mobile only detail snippet */}
+                                    <div className="mt-2 text-[11px] text-gray-400 md:hidden">
+                                      <span className="font-semibold text-gray-300">Otoritas:</span> {record.issuer}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Value / Number */}
+                              <td className="py-4 px-4 sm:px-6 align-top font-mono">
+                                <div className="inline-block bg-slate-900/90 border border-slate-700 px-3 py-1.5 rounded-xl font-bold text-cyan-light text-xs sm:text-sm tracking-wider select-all">
+                                  {record.value}
+                                </div>
+                                <div className="text-[10px] text-gray-400 mt-1 sm:hidden">
+                                  {record.auditRelevance}
+                                </div>
+                              </td>
+
+                              {/* Authority & System */}
+                              <td className="py-4 px-4 sm:px-6 align-top hidden md:table-cell">
+                                <span className="font-semibold text-gray-200 block text-xs">
+                                  {record.issuer}
+                                </span>
+                                <span className="text-[11px] text-emerald-400 mt-0.5 block">
+                                  ✓ Basis Data Terverifikasi
+                                </span>
+                              </td>
+
+                              {/* Scope & Audit Relevance */}
+                              <td className="py-4 px-4 sm:px-6 align-top hidden lg:table-cell text-xs text-gray-300 leading-relaxed">
+                                <p>{record.description}</p>
+                                <span className="inline-block mt-1 text-[11px] text-amber-300/90 font-medium">
+                                  📌 {record.auditRelevance}
+                                </span>
+                              </td>
+
+                              {/* Copy to Clipboard Button */}
+                              <td className="py-4 px-4 sm:px-6 align-top text-center whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyLegalField(record.id, record.name, record.value)}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                                    copiedDocField === record.id
+                                      ? 'bg-emerald-500 text-white shadow-emerald-500/30 ring-2 ring-emerald-300'
+                                      : 'bg-white/10 hover:bg-cyan hover:text-navy text-gray-200 border border-white/10 hover:border-transparent'
+                                  }`}
+                                  title={`Salin ${record.name} (${record.value})`}
+                                  aria-label={`Salin ${record.name}`}
+                                >
+                                  {copiedDocField === record.id ? (
+                                    <>
+                                      <span className="text-white">✓</span>
+                                      <span>Disalin!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                      </svg>
+                                      <span>Salin</span>
+                                    </>
+                                  )}
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="py-8 text-center text-gray-400 text-sm">
+                              Tidak ada parameter legalitas yang sesuai dengan pencarian "{legalTableSearchQuery}".
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  /* Cards View Mode */
+                  <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredLegalData.map((record) => (
+                      <div
+                        key={record.id}
+                        className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-700 hover:border-cyan/50 transition-all flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-2xl">{record.icon}</span>
+                              <div>
+                                <h4 className="font-bold text-white text-sm sm:text-base">{record.name}</h4>
+                                <span className="text-[10px] text-gray-400 uppercase font-semibold">{record.code}</span>
+                              </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${record.statusColor}`}>
+                              {record.status}
+                            </span>
+                          </div>
+
+                          <div className="my-3 p-3 bg-slate-950/80 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                            <span className="font-mono text-cyan-light font-bold text-xs sm:text-sm tracking-wide select-all break-all">
+                              {record.value}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyLegalField(record.id, record.name, record.value)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${
+                                copiedDocField === record.id
+                                  ? 'bg-emerald-500 text-white'
+                                  : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                              }`}
+                            >
+                              {copiedDocField === record.id ? '✓ Disalin' : 'Salin'}
+                            </button>
+                          </div>
+
+                          <div className="space-y-1.5 text-xs text-gray-300">
+                            <p><strong className="text-gray-400">Otoritas:</strong> {record.issuer}</p>
+                            <p className="text-gray-400 leading-relaxed">{record.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 pt-3 border-t border-slate-800 text-[11px] text-amber-300/90">
+                          📌 {record.auditRelevance}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Professional Transparency & SEO Trust Footer Banner */}
+          <div className="mt-8 p-6 sm:p-8 rounded-3xl bg-slate-850 border border-slate-700/80 shadow-xl backdrop-blur-md">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-cyan/20 text-cyan-light flex items-center justify-center text-2xl shrink-0 border border-cyan/30">
+                  🛡️
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      Komitmen Kepatuhan Regulasi Lingkungan & Transparansi Audit
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      LEGAL & ANTI-MALADMINISTRASI
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-3xl">
+                    Sesuai Undang-Undang No. 32 Tahun 2009 tentang Perlindungan dan Pengelolaan Lingkungan Hidup,
+                    pembuangan air limbah tanpa manifes resmi dapat menimbulkan sanksi pidana dan denda bagi penghasil limbah.
+                    PT Kusuma Gemilang Raya menjamin 100% pembuangan limbah disalurkan ke IPLT resmi Pemkab/Pemkot Bekasi dengan dokumen BAST sah, Faktur Pajak PPN 11%, dan rekening bank berbadan hukum PT.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Links */}
+              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCopyAllLegalInfo}
+                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition cursor-pointer flex items-center gap-2"
+                >
+                  <span>📋</span>
+                  <span>{copiedDocField === 'ALL_LEGAL_DOSSIER' ? 'Tersalin!' : 'Salin Semua Dokumen'}</span>
+                </button>
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, mohon bantuan untuk mengirimkan salinan berkas legalitas NIB KBLI 37011, NPWP, dan rekening giro perusahaan untuk keperluan verifikasi vendor rekanan.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-xl bg-orange hover:bg-orange-dark text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2"
+                >
+                  <span>💬</span>
+                  <span>Kirim Berkas Vendor via WA</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-navy-dark text-gray-400 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -5808,6 +8791,49 @@ export default function App() {
                 </div>
               </div>
               <p className="text-sm">Melayani sedot WC, septic tank, saluran mampet, limbah STP di wilayah Kota dan Kabupaten Bekasi.</p>
+              
+              {/* Social Media Quick Links */}
+              <div className="mt-4 pt-3 border-t border-white/10">
+                <span className="text-[11px] font-semibold text-gray-400 block mb-2">Media Sosial Resmi:</span>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="https://www.instagram.com/ptkusumagemilangraya"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-gradient-to-tr hover:from-amber-500 hover:via-rose-500 hover:to-purple-600 text-gray-300 hover:text-white flex items-center justify-center transition border border-white/10 hover:border-transparent"
+                    title="Instagram Resmi @ptkusumagemilangraya"
+                    aria-label="Instagram"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.13-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                  </a>
+                  <a
+                    href="https://www.facebook.com/ptkusumagemilangraya"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-[#1877F2] text-gray-300 hover:text-white flex items-center justify-center transition border border-white/10 hover:border-transparent"
+                    title="Facebook Resmi PT Kusuma Gemilang Raya"
+                    aria-label="Facebook"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                  </a>
+                  <a
+                    href="https://www.linkedin.com/company/pt-kusuma-gemilang-raya"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-[#0A66C2] text-gray-300 hover:text-white flex items-center justify-center transition border border-white/10 hover:border-transparent"
+                    title="LinkedIn Resmi PT Kusuma Gemilang Raya"
+                    aria-label="LinkedIn"
+                  >
+                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                      <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                    </svg>
+                  </a>
+                </div>
+              </div>
             </div>
             <div>
               <h4 className="text-white font-semibold mb-4">Menu</h4>
@@ -5820,6 +8846,7 @@ export default function App() {
                 <li><a href="#harga" className="hover:text-cyan transition">Harga</a></li>
                 <li><a href="#galeri" className="hover:text-cyan transition">Galeri Proyek</a></li>
                 <li><a href="#sertifikasi" className="hover:text-cyan transition">Sertifikasi & Kemitraan</a></li>
+                <li><a href="#legalitas-seo" className="hover:text-cyan transition font-semibold text-cyan-light">Legalitas & SEO Metadata</a></li>
                 <li><a href="#faq-b2b" className="hover:text-cyan transition font-semibold text-cyan-light">FAQ B2B & Korporat</a></li>
                 <li><a href="#testimoni" className="hover:text-cyan transition">Testimoni</a></li>
                 <li><a href="#faq" className="hover:text-cyan transition">FAQ Umum</a></li>
@@ -5907,8 +8934,129 @@ export default function App() {
             </div>
           </div>
 
-          <div className="border-t border-gray-800 pt-8 text-center text-sm">
+          {/* Dedicated Social Media Footer Bar (Connected with LocalBusiness Schema sameAs) */}
+          <div className="my-8 p-6 bg-gradient-to-r from-navy/95 via-navy-dark to-navy/95 border border-white/10 rounded-3xl shadow-xl backdrop-blur-md">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+              {/* Left Info & Branding */}
+              <div className="text-center lg:text-left">
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan/20 text-cyan-light border border-cyan/30 tracking-wider uppercase">
+                    🌐 Saluran Resmi Media Sosial
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/5 text-gray-300 border border-white/10 hidden sm:inline">
+                    ✓ Terverifikasi Schema.org LocalBusiness
+                  </span>
+                </div>
+                <h4 className="text-white font-extrabold text-base sm:text-lg">
+                  Konektivitas Media Sosial PT Kusuma Gemilang Raya
+                </h4>
+                <p className="text-xs text-gray-400 mt-1 max-w-xl">
+                  Ikuti saluran resmi kami di Instagram, Facebook, dan LinkedIn untuk galeri foto dokumentasi proyek industri B2B, tips sanitasi, serta komunikasi kemitraan vendor.
+                </p>
+              </div>
+
+              {/* Social Media Link Cards (Instagram, Facebook, LinkedIn) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto">
+                {/* Instagram */}
+                <a
+                  href="https://www.instagram.com/ptkusumagemilangraya"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 hover:bg-gradient-to-tr hover:from-purple-900/40 hover:via-pink-900/30 hover:to-amber-900/30 border border-white/10 hover:border-pink-500/50 text-gray-200 hover:text-white transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 duration-200"
+                  aria-label="Instagram Resmi PT Kusuma Gemilang Raya"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.13-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                  </div>
+                  <div className="text-left leading-tight overflow-hidden">
+                    <div className="text-xs font-bold text-white group-hover:text-pink-300 transition-colors flex items-center gap-1">
+                      <span>Instagram</span>
+                      <span className="text-[10px] text-gray-400">↗</span>
+                    </div>
+                    <div className="text-[11px] text-gray-400 truncate">@ptkusumagemilangraya</div>
+                  </div>
+                </a>
+
+                {/* Facebook */}
+                <a
+                  href="https://www.facebook.com/ptkusumagemilangraya"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 hover:bg-blue-600/20 border border-white/10 hover:border-blue-500/50 text-gray-200 hover:text-white transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 duration-200"
+                  aria-label="Facebook Resmi PT Kusuma Gemilang Raya"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#1877F2] flex items-center justify-center text-white shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                  </div>
+                  <div className="text-left leading-tight overflow-hidden">
+                    <div className="text-xs font-bold text-white group-hover:text-blue-300 transition-colors flex items-center gap-1">
+                      <span>Facebook</span>
+                      <span className="text-[10px] text-gray-400">↗</span>
+                    </div>
+                    <div className="text-[11px] text-gray-400 truncate">PT Kusuma Gemilang</div>
+                  </div>
+                </a>
+
+                {/* LinkedIn */}
+                <a
+                  href="https://www.linkedin.com/company/pt-kusuma-gemilang-raya"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 hover:bg-sky-600/20 border border-white/10 hover:border-sky-500/50 text-gray-200 hover:text-white transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 duration-200"
+                  aria-label="LinkedIn Resmi PT Kusuma Gemilang Raya"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#0A66C2] flex items-center justify-center text-white shadow-md flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                    </svg>
+                  </div>
+                  <div className="text-left leading-tight overflow-hidden">
+                    <div className="text-xs font-bold text-white group-hover:text-sky-300 transition-colors flex items-center gap-1">
+                      <span>LinkedIn</span>
+                      <span className="text-[10px] text-gray-400">↗</span>
+                    </div>
+                    <div className="text-[11px] text-gray-400 truncate">PT Kusuma Gemilang</div>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-400">
             <p>© PT Kusuma Gemilang Raya. All Rights Reserved.</p>
+            <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+              <span className="text-gray-500">Saluran Media Sosial:</span>
+              <a
+                href="https://www.instagram.com/ptkusumagemilangraya"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-cyan text-gray-300 transition flex items-center gap-1"
+              >
+                <span>Instagram</span>
+              </a>
+              <span className="text-gray-700">•</span>
+              <a
+                href="https://www.facebook.com/ptkusumagemilangraya"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-cyan text-gray-300 transition flex items-center gap-1"
+              >
+                <span>Facebook</span>
+              </a>
+              <span className="text-gray-700">•</span>
+              <a
+                href="https://www.linkedin.com/company/pt-kusuma-gemilang-raya"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-cyan text-gray-300 transition flex items-center gap-1"
+              >
+                <span>LinkedIn</span>
+              </a>
+            </div>
           </div>
         </div>
       </footer>
@@ -6633,6 +9781,193 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Slide-in Newsletter Subscription Popup (Appears after 10s inactivity) */}
+      <div
+        role="dialog"
+        aria-label="Popup Berlangganan Tips Sanitasi"
+        className={`fixed bottom-4 sm:bottom-6 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] sm:w-[420px] max-w-[440px] transition-all duration-500 ease-out ${
+          isNewsletterSlideInOpen
+            ? 'transform translate-y-0 opacity-100 scale-100 pointer-events-auto'
+            : 'transform translate-y-16 opacity-0 scale-95 pointer-events-none'
+        }`}
+      >
+        <div className="bg-white rounded-3xl shadow-2xl border-2 border-orange/40 overflow-hidden ring-4 ring-orange/10 backdrop-blur-md">
+          {/* Header */}
+          <div className="p-4 sm:p-5 bg-gradient-to-r from-navy via-navy to-navy-light text-white flex items-center justify-between border-b border-white/10 relative">
+            <div className="pr-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 uppercase tracking-wider">
+                  💡 TIPS SANITASI BEKASI
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/20 text-cyan-light border border-cyan/30">
+                  Gratis
+                </span>
+              </div>
+              <h3 className="font-extrabold text-base sm:text-lg text-white leading-tight">
+                Tips Perawatan Septic Tank & IPAL
+              </h3>
+              <p className="text-[11px] sm:text-xs text-gray-300 mt-0.5">
+                Cegah pipa mampet & bau tak sedap dengan panduan resmi teknisi kami.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleDismissSlideInPopup}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer shrink-0"
+              title="Tutup Popup"
+              aria-label="Tutup popup"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-4 sm:p-5 text-xs sm:text-sm">
+            {slideInStatus === 'success' ? (
+              <div className="text-center py-4 space-y-3">
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+                  ✓
+                </div>
+                <h4 className="font-extrabold text-navy text-base">
+                  Panduan Sanitasi Terkirim!
+                </h4>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  {slideInMsg}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsNewsletterSlideInOpen(false)}
+                  className="px-5 py-2 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy-light transition cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSlideInNewsletterSubmit} className="space-y-3">
+                {/* Benefits Pills */}
+                <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-2xl border border-gray-100 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-gray-700">
+                    <span className="text-cyan font-bold">✓</span>
+                    <span>Trik atasi WC mampet</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-gray-700">
+                    <span className="text-cyan font-bold">✓</span>
+                    <span>Jadwal kuras ideal</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-gray-700">
+                    <span className="text-cyan font-bold">✓</span>
+                    <span>SOP limbah cair B2B</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-gray-700">
+                    <span className="text-cyan font-bold">✓</span>
+                    <span>Diskon berkala 10%</span>
+                  </div>
+                </div>
+
+                {slideInStatus === 'error' && (
+                  <div className="p-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>{slideInMsg}</span>
+                  </div>
+                )}
+
+                {/* Email Input */}
+                <div>
+                  <label className="block text-xs font-bold text-navy mb-1">
+                    Alamat Email Anda <span className="text-orange">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="nama@email.com"
+                    value={slideInEmail}
+                    onChange={(e) => {
+                      setSlideInEmail(e.target.value);
+                      if (slideInStatus === 'error') setSlideInStatus('idle');
+                    }}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:border-cyan focus:ring-2 focus:ring-cyan/20 outline-none text-xs sm:text-sm text-navy bg-white"
+                  />
+                </div>
+
+                {/* Name Input */}
+                <div>
+                  <label className="block text-xs font-bold text-navy mb-1">
+                    Nama / Perusahaan <span className="text-gray-400 font-normal">(Opsional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Pak Budi / PT Surya"
+                    value={slideInName}
+                    onChange={(e) => setSlideInName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:border-cyan focus:ring-2 focus:ring-cyan/20 outline-none text-xs sm:text-sm text-navy bg-white"
+                  />
+                </div>
+
+                {/* Interest Pills */}
+                <div>
+                  <label className="block text-xs font-bold text-navy mb-1">
+                    Kategori Kebutuhan
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSlideInInterest('residensial')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
+                        slideInInterest === 'residensial'
+                          ? 'bg-navy text-white border-navy shadow-sm'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      🏠 Rumah Tangga
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSlideInInterest('komersial')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
+                        slideInInterest === 'komersial'
+                          ? 'bg-navy text-white border-navy shadow-sm'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      🏢 Pabrik / Bisnis
+                    </button>
+                  </div>
+                </div>
+
+                {/* Action Submit Button */}
+                <button
+                  type="submit"
+                  disabled={slideInStatus === 'loading'}
+                  className="w-full mt-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange to-orange-dark hover:from-orange-dark hover:to-orange text-white font-bold text-xs sm:text-sm shadow-md shadow-orange/30 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {slideInStatus === 'loading' ? (
+                    <span>Mendaftarkan...</span>
+                  ) : (
+                    <>
+                      <span>📩 Dapatkan Tips Sanitasi Gratis</span>
+                      <span>→</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Bottom Footer Note */}
+                <div className="pt-2 flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-100">
+                  <span>🔒 Bebas spam & privasi terjaga</span>
+                  <button
+                    type="button"
+                    onClick={handleDismissSlideInPopup}
+                    className="text-gray-500 hover:text-navy underline cursor-pointer"
+                  >
+                    Nanti saja
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
 
       {adminNotificationToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-navy text-white text-xs sm:text-sm font-semibold shadow-2xl border border-cyan/40 flex items-center gap-3">
