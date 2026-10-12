@@ -140,3 +140,50 @@ details.faq-accordion-animated summary {
   animation: popCheck 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 
+/* Print Styles for Map Print Preview & Physical Site Visit Documents */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #0F2A4A !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* When printing with #print-hub-document visible */
+  body:has(#print-hub-document) > * {
+    display: none !important;
+  }
+
+  body:has(#print-hub-document) #print-hub-document {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Fallback visibility for browsers without :has */
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Ensure colors and backgrounds print sharply */
+  #print-hub-document {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+

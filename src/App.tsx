@@ -3,10 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { generateBrochurePdf } from './utils/generateBrochurePdf';
 import { generateInvoiceBastPdf } from './utils/generateInvoiceBastPdf';
 import { downloadAreaMapPng } from './utils/exportAreaMapToPng';
+import { ComplianceSeoMetadata } from './components/ComplianceSeoMetadata';
+import { MapPrintPreviewModal } from './components/MapPrintPreviewModal';
+import { highlightKeyword, getFaqMatchStats } from './utils/faqHighlighter';
 import teknisiSedotWcImg from './assets/images/teknisi_lapangan_sedot_wc_1791530702926.jpg';
 import teknisiPipaImg from './assets/images/teknisi_pelancaran_pipa_1791530724142.jpg';
 import logoBekasiImg from './assets/images/logo_bekasi.jpeg';
@@ -20,6 +23,9 @@ interface AnimatedFaqDetailsProps {
   children: React.ReactNode;
   answerText?: string;
   onCopy?: (copiedText: string) => void;
+  isOpenProp?: boolean;
+  onToggleProp?: () => void;
+  matchInfoBadge?: React.ReactNode;
 }
 
 function AnimatedFaqDetails({
@@ -30,18 +36,39 @@ function AnimatedFaqDetails({
   children,
   answerText,
   onCopy,
+  isOpenProp,
+  onToggleProp,
+  matchInfoBadge,
 }: AnimatedFaqDetailsProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  const isControlled = typeof isOpenProp === 'boolean';
+  const isOpen = isControlled ? isOpenProp : internalIsOpen;
+
+  // Synchronize closing animation if controlled isOpenProp changes
+  useEffect(() => {
+    if (isControlled) {
+      if (!isOpenProp && isOpen) {
+        setIsClosing(true);
+      } else if (isOpenProp) {
+        setIsClosing(false);
+      }
+    }
+  }, [isOpenProp, isControlled, isOpen]);
+
   const handleToggle = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (isOpen) {
+    if (isControlled && onToggleProp) {
+      onToggleProp();
+      return;
+    }
+    if (internalIsOpen) {
       setIsClosing(true);
-      setIsOpen(false);
+      setInternalIsOpen(false);
     } else {
-      setIsOpen(true);
+      setInternalIsOpen(true);
       setIsClosing(false);
     }
   };
@@ -110,6 +137,8 @@ function AnimatedFaqDetails({
       className={`faq-accordion-animated group bg-white p-5 sm:p-6 rounded-2xl border transition-all duration-300 ${
         isOpen
           ? 'border-cyan/40 shadow-md ring-1 ring-cyan/20'
+          : matchInfoBadge
+          ? 'border-amber-300/80 hover:border-amber-400 shadow-sm ring-1 ring-amber-200/60 bg-gradient-to-r from-amber-50/20 via-white to-white'
           : 'border-gray-100 hover:border-gray-200 shadow-sm'
       }`}
     >
@@ -140,6 +169,7 @@ function AnimatedFaqDetails({
                 {badge}
               </span>
             )}
+            {matchInfoBadge}
             {/* Copy Answer Button next to question header */}
             <button
               type="button"
@@ -432,7 +462,9 @@ export default function App() {
   const [isPinInteractiveMode, setIsPinInteractiveMode] = useState(true);
   const [copiedMapCoords, setCopiedMapCoords] = useState(false);
   const [copiedHubPhone, setCopiedHubPhone] = useState<string | null>(null);
+  const [copiedHubAddress, setCopiedHubAddress] = useState<string | null>(null);
   const [isExportingMapPng, setIsExportingMapPng] = useState(false);
+  const [isMapPrintPreviewOpen, setIsMapPrintPreviewOpen] = useState(false);
   const hubCardRef = useRef<HTMLDivElement>(null);
   const [selectedBlogCategory, setSelectedBlogCategory] = useState('Semua');
   const [activeArticleModal, setActiveArticleModal] = useState<number | null>(null);
@@ -442,6 +474,7 @@ export default function App() {
   const [documentationItems, setDocumentationItems] = useState<DocumentationItem[]>(initialDocumentationItems);
   const [docCarouselIndex, setDocCarouselIndex] = useState(0);
   const [docCategoryFilter, setDocCategoryFilter] = useState<'Semua' | 'Industri & B2B' | 'Residensial' | 'Komersial & Resto' | 'Pelancaran Pipa'>('Semua');
+  const [docSortBy, setDocSortBy] = useState<'Newest' | 'Oldest' | 'Alphabetical'>('Newest');
   const [isDocAutoPlay, setIsDocAutoPlay] = useState(true);
   const [activeDocPreview, setActiveDocPreview] = useState<DocumentationItem | null>(null);
   const [docTouchStartX, setDocTouchStartX] = useState<number | null>(null);
@@ -631,15 +664,20 @@ export default function App() {
   const [openB2bFaqId, setOpenB2bFaqId] = useState<number | null>(1);
   const [isB2bFaqShaking, setIsB2bFaqShaking] = useState(false);
   const [b2bFaqShakeKey, setB2bFaqShakeKey] = useState(0);
+  const [isB2bFaqHighlightActive, setIsB2bFaqHighlightActive] = useState(true);
 
   // General & Residential FAQ Filter States
   const [generalFaqCategory, setGeneralFaqCategory] = useState<'Semua' | 'Harga' | 'Layanan' | 'Area' | 'Teknis'>('Semua');
   const [generalFaqSearch, setGeneralFaqSearch] = useState('');
   const [isGeneralFaqShaking, setIsGeneralFaqShaking] = useState(false);
   const [generalFaqShakeKey, setGeneralFaqShakeKey] = useState(0);
+  const [isGeneralFaqHighlightActive, setIsGeneralFaqHighlightActive] = useState(true);
+  const [openedGeneralFaqIds, setOpenedGeneralFaqIds] = useState<number[]>([]);
+  const [isAllGeneralFaqExpanded, setIsAllGeneralFaqExpanded] = useState(false);
 
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [subscriberCategoryFilter, setSubscriberCategoryFilter] = useState<'Semua' | 'komersial' | 'residensial'>('Semua');
+  const [subscriberSourceFilter, setSubscriberSourceFilter] = useState<string>('Semua');
   const [subscriberTimeRange, setSubscriberTimeRange] = useState<'Semua Waktu' | '30 Hari' | 'Bulan Ini' | 'Kuartal Ini'>('Semua Waktu');
   const [isMaskEmail, setIsMaskEmail] = useState(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
@@ -1185,10 +1223,60 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const filteredDocumentation =
-    docCategoryFilter === 'Semua'
-      ? documentationItems
-      : documentationItems.filter((item) => item.category === docCategoryFilter);
+  // Helper function to parse Indonesian date strings (e.g. "10 Okt 2026")
+  const parseDocDate = (dateStr: string): number => {
+    try {
+      const parts = dateStr.trim().split(/\s+/);
+      if (parts.length >= 3) {
+        const day = parseInt(parts[0], 10) || 1;
+        const monthStr = parts[1].toLowerCase();
+        const year = parseInt(parts[2], 10) || 2026;
+        const monthMap: Record<string, number> = {
+          jan: 0,
+          feb: 1,
+          mar: 2,
+          apr: 3,
+          mei: 4,
+          may: 4,
+          jun: 5,
+          jul: 6,
+          agu: 7,
+          agt: 7,
+          aug: 7,
+          sep: 8,
+          okt: 9,
+          oct: 9,
+          nov: 10,
+          des: 11,
+          dec: 11,
+        };
+        const month = monthMap[monthStr] ?? 0;
+        return new Date(year, month, day).getTime();
+      }
+    } catch {
+      // fallback
+    }
+    return 0;
+  };
+
+  const filteredDocumentation = [...documentationItems]
+    .filter((item) => docCategoryFilter === 'Semua' || item.category === docCategoryFilter)
+    .sort((a, b) => {
+      if (docSortBy === 'Alphabetical') {
+        return a.title.localeCompare(b.title, 'id', { sensitivity: 'base' });
+      }
+      if (docSortBy === 'Oldest') {
+        const dateA = parseDocDate(a.date);
+        const dateB = parseDocDate(b.date);
+        if (dateA !== dateB) return dateA - dateB;
+        return a.id - b.id;
+      }
+      // 'Newest' (default)
+      const dateA = parseDocDate(a.date);
+      const dateB = parseDocDate(b.date);
+      if (dateA !== dateB) return dateB - dateA;
+      return b.id - a.id;
+    });
 
   const maxDocIndex = Math.max(0, filteredDocumentation.length - docItemsPerView);
 
@@ -1384,6 +1472,18 @@ export default function App() {
     triggerToast(`📞 Nomor kontak ${hubName} (${phone}) berhasil disalin!`);
     setTimeout(() => {
       setCopiedHubPhone(null);
+    }, 2500);
+  };
+
+  const handleCopyHubAddress = (e: React.MouseEvent, address: string, hubName: string) => {
+    e.stopPropagation();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(address);
+    }
+    setCopiedHubAddress(address);
+    triggerToast(`📍 Alamat ${hubName} berhasil disalin ke clipboard!`);
+    setTimeout(() => {
+      setCopiedHubAddress(null);
     }, 2500);
   };
 
@@ -1680,6 +1780,42 @@ export default function App() {
     return matchCategory && matchSearch;
   });
 
+  // B2B FAQ keyword match calculations
+  const b2bFaqMatchMap = React.useMemo(() => {
+    const map = new Map<number, { total: number; questionMatches: number; answerMatches: number }>();
+    if (!b2bFaqSearch.trim()) return map;
+    for (const item of filteredB2bFaqItems) {
+      const stats = getFaqMatchStats({ question: item.question, summary: item.summary, details: item.details }, b2bFaqSearch);
+      map.set(item.id, stats);
+    }
+    return map;
+  }, [filteredB2bFaqItems, b2bFaqSearch]);
+
+  const totalB2bFaqMatches = React.useMemo(() => {
+    let sum = 0;
+    b2bFaqMatchMap.forEach((stats) => {
+      sum += stats.total;
+    });
+    return sum;
+  }, [b2bFaqMatchMap]);
+
+  const b2bItemsWithMatchesCount = React.useMemo(() => {
+    let count = 0;
+    b2bFaqMatchMap.forEach((stats) => {
+      if (stats.total > 0) count++;
+    });
+    return count;
+  }, [b2bFaqMatchMap]);
+
+  // Auto-select first matching B2B item if search changes
+  useEffect(() => {
+    if (b2bFaqSearch.trim() && filteredB2bFaqItems.length > 0) {
+      if (!openB2bFaqId || !filteredB2bFaqItems.some((i) => i.id === openB2bFaqId)) {
+        setOpenB2bFaqId(filteredB2bFaqItems[0].id);
+      }
+    }
+  }, [b2bFaqSearch]);
+
   // Subtle shake animation trigger when B2B FAQ search keyword yields zero results
   useEffect(() => {
     if (b2bFaqSearch.trim() !== '' && filteredB2bFaqItems.length === 0) {
@@ -1910,6 +2046,62 @@ export default function App() {
       item.keywords.some((k) => k.toLowerCase().includes(q))
     );
   });
+
+  // General FAQ keyword match calculations & highlighting stats
+  const generalFaqMatchMap = React.useMemo(() => {
+    const map = new Map<number, { total: number; questionMatches: number; answerMatches: number }>();
+    if (!generalFaqSearch.trim()) return map;
+    for (const item of filteredGeneralFaqItems) {
+      const stats = getFaqMatchStats({ question: item.question, answer: item.answer }, generalFaqSearch);
+      map.set(item.id, stats);
+    }
+    return map;
+  }, [filteredGeneralFaqItems, generalFaqSearch]);
+
+  const totalGeneralFaqMatches = React.useMemo(() => {
+    let sum = 0;
+    generalFaqMatchMap.forEach((stats) => {
+      sum += stats.total;
+    });
+    return sum;
+  }, [generalFaqMatchMap]);
+
+  const itemsWithMatchesCount = React.useMemo(() => {
+    let count = 0;
+    generalFaqMatchMap.forEach((stats) => {
+      if (stats.total > 0) count++;
+    });
+    return count;
+  }, [generalFaqMatchMap]);
+
+  // Auto-expand general FAQ items when searching so highlighted answers are immediately visible
+  useEffect(() => {
+    if (generalFaqSearch.trim()) {
+      const matchingIds = filteredGeneralFaqItems.map((item) => item.id);
+      setOpenedGeneralFaqIds(matchingIds);
+      setIsAllGeneralFaqExpanded(true);
+    } else {
+      setOpenedGeneralFaqIds([]);
+      setIsAllGeneralFaqExpanded(false);
+    }
+  }, [generalFaqSearch]);
+
+  const handleToggleAllGeneralFaq = () => {
+    if (isAllGeneralFaqExpanded) {
+      setOpenedGeneralFaqIds([]);
+      setIsAllGeneralFaqExpanded(false);
+    } else {
+      const allIds = filteredGeneralFaqItems.map((item) => item.id);
+      setOpenedGeneralFaqIds(allIds);
+      setIsAllGeneralFaqExpanded(true);
+    }
+  };
+
+  const handleToggleSingleGeneralFaq = (id: number) => {
+    setOpenedGeneralFaqIds((prev) =>
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
+    );
+  };
 
   // Subtle shake animation trigger when General FAQ search keyword yields zero results
   useEffect(() => {
@@ -2400,6 +2592,157 @@ export default function App() {
     triggerToast('Data subscriber newsletter berhasil diekspor ke file CSV!');
   };
 
+  interface SourceSummaryItem {
+    source: string;
+    count: number;
+    percentage: number;
+    commercialCount: number;
+    residentialCount: number;
+    icon: string;
+    categoryDescription: string;
+    performanceTag: string;
+    performanceColor: string;
+  }
+
+  const getSourceIconAndMeta = (source: string) => {
+    switch (source) {
+      case 'Formulir Web B2B':
+        return {
+          icon: '🏢',
+          desc: 'Formulir pendaftaran kemitraan korporasi & pabrik kawasan industri',
+          tag: 'Kanal Utama B2B (Tier 1)',
+          color: 'bg-blue-50 text-blue-800 border-blue-200',
+        };
+      case 'Tips Sanitasi Blog':
+        return {
+          icon: '✍️',
+          desc: 'Artikel edukasi & tips pemeliharaan septic tank & IPAL',
+          tag: 'Top Traffic Organik (SEO)',
+          color: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        };
+      case 'Portal Quotation RFP':
+        return {
+          icon: '📑',
+          desc: 'Permintaan penawaran harga resmi (RFP/SPK) & BAST',
+          tag: 'High Conversion Leads',
+          color: 'bg-purple-50 text-purple-800 border-purple-200',
+        };
+      case 'Kalkulator Biaya':
+        return {
+          icon: '🧮',
+          desc: 'Simulasi estimasi tarif pipa & sedot limbah mandiri',
+          tag: 'Interaktif / Direct User',
+          color: 'bg-amber-50 text-amber-800 border-amber-200',
+        };
+      case 'Formulir Web Newsletter':
+        return {
+          icon: '📩',
+          desc: 'Widget subscription buletin berkala & edukasi bulanan',
+          tag: 'Retensi & CRM Nurturing',
+          color: 'bg-cyan/10 text-cyan-dark border-cyan/30',
+        };
+      case 'Simulasi Live Monitoring':
+        return {
+          icon: '⚡',
+          desc: 'Pengujian data real-time dashboard sistem & evaluasi',
+          tag: 'Internal Sandbox / Audit',
+          color: 'bg-gray-100 text-gray-700 border-gray-200',
+        };
+      default:
+        return {
+          icon: '🌐',
+          desc: 'Kanal rujukan eksternal & formulir landing page',
+          tag: 'Kanal Aktif',
+          color: 'bg-slate-100 text-slate-700 border-slate-200',
+        };
+    }
+  };
+
+  const sourceSummaryList = useMemo<SourceSummaryItem[]>(() => {
+    const totalCount = subscribersList.length;
+    if (totalCount === 0) return [];
+
+    const map: Record<
+      string,
+      {
+        count: number;
+        commercial: number;
+        residential: number;
+      }
+    > = {};
+
+    subscribersList.forEach((sub) => {
+      const src = sub.source || 'Lainnya / Langsung';
+      if (!map[src]) {
+        map[src] = { count: 0, commercial: 0, residential: 0 };
+      }
+      map[src].count += 1;
+      if (sub.interest === 'komersial') {
+        map[src].commercial += 1;
+      } else {
+        map[src].residential += 1;
+      }
+    });
+
+    return Object.entries(map)
+      .map(([source, data]) => {
+        const meta = getSourceIconAndMeta(source);
+        const percentage = totalCount > 0 ? (data.count / totalCount) * 100 : 0;
+        return {
+          source,
+          count: data.count,
+          percentage,
+          commercialCount: data.commercial,
+          residentialCount: data.residential,
+          icon: meta.icon,
+          categoryDescription: meta.desc,
+          performanceTag: meta.tag,
+          performanceColor: meta.color,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+  }, [subscribersList]);
+
+  const availableSources = useMemo(() => {
+    const sourcesSet = new Set<string>();
+    subscribersList.forEach((s) => {
+      if (s.source) sourcesSet.add(s.source);
+    });
+    return Array.from(sourcesSet);
+  }, [subscribersList]);
+
+  const handleExportSourceSummaryCsv = () => {
+    const headers = [
+      'Sumber Akuisisi / Channel',
+      'Total Subscriber',
+      'Porsi Kontribusi (%)',
+      'Porsi Komersial / PT',
+      'Porsi Residensial',
+      'Deskripsi Kanal',
+      'Kategori & Kinerja Performa',
+    ];
+    const rows = sourceSummaryList.map((item) => [
+      `"${item.source.replace(/"/g, '""')}"`,
+      item.count,
+      `${item.percentage.toFixed(1)}%`,
+      item.commercialCount,
+      item.residentialCount,
+      `"${item.categoryDescription.replace(/"/g, '""')}"`,
+      `"${item.performanceTag.replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `kinerja_kanal_pemasaran_subscriber_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    triggerToast('📊 CSV Ringkasan Kinerja Kanal Pemasaran berhasil diekspor!');
+  };
+
   const handleAddSimulationSubscriber = () => {
     const samples = [
       {
@@ -2526,13 +2869,16 @@ export default function App() {
   const filteredSubscribers = subscribersList.filter((s) => {
     const matchCategory =
       subscriberCategoryFilter === 'Semua' || s.interest === subscriberCategoryFilter;
+    const matchSource =
+      subscriberSourceFilter === 'Semua' || s.source === subscriberSourceFilter;
     const query = subscriberSearch.toLowerCase().trim();
     const matchQuery =
       !query ||
       s.email.toLowerCase().includes(query) ||
       s.name.toLowerCase().includes(query) ||
-      s.company.toLowerCase().includes(query);
-    return matchCategory && matchQuery;
+      s.company.toLowerCase().includes(query) ||
+      (s.source && s.source.toLowerCase().includes(query));
+    return matchCategory && matchSource && matchQuery;
   });
 
   const scrollToTop = () => {
@@ -3488,6 +3834,40 @@ export default function App() {
               <span>💡</span>
               <span>Arahkan kursor (<strong>hover</strong>) pada pin peta untuk melihat nama dan nomor kontak pos secara instan, atau klik untuk memusatkan peta.</span>
             </p>
+
+            {/* Quick Map Export & Presentation Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-2.5 mt-4">
+              <button
+                type="button"
+                onClick={handleExportAreaMapPng}
+                disabled={isExportingMapPng}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-navy text-cyan hover:bg-navy/90 hover:text-cyan-light shadow-md border border-cyan/40 transition flex items-center gap-2 active:scale-95 disabled:opacity-60 cursor-pointer"
+                title="Unduh visual peta area titik terpilih sebagai gambar PNG resolusi tinggi untuk slide presentasi B2B"
+              >
+                {isExportingMapPng ? (
+                  <>
+                    <span className="w-3 h-3 rounded-full border-2 border-cyan border-t-transparent animate-spin" />
+                    <span>Menyiapkan PNG...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>📸</span>
+                    <span>Save Area Map (Export PNG B2B)</span>
+                    <span className="px-1.5 py-0.5 rounded bg-cyan/20 text-[10px] font-mono text-cyan">16:9 HD</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsMapPrintPreviewOpen(true)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-white text-navy hover:bg-slate-100 shadow-sm border border-gray-200 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                title="Buka Print Preview format lembar cetak A4 untuk survei lapangan"
+              >
+                <span>🖨️</span>
+                <span>Print Preview (Lembar Kunjungan Lapangan)</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid lg:grid-cols-12 gap-8 items-stretch">
@@ -3565,6 +3945,18 @@ export default function App() {
                           <span>Save Area Map</span>
                         </>
                       )}
+                    </button>
+
+                    {/* Print Preview Button for Physical Site Visits */}
+                    <button
+                      type="button"
+                      onClick={() => setIsMapPrintPreviewOpen(true)}
+                      className="px-3 py-1.5 rounded-full text-xs font-bold bg-white/95 hover:bg-white text-navy shadow-md border border-gray-200 transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                      title="Buka Print Preview: Format lembar kunjungan lapangan (1 lembar cetak A4)"
+                    >
+                      <span>🖨️</span>
+                      <span className="hidden sm:inline">Print Preview</span>
+                      <span className="sm:hidden">Print</span>
                     </button>
 
                     <a
@@ -3908,13 +4300,37 @@ export default function App() {
                   <h3 className="text-xl font-extrabold text-navy mb-2">
                     {mapHubs[activeMapHubIndex].name}
                   </h3>
-                  <p className="text-xs text-gray-500 mb-4 flex items-start gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>{mapHubs[activeMapHubIndex].address}</span>
-                  </p>
+                  <div className="text-xs text-gray-500 mb-4 flex items-start justify-between gap-2 p-2.5 rounded-2xl bg-white border border-gray-100 shadow-xs">
+                    <p className="flex items-start gap-1.5 flex-1 min-w-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="leading-relaxed text-gray-700 font-medium">{mapHubs[activeMapHubIndex].address}</span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => handleCopyHubAddress(e, mapHubs[activeMapHubIndex].address, mapHubs[activeMapHubIndex].name)}
+                      className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 flex items-center gap-1 cursor-pointer active:scale-95 border ${
+                        copiedHubAddress === mapHubs[activeMapHubIndex].address
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 font-black'
+                          : 'bg-slate-50 hover:bg-cyan/10 text-navy hover:text-cyan-dark border-gray-200 hover:border-cyan/40 shadow-xs'
+                      }`}
+                      title="Salin alamat lengkap pos ini untuk ditempel di Google Maps, Waze, atau aplikasi navigasi"
+                    >
+                      {copiedHubAddress === mapHubs[activeMapHubIndex].address ? (
+                        <>
+                          <span className="text-emerald-600">✓</span>
+                          <span>Tersalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>📋</span>
+                          <span>Copy Location</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
                   {/* Hub Direct Contact Banner */}
                   <div className="mb-4 p-3 rounded-2xl bg-gradient-to-r from-navy via-slate-900 to-navy text-white border border-cyan/40 shadow-md flex items-center justify-between gap-3">
@@ -4054,6 +4470,18 @@ export default function App() {
                         <span className="text-[10px] px-2 py-0.5 rounded bg-cyan/20 text-cyan font-mono">16:9 HD</span>
                       </>
                     )}
+                  </button>
+
+                  {/* Print Preview Button for Physical Site Visits */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMapPrintPreviewOpen(true)}
+                    className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-white hover:bg-slate-50 text-navy text-xs font-bold rounded-xl border border-gray-300 hover:border-cyan transition shadow-sm text-center gap-2 active:scale-98 cursor-pointer"
+                    title="Buka Print Preview format lembar cetak A4 untuk survei lokasi dan kunjungan fisik"
+                  >
+                    <span>🖨️</span>
+                    <span>Print Preview (Lembar Kunjungan Lapangan)</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-navy/10 text-navy font-semibold">1 Halaman A4</span>
                   </button>
 
                   <a
@@ -4861,7 +5289,29 @@ export default function App() {
             </div>
 
             {/* Carousel Navigation Actions */}
-            <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+            <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+              {/* Sort By Dropdown for Job Management */}
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-gray-200">
+                <label htmlFor="doc-sort-by" className="text-xs font-bold text-gray-500 flex items-center gap-1 shrink-0">
+                  <span>↕️</span>
+                  <span className="hidden sm:inline">Sort by:</span>
+                </label>
+                <select
+                  id="doc-sort-by"
+                  value={docSortBy}
+                  onChange={(e) => {
+                    setDocSortBy(e.target.value as 'Newest' | 'Oldest' | 'Alphabetical');
+                    setDocCarouselIndex(0);
+                  }}
+                  className="bg-transparent text-xs font-bold text-navy focus:outline-none cursor-pointer pr-1"
+                  aria-label="Urutkan dokumentasi pekerjaan"
+                >
+                  <option value="Newest">Newest (Terbaru)</option>
+                  <option value="Oldest">Oldest (Terlama)</option>
+                  <option value="Alphabetical">Alphabetical (A - Z)</option>
+                </select>
+              </div>
+
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-navy bg-slate-100 px-3 py-1.5 rounded-xl border border-gray-200">
                   Foto {docCarouselIndex + 1} - {Math.min(docCarouselIndex + docItemsPerView, filteredDocumentation.length)} dari {filteredDocumentation.length}
@@ -6720,6 +7170,46 @@ export default function App() {
                 )}
               </div>
 
+              {/* Highlight Results Toolbar for B2B FAQ */}
+              {b2bFaqSearch.trim() !== '' && filteredB2bFaqItems.length > 0 && (
+                <div className="mt-3 p-3 rounded-2xl bg-amber-50/90 border border-amber-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-amber-950 animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-amber-200 text-amber-900 flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-2xs">
+                      ✨
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-extrabold text-navy">Highlight Results B2B:</span>
+                        <span className="inline-flex items-center px-1.5 py-0.2 rounded font-bold text-[11px] bg-amber-200/80 text-amber-950">
+                          {isB2bFaqHighlightActive ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                        <span className="text-gray-600">
+                          ({totalB2bFaqMatches} kecocokan di {b2bItemsWithMatchesCount} topik)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800/90 truncate mt-0.5">
+                        Menyorot kata kunci <mark className="bg-amber-300 text-navy font-bold px-1 rounded">"{b2bFaqSearch}"</mark> pada pertanyaan, ringkasan, dan detail kepatuhan.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsB2bFaqHighlightActive((prev) => !prev)}
+                      className={`px-2.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-[11px] cursor-pointer ${
+                        isB2bFaqHighlightActive
+                          ? 'bg-amber-200 text-amber-950 hover:bg-amber-300 border border-amber-400/80 shadow-2xs'
+                          : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                      }`}
+                      title={isB2bFaqHighlightActive ? 'Matikan sorotan kata kunci' : 'Aktifkan sorotan kata kunci'}
+                    >
+                      <span>{isB2bFaqHighlightActive ? '🟡 Sorotan ON' : '⚪ Sorotan OFF'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Zero Results Visual Feedback Indicator */}
               {filteredB2bFaqItems.length === 0 && b2bFaqSearch.trim() !== '' && (
                 <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between gap-2 shadow-xs animate-fadeIn">
@@ -6792,12 +7282,16 @@ export default function App() {
             ) : (
               filteredB2bFaqItems.map((item) => {
                 const isOpen = openB2bFaqId === item.id;
+                const stats = b2bFaqMatchMap.get(item.id);
+                const hasMatches = isB2bFaqHighlightActive && stats && stats.total > 0;
                 return (
                   <div
                     key={item.id}
                     className={`rounded-3xl border transition-all duration-300 overflow-hidden bg-white ${
                       isOpen
                         ? 'border-cyan/50 shadow-lg ring-1 ring-cyan/20'
+                        : hasMatches
+                        ? 'border-amber-300/80 hover:border-amber-400 shadow-xs ring-1 ring-amber-200/50'
                         : 'border-gray-200 hover:border-gray-300 shadow-xs'
                     }`}
                   >
@@ -6815,9 +7309,17 @@ export default function App() {
                           <span className="text-[11px] font-semibold text-gray-600 bg-slate-100 px-2 py-0.5 rounded-full">
                             {item.categoryLabel}
                           </span>
+                          {hasMatches && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs animate-fadeIn">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                              <span>{stats.total} kata kunci cocok</span>
+                            </span>
+                          )}
                         </div>
                         <h3 className="text-base sm:text-lg font-extrabold text-navy leading-snug">
-                          {item.question}
+                          {isB2bFaqHighlightActive && b2bFaqSearch.trim()
+                            ? highlightKeyword(item.question, b2bFaqSearch)
+                            : item.question}
                         </h3>
                         <div
                           className={`accordion-grid ${
@@ -6826,7 +7328,9 @@ export default function App() {
                         >
                           <div className="accordion-overflow">
                             <p className="mt-2 text-xs sm:text-sm text-gray-500 line-clamp-2 leading-relaxed">
-                              {item.summary}
+                              {isB2bFaqHighlightActive && b2bFaqSearch.trim()
+                                ? highlightKeyword(item.summary, b2bFaqSearch)
+                                : item.summary}
                             </p>
                           </div>
                         </div>
@@ -6854,7 +7358,9 @@ export default function App() {
                           {/* Summary Box */}
                           <div className="p-4 rounded-2xl bg-cyan/5 border-l-4 border-cyan mb-6">
                             <p className="text-xs sm:text-sm text-gray-700 leading-relaxed font-medium">
-                              {item.summary}
+                              {isB2bFaqHighlightActive && b2bFaqSearch.trim()
+                                ? highlightKeyword(item.summary, b2bFaqSearch)
+                                : item.summary}
                             </p>
                           </div>
 
@@ -6871,11 +7377,15 @@ export default function App() {
                                       ✓
                                     </span>
                                     <h4 className="text-xs sm:text-sm font-bold text-navy">
-                                      {detail.title}
+                                      {isB2bFaqHighlightActive && b2bFaqSearch.trim()
+                                        ? highlightKeyword(detail.title, b2bFaqSearch)
+                                        : detail.title}
                                     </h4>
                                   </div>
                                   <p className="text-xs text-gray-600 leading-relaxed pl-7">
-                                    {detail.desc}
+                                    {isB2bFaqHighlightActive && b2bFaqSearch.trim()
+                                      ? highlightKeyword(detail.desc, b2bFaqSearch)
+                                      : detail.desc}
                                   </p>
                                 </div>
                               </div>
@@ -6891,7 +7401,9 @@ export default function App() {
                                   key={tIdx}
                                   className="px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-white border border-gray-200 text-navy"
                                 >
-                                  #{tag}
+                                  #{isB2bFaqHighlightActive && b2bFaqSearch.trim()
+                                    ? highlightKeyword(tag, b2bFaqSearch)
+                                    : tag}
                                 </span>
                               ))}
                             </div>
@@ -7030,6 +7542,55 @@ export default function App() {
                 )}
               </div>
 
+              {/* Highlight Results Toolbar & Status Indicator */}
+              {generalFaqSearch.trim() !== '' && filteredGeneralFaqItems.length > 0 && (
+                <div className="mt-3 p-3 rounded-2xl bg-amber-50/90 border border-amber-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-amber-950 animate-fadeIn">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-amber-200 text-amber-900 flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-2xs">
+                      ✨
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-extrabold text-navy">Highlight Results:</span>
+                        <span className="inline-flex items-center px-1.5 py-0.2 rounded font-bold text-[11px] bg-amber-200/80 text-amber-950">
+                          {isGeneralFaqHighlightActive ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                        <span className="text-gray-600">
+                          ({totalGeneralFaqMatches} kecocokan di {itemsWithMatchesCount} FAQ)
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800/90 truncate mt-0.5">
+                        Menyorot kata kunci <mark className="bg-amber-300 text-navy font-bold px-1 rounded">"{generalFaqSearch}"</mark> pada pertanyaan dan jawaban.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsGeneralFaqHighlightActive((prev) => !prev)}
+                      className={`px-2.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-[11px] cursor-pointer ${
+                        isGeneralFaqHighlightActive
+                          ? 'bg-amber-200 text-amber-950 hover:bg-amber-300 border border-amber-400/80 shadow-2xs'
+                          : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                      }`}
+                      title={isGeneralFaqHighlightActive ? 'Matikan sorotan kata kunci' : 'Aktifkan sorotan kata kunci'}
+                    >
+                      <span>{isGeneralFaqHighlightActive ? '🟡 Sorotan ON' : '⚪ Sorotan OFF'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleAllGeneralFaq}
+                      className="px-2.5 py-1.5 rounded-xl font-bold bg-white text-navy hover:bg-gray-50 border border-gray-200 transition flex items-center gap-1 text-[11px] cursor-pointer shadow-2xs"
+                      title={isAllGeneralFaqExpanded ? 'Tutup semua jawaban' : 'Buka semua jawaban untuk melihat sorotan'}
+                    >
+                      <span>{isAllGeneralFaqExpanded ? '📂 Tutup Jawaban' : '📖 Buka Semua Jawaban'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Zero Results Visual Feedback Indicator */}
               {filteredGeneralFaqItems.length === 0 && (generalFaqSearch.trim() !== '' || generalFaqCategory !== 'Semua') && (
                 <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between gap-2 shadow-xs animate-fadeIn">
@@ -7124,19 +7685,49 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              filteredGeneralFaqItems.map((item) => (
-                <AnimatedFaqDetails
-                  key={item.id}
-                  question={item.question}
-                  badge={item.badge}
-                  category={item.category}
-                  icon={item.icon}
-                  answerText={item.answer}
-                  onCopy={() => triggerToast(`📋 Jawaban untuk "${item.question.length > 32 ? item.question.slice(0, 32) + '...' : item.question}" berhasil disalin!`)}
-                >
-                  {item.answer}
-                </AnimatedFaqDetails>
-              ))
+              filteredGeneralFaqItems.map((item) => {
+                const stats = generalFaqMatchMap.get(item.id);
+                const hasMatches = isGeneralFaqHighlightActive && stats && stats.total > 0;
+                const isItemOpen = openedGeneralFaqIds.includes(item.id);
+
+                return (
+                  <AnimatedFaqDetails
+                    key={item.id}
+                    question={
+                      isGeneralFaqHighlightActive && generalFaqSearch.trim()
+                        ? highlightKeyword(item.question, generalFaqSearch)
+                        : item.question
+                    }
+                    badge={item.badge}
+                    category={item.category}
+                    icon={item.icon}
+                    answerText={item.answer}
+                    isOpenProp={isItemOpen}
+                    onToggleProp={() => handleToggleSingleGeneralFaq(item.id)}
+                    matchInfoBadge={
+                      hasMatches ? (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs flex-shrink-0 animate-fadeIn"
+                          title={`${stats.total} kata kunci cocok (${stats.questionMatches} di pertanyaan, ${stats.answerMatches} di jawaban)`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                          <span>{stats.total} kata kunci cocok</span>
+                          {stats.answerMatches > 0 && !isItemOpen && (
+                            <span className="text-[9px] text-amber-700 bg-amber-200/60 px-1 rounded">
+                              (ada di jawaban)
+                            </span>
+                          )}
+                        </span>
+                      ) : undefined
+                    }
+                    onCopy={() => triggerToast(`📋 Jawaban untuk "${item.question.length > 32 ? item.question.slice(0, 32) + '...' : item.question}" berhasil disalin!`)}
+                  >
+                    {isGeneralFaqHighlightActive && generalFaqSearch.trim()
+                      ? highlightKeyword(item.answer, generalFaqSearch)
+                      : item.answer}
+                  </AnimatedFaqDetails>
+                );
+              })
             )}
           </div>
         </div>
@@ -8199,578 +8790,12 @@ export default function App() {
             </div>
           </div>
 
-          {/* 4 Primary Certification Highlight Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {/* Card 1: NIB */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-emerald-500/30 shadow-lg relative overflow-hidden group hover:border-emerald-400 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <span className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-base">
-                  🏛️
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
-                  OSS-RBA Aktif
-                </span>
-              </div>
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                Nomor Induk Berusaha
-              </span>
-              <p className="font-mono font-black text-lg sm:text-xl text-white mt-0.5 tracking-wider">
-                0220108920194
-              </p>
-              <p className="text-[11px] text-gray-300 mt-1 line-clamp-1">
-                Kementerian Investasi / BKPM RI
-              </p>
-              <div className="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
-                <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <span>✓</span> Berbasis Risiko
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopyLegalField('NIB', 'Nomor Induk Berusaha (NIB)', '0220108920194')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                    copiedDocField === 'NIB'
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
-                  }`}
-                  aria-label="Salin Nomor Induk Berusaha NIB"
-                >
-                  {copiedDocField === 'NIB' ? '✓ Tersalin' : 'Salin'}
-                </button>
-              </div>
-            </div>
-
-            {/* Card 2: KBLI 37011 */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-cyan/30 shadow-lg relative overflow-hidden group hover:border-cyan transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <span className="w-8 h-8 rounded-xl bg-cyan/20 text-cyan-light flex items-center justify-center text-base">
-                  📑
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/20 text-cyan-light border border-cyan/40 uppercase">
-                  Standar Usaha
-                </span>
-              </div>
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                Klasifikasi KBLI
-              </span>
-              <p className="font-mono font-black text-lg sm:text-xl text-cyan-300 mt-0.5 tracking-wider">
-                37011
-              </p>
-              <p className="text-[11px] text-gray-300 mt-1 line-clamp-1">
-                Air Limbah Tidak Berbahaya
-              </p>
-              <div className="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
-                <span className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1">
-                  <span>✓</span> BPS & OSS Terdaftar
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopyLegalField('KBLI', 'Klasifikasi KBLI 37011', '37011')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                    copiedDocField === 'KBLI'
-                      ? 'bg-cyan text-navy'
-                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
-                  }`}
-                  aria-label="Salin Kode KBLI 37011"
-                >
-                  {copiedDocField === 'KBLI' ? '✓ Tersalin' : 'Salin'}
-                </button>
-              </div>
-            </div>
-
-            {/* Card 3: NPWP Perusahaan */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-blue-500/30 shadow-lg relative overflow-hidden group hover:border-blue-400 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <span className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center text-base">
-                  💳
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase">
-                  SPPKP e-Faktur
-                </span>
-              </div>
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                NPWP Badan Usaha
-              </span>
-              <p className="font-mono font-black text-sm sm:text-base text-white mt-1 tracking-wider truncate">
-                94.812.394.8-407.000
-              </p>
-              <p className="text-[11px] text-gray-300 mt-1 line-clamp-1">
-                Ditjen Pajak Kemenkeu RI
-              </p>
-              <div className="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
-                <span className="text-[10px] text-blue-300 font-semibold flex items-center gap-1">
-                  <span>✓</span> PPh 23 & PPN 11%
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopyLegalField('NPWP', 'NPWP Badan Usaha', '94.812.394.8-407.000')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                    copiedDocField === 'NPWP'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
-                  }`}
-                  aria-label="Salin NPWP Badan Usaha"
-                >
-                  {copiedDocField === 'NPWP' ? '✓ Tersalin' : 'Salin'}
-                </button>
-              </div>
-            </div>
-
-            {/* Card 4: IPLT & Manifest Pemda */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-800/90 border border-amber-500/30 shadow-lg relative overflow-hidden group hover:border-amber-400 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <span className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center text-base">
-                  🌱
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
-                  Manifest Sah
-                </span>
-              </div>
-              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                Destinasi Pembuangan
-              </span>
-              <p className="font-bold text-base sm:text-lg text-amber-300 mt-0.5 tracking-tight">
-                IPLT Pemda Bekasi
-              </p>
-              <p className="text-[11px] text-gray-300 mt-1 line-clamp-1">
-                Sumur Batu & Babelan DLH
-              </p>
-              <div className="mt-3 pt-3 border-t border-slate-700/80 flex items-center justify-between">
-                <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1">
-                  <span>✓</span> Bebas Pidana AMDAL
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopyLegalField('IPLT', 'Nomor Registrasi Manifest IPLT', 'REG-IPLT/DLH-BKS/2026/0411')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                    copiedDocField === 'IPLT'
-                      ? 'bg-amber-500 text-navy'
-                      : 'bg-white/10 hover:bg-white/20 text-gray-200'
-                  }`}
-                  aria-label="Salin Registrasi Manifest IPLT"
-                >
-                  {copiedDocField === 'IPLT' ? '✓ Tersalin' : 'Salin'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Filter Pills & Search Input Toolbar */}
-          <div className="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mb-6 backdrop-blur-md shadow-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-gray-400 mr-1 hidden sm:inline">Kategori:</span>
-              {[
-                { key: 'Semua', label: 'Semua Parameter (8)' },
-                { key: 'Izin Berusaha', label: 'Izin Berusaha & NIB' },
-                { key: 'Perpajakan', label: 'Perpajakan & SPPKP' },
-                { key: 'Lingkungan & K3', label: 'Lingkungan & IPLT' },
-                { key: 'SEO & Identitas', label: 'SEO & Schema.org' },
-              ].map((filterTab) => (
-                <button
-                  key={filterTab.key}
-                  type="button"
-                  onClick={() => setLegalTableFilter(filterTab.key as any)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    legalTableFilter === filterTab.key
-                      ? 'bg-cyan text-navy shadow-sm shadow-cyan/20'
-                      : 'bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10'
-                  }`}
-                >
-                  {filterTab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input & View Switcher */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 sm:w-64">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 text-xs">
-                  🔍
-                </span>
-                <input
-                  type="text"
-                  placeholder="Cari NIB, NPWP, 37011, Kemenkumham..."
-                  value={legalTableSearchQuery}
-                  onChange={(e) => setLegalTableSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-8 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyan"
-                />
-                {legalTableSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setLegalTableSearchQuery('')}
-                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-white text-xs cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              {/* View Switcher (Table vs Cards) */}
-              <div className="hidden sm:flex items-center bg-slate-900 p-1 rounded-xl border border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => setLegalTableViewMode('table')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                    legalTableViewMode === 'table' ? 'bg-cyan text-navy' : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Tampilan Tabel Standar"
-                >
-                  <span>▦</span>
-                  <span>Tabel</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLegalTableViewMode('cards')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                    legalTableViewMode === 'cards' ? 'bg-cyan text-navy' : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Tampilan Kartu Lengkap"
-                >
-                  <span>🗂️</span>
-                  <span>Kartu</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Full Tabular View */}
-          {(() => {
-            const rawLegalData = [
-              {
-                id: 'NIB',
-                category: 'Izin Berusaha',
-                icon: '🏛️',
-                name: 'Nomor Induk Berusaha (NIB)',
-                code: 'NIB OSS-RBA',
-                value: '0220108920194',
-                status: 'Aktif & Terverifikasi',
-                statusColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                issuer: 'Kementerian Investasi / BKPM RI (Sistem OSS Berbasis Risiko)',
-                description: 'Identitas legal primer tunggal kegiatan operasional seluruh armada vacuum truck, penanganan limbah domestik & industri, serta jasa sanitasi komersial.',
-                auditRelevance: 'Wajib ada untuk registrasi e-procurement vendor & audit kepatuhan hukum RI.',
-              },
-              {
-                id: 'NPWP',
-                category: 'Perpajakan',
-                icon: '💳',
-                name: 'Nomor Pokok Wajib Pajak (NPWP Badan)',
-                code: 'NPWP PT KGR',
-                value: '94.812.394.8-407.000',
-                status: 'Wajib Pajak Badan Terdaftar',
-                statusColor: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
-                issuer: 'Direktorat Jenderal Pajak (DJP) - Kementerian Keuangan RI',
-                description: 'Entitas Wajib Pajak Badan Hukum resmi PT Kusuma Gemilang Raya untuk penerbitan bukti potong PPh 23, pelaporan SPT Tahunan, dan tertib administrasi fiskal.',
-                auditRelevance: 'Kelengkapan bukti potong PPh 23 & verifikasi identitas NPWP Badan resmi.',
-              },
-              {
-                id: 'KBLI',
-                category: 'Izin Berusaha',
-                icon: '📑',
-                name: 'Klasifikasi Baku Lapangan Usaha (KBLI)',
-                code: 'KBLI 37011',
-                value: '37011',
-                status: 'Standar Kompetensi Sah',
-                statusColor: 'bg-cyan/20 text-cyan-light border-cyan/40',
-                issuer: 'Badan Pusat Statistik (BPS) & Kementerian Investasi / OSS RBA',
-                description: 'Pengelolaan dan Pembuangan Air Limbah Tidak Berbahaya: jasa kuras tangki septik, pengangkutan lumpur tinja, pembersihan grease trap & pelancaran saluran air limbah.',
-                auditRelevance: 'Memastikan legalitas jenis pengerjaan sesuai dengan akta pendirian dan perizinan.',
-              },
-              {
-                id: 'SPPKP',
-                category: 'Perpajakan',
-                icon: '🧾',
-                name: 'Surat Pengukuhan Pengusaha Kena Pajak (SPPKP)',
-                code: 'SPPKP e-Faktur PPN',
-                value: 'S-184PKP/WPJ.22/KP.0303/2021',
-                status: 'PKP Aktif (e-Faktur PPN 11%)',
-                statusColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
-                issuer: 'Kantor Pelayanan Pajak (KPP) - DJP Kemenkeu RI',
-                description: 'Menerbitkan faktur pajak resmi e-Faktur PPN 11% untuk klaim pajak masukan bagi perusahaan klien manufaktur, pabrik kawasan industri, dan instansi B2B.',
-                auditRelevance: 'Penerbitan e-Faktur sah untuk keperluan restitusi atau kredit pajak PPN masukan.',
-              },
-              {
-                id: 'KEMENKUMHAM',
-                category: 'Izin Berusaha',
-                icon: '⚖️',
-                name: 'SK Pengesahan Badan Hukum Kemenkumham RI',
-                code: 'SK AHU PT KGR',
-                value: 'AHU-0018924.AH.01.01.TAHUN 2021',
-                status: 'Perseroan Terbatas Sah',
-                statusColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-                issuer: 'Ditjen Administrasi Hukum Umum (AHU) Kemenkumham RI',
-                description: 'Akta Notaris pendirian dan pengesahan badan usaha resmi berbadan hukum Perseroan Terbatas (PT) dengan domisili hukum di Bekasi.',
-                auditRelevance: 'Bukti badan hukum PT sah, bukan CV fiktif ataupun perorangan tanpa pertanggungjawaban.',
-              },
-              {
-                id: 'IPLT',
-                category: 'Lingkungan & K3',
-                icon: '🌱',
-                name: 'Izin Pembuangan & Manifest Resmi IPLT Pemda',
-                code: 'Manifest IPLT DLH',
-                value: 'REG-IPLT/DLH-BKS/2026/0411',
-                status: '100% Legal & Bebas AMDAL',
-                statusColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                issuer: 'Dinas Lingkungan Hidup (DLH) Pemkab & Pemkot Bekasi',
-                description: 'Jaminan seluruh muatan limbah dibuang ke Instalasi Pengolahan Lumpur Tinja (IPLT) Pemda resmi disertai dokumen Manifest & BAST bertanda tangan, bebas sanksi pembuangan liar.',
-                auditRelevance: 'Kepatuhan mutlak audit ISO 14001, audit PROPER KLHK, dan bebas denda pidana lingkungan.',
-              },
-              {
-                id: 'REK_GIRO',
-                category: 'Perpajakan',
-                icon: '🏦',
-                name: 'Rekening Giro Perusahaan (Anti-Fraud)',
-                code: 'Bank Mandiri PT',
-                value: '156-00-1892401-2 (Bank Mandiri a.n PT KUSUMA GEMILANG RAYA)',
-                status: 'Rekening PT Resmi',
-                statusColor: 'bg-teal-500/20 text-teal-300 border-teal-500/40',
-                issuer: 'PT Bank Mandiri (Persero) Tbk Kantor Cabang Bekasi',
-                description: 'Rekening giro resmi atas nama badan usaha PT Kusuma Gemilang Raya (bukan rekening pribadi) guna menjamin integritas transaksi keuangan tim finance klien.',
-                auditRelevance: 'Perlindungan tata kelola keuangan korporat & mencegah penipuan nomor rekening.',
-              },
-              {
-                id: 'SCHEMA_ORG',
-                category: 'SEO & Identitas',
-                icon: '🌐',
-                name: 'Structured Data Schema.org (Google SEO Trust)',
-                code: 'Schema LocalBusiness',
-                value: 'https://jasasedotwcbekasi.web.id/#localbusiness',
-                status: 'Google Schema Valid',
-                statusColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-                issuer: 'Schema.org & Google Search Console Structured Data Engine',
-                description: 'Entitas terverifikasi web crawler: @type: LocalBusiness, koordinat GPS -6.2349, 106.9966, jam kerja 24 Jam, telp +6289675064916, dan sameAs media sosial resmi.',
-                auditRelevance: 'Transparansi digital, validasi knowledge graph pencarian Google, dan konsistensi data NAP.',
-              },
-            ];
-
-            const filteredLegalData = rawLegalData.filter((item) => {
-              const matchesFilter = legalTableFilter === 'Semua' || item.category === legalTableFilter;
-              const matchesSearch =
-                !legalTableSearchQuery ||
-                item.name.toLowerCase().includes(legalTableSearchQuery.toLowerCase()) ||
-                item.value.toLowerCase().includes(legalTableSearchQuery.toLowerCase()) ||
-                item.code.toLowerCase().includes(legalTableSearchQuery.toLowerCase()) ||
-                item.issuer.toLowerCase().includes(legalTableSearchQuery.toLowerCase()) ||
-                item.description.toLowerCase().includes(legalTableSearchQuery.toLowerCase());
-              return matchesFilter && matchesSearch;
-            });
-
-            return (
-              <div className="bg-slate-800/80 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-md">
-                {/* Desktop Tabular View (Visible when mode is table) */}
-                {legalTableViewMode === 'table' ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs sm:text-sm border-collapse">
-                      <thead>
-                        <tr className="bg-slate-900/90 text-gray-300 border-b border-slate-700 text-[11px] sm:text-xs uppercase tracking-wider font-bold">
-                          <th scope="col" className="py-4 px-4 sm:px-6">Dokumen & Parameter</th>
-                          <th scope="col" className="py-4 px-4 sm:px-6">Nomor / Nilai Registrasi</th>
-                          <th scope="col" className="py-4 px-4 sm:px-6 hidden md:table-cell">Otoritas Penerbit & Sistem</th>
-                          <th scope="col" className="py-4 px-4 sm:px-6 hidden lg:table-cell">Ruang Lingkup & Kepatuhan Audit</th>
-                          <th scope="col" className="py-4 px-4 sm:px-6 text-center">Salin ke Clipboard</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-700/60">
-                        {filteredLegalData.length > 0 ? (
-                          filteredLegalData.map((record) => (
-                            <tr
-                              key={record.id}
-                              className="hover:bg-slate-700/40 transition-colors group"
-                            >
-                              {/* Parameter Name & Icon */}
-                              <td className="py-4 px-4 sm:px-6 align-top">
-                                <div className="flex items-start gap-3">
-                                  <span className="text-xl shrink-0 mt-0.5">{record.icon}</span>
-                                  <div>
-                                    <div className="font-bold text-white text-xs sm:text-sm group-hover:text-cyan transition-colors">
-                                      {record.name}
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-gray-300">
-                                        {record.code}
-                                      </span>
-                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${record.statusColor}`}>
-                                        {record.status}
-                                      </span>
-                                    </div>
-                                    {/* Mobile only detail snippet */}
-                                    <div className="mt-2 text-[11px] text-gray-400 md:hidden">
-                                      <span className="font-semibold text-gray-300">Otoritas:</span> {record.issuer}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* Value / Number */}
-                              <td className="py-4 px-4 sm:px-6 align-top font-mono">
-                                <div className="inline-block bg-slate-900/90 border border-slate-700 px-3 py-1.5 rounded-xl font-bold text-cyan-light text-xs sm:text-sm tracking-wider select-all">
-                                  {record.value}
-                                </div>
-                                <div className="text-[10px] text-gray-400 mt-1 sm:hidden">
-                                  {record.auditRelevance}
-                                </div>
-                              </td>
-
-                              {/* Authority & System */}
-                              <td className="py-4 px-4 sm:px-6 align-top hidden md:table-cell">
-                                <span className="font-semibold text-gray-200 block text-xs">
-                                  {record.issuer}
-                                </span>
-                                <span className="text-[11px] text-emerald-400 mt-0.5 block">
-                                  ✓ Basis Data Terverifikasi
-                                </span>
-                              </td>
-
-                              {/* Scope & Audit Relevance */}
-                              <td className="py-4 px-4 sm:px-6 align-top hidden lg:table-cell text-xs text-gray-300 leading-relaxed">
-                                <p>{record.description}</p>
-                                <span className="inline-block mt-1 text-[11px] text-amber-300/90 font-medium">
-                                  📌 {record.auditRelevance}
-                                </span>
-                              </td>
-
-                              {/* Copy to Clipboard Button */}
-                              <td className="py-4 px-4 sm:px-6 align-top text-center whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyLegalField(record.id, record.name, record.value)}
-                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-xs ${
-                                    copiedDocField === record.id
-                                      ? 'bg-emerald-500 text-white shadow-emerald-500/30 ring-2 ring-emerald-300'
-                                      : 'bg-white/10 hover:bg-cyan hover:text-navy text-gray-200 border border-white/10 hover:border-transparent'
-                                  }`}
-                                  title={`Salin ${record.name} (${record.value})`}
-                                  aria-label={`Salin ${record.name}`}
-                                >
-                                  {copiedDocField === record.id ? (
-                                    <>
-                                      <span className="text-white">✓</span>
-                                      <span>Disalin!</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2">
-                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                      </svg>
-                                      <span>Salin</span>
-                                    </>
-                                  )}
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="py-8 text-center text-gray-400 text-sm">
-                              Tidak ada parameter legalitas yang sesuai dengan pencarian "{legalTableSearchQuery}".
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  /* Cards View Mode */
-                  <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredLegalData.map((record) => (
-                      <div
-                        key={record.id}
-                        className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-700 hover:border-cyan/50 transition-all flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-2xl">{record.icon}</span>
-                              <div>
-                                <h4 className="font-bold text-white text-sm sm:text-base">{record.name}</h4>
-                                <span className="text-[10px] text-gray-400 uppercase font-semibold">{record.code}</span>
-                              </div>
-                            </div>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${record.statusColor}`}>
-                              {record.status}
-                            </span>
-                          </div>
-
-                          <div className="my-3 p-3 bg-slate-950/80 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                            <span className="font-mono text-cyan-light font-bold text-xs sm:text-sm tracking-wide select-all break-all">
-                              {record.value}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleCopyLegalField(record.id, record.name, record.value)}
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer ${
-                                copiedDocField === record.id
-                                  ? 'bg-emerald-500 text-white'
-                                  : 'bg-white/10 hover:bg-white/20 text-gray-200'
-                              }`}
-                            >
-                              {copiedDocField === record.id ? '✓ Disalin' : 'Salin'}
-                            </button>
-                          </div>
-
-                          <div className="space-y-1.5 text-xs text-gray-300">
-                            <p><strong className="text-gray-400">Otoritas:</strong> {record.issuer}</p>
-                            <p className="text-gray-400 leading-relaxed">{record.description}</p>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 pt-3 border-t border-slate-800 text-[11px] text-amber-300/90">
-                          📌 {record.auditRelevance}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Professional Transparency & SEO Trust Footer Banner */}
-          <div className="mt-8 p-6 sm:p-8 rounded-3xl bg-slate-850 border border-slate-700/80 shadow-xl backdrop-blur-md">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-cyan/20 text-cyan-light flex items-center justify-center text-2xl shrink-0 border border-cyan/30">
-                  🛡️
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h3 className="text-base sm:text-lg font-black text-white">
-                      Komitmen Kepatuhan Regulasi Lingkungan & Transparansi Audit
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                      LEGAL & ANTI-MALADMINISTRASI
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-3xl">
-                    Sesuai Undang-Undang No. 32 Tahun 2009 tentang Perlindungan dan Pengelolaan Lingkungan Hidup,
-                    pembuangan air limbah tanpa manifes resmi dapat menimbulkan sanksi pidana dan denda bagi penghasil limbah.
-                    PT Kusuma Gemilang Raya menjamin 100% pembuangan limbah disalurkan ke IPLT resmi Pemkab/Pemkot Bekasi dengan dokumen BAST sah, Faktur Pajak PPN 11%, dan rekening bank berbadan hukum PT.
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Links */}
-              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto shrink-0">
-                <button
-                  type="button"
-                  onClick={handleCopyAllLegalInfo}
-                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition cursor-pointer flex items-center gap-2"
-                >
-                  <span>📋</span>
-                  <span>{copiedDocField === 'ALL_LEGAL_DOSSIER' ? 'Tersalin!' : 'Salin Semua Dokumen'}</span>
-                </button>
-                <a
-                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, mohon bantuan untuk mengirimkan salinan berkas legalitas NIB KBLI 37011, NPWP, dan rekening giro perusahaan untuk keperluan verifikasi vendor rekanan.')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2.5 rounded-xl bg-orange hover:bg-orange-dark text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2"
-                >
-                  <span>💬</span>
-                  <span>Kirim Berkas Vendor via WA</span>
-                </a>
-              </div>
-            </div>
-          </div>
+          {/* Render Modular Compliance & SEO Metadata Data Grid Component */}
+          <ComplianceSeoMetadata
+            onDownloadPdf={() => handleDownloadBrochurePdf()}
+            isDownloadingPdf={isDownloadingBrochurePdf}
+            onToast={triggerToast}
+          />
         </div>
       </section>
 
@@ -9140,115 +9165,416 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Toolbar & Filters */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-gray-200">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="relative min-w-[200px]">
-                    <input
-                      type="text"
-                      value={subscriberSearch}
-                      onChange={(e) => setSubscriberSearch(e.target.value)}
-                      placeholder="Filter nama / email / PT..."
-                      className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs outline-none focus:border-cyan text-navy"
-                    />
-                    <span className="absolute left-2.5 top-2 text-xs text-gray-400">🔍</span>
+              {/* Summary Table: Performance Categorization by Subscriber Acquisition Source */}
+              <div className="bg-slate-50/90 rounded-2xl border border-gray-200 p-5 space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm sm:text-base font-extrabold text-navy flex items-center gap-2">
+                        <span>📈</span>
+                        <span>Ringkasan Kinerja Kanal Pemasaran (Subscribers by Source)</span>
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan/20 text-cyan-dark border border-cyan/30">
+                        MARKETING CHANNELS
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Kategorisasi subscriber berdasarkan saluran akuisisi untuk memvisualisasikan performa konversi & komposisi segmen pendaftar.
+                    </p>
                   </div>
 
-                  <div className="flex items-center bg-gray-200 p-1 rounded-xl text-xs font-bold">
+                  <div className="flex items-center gap-2 shrink-0">
+                    {subscriberSourceFilter !== 'Semua' && (
+                      <button
+                        onClick={() => setSubscriberSourceFilter('Semua')}
+                        className="px-3 py-1.5 rounded-xl bg-white border border-cyan text-cyan-dark hover:bg-cyan/10 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        title="Tampilkan semua sumber"
+                      >
+                        <span>✕</span>
+                        <span>Reset Filter Kanal</span>
+                      </button>
+                    )}
                     <button
-                      onClick={() => setSubscriberCategoryFilter('Semua')}
-                      className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                        subscriberCategoryFilter === 'Semua' ? 'bg-white text-navy shadow-xs' : 'text-gray-600'
-                      }`}
+                      onClick={handleExportSourceSummaryCsv}
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-gray-200 text-navy text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      title="Unduh tabel ringkasan sumber dalam format CSV"
                     >
-                      Semua
-                    </button>
-                    <button
-                      onClick={() => setSubscriberCategoryFilter('komersial')}
-                      className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                        subscriberCategoryFilter === 'komersial' ? 'bg-white text-navy shadow-xs' : 'text-gray-600'
-                      }`}
-                    >
-                      Komersial
-                    </button>
-                    <button
-                      onClick={() => setSubscriberCategoryFilter('residensial')}
-                      className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                        subscriberCategoryFilter === 'residensial' ? 'bg-white text-navy shadow-xs' : 'text-gray-600'
-                      }`}
-                    >
-                      Residensial
+                      <span>📊</span>
+                      <span>Unduh CSV Kanal</span>
                     </button>
                   </div>
-
-                  <button
-                    onClick={() => setIsMaskEmail(!isMaskEmail)}
-                    className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-slate-100 transition cursor-pointer"
-                  >
-                    {isMaskEmail ? '👁️ Tampilkan Email' : '🔒 Samarkan Email'}
-                  </button>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleAddSimulationSubscriber}
-                    className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 hover:bg-slate-100 text-xs font-bold text-navy transition cursor-pointer"
-                  >
-                    ⚡ +1 Simulasi
-                  </button>
-                  <button
-                    onClick={handleExportSubscribersCsv}
-                    className="px-3.5 py-1.5 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy-light transition cursor-pointer flex items-center gap-1"
-                  >
-                    <span>📥 Unduh CSV</span>
-                  </button>
+                {/* 3 Quick Marketing Metric Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
+                    <div className="text-[10px] uppercase font-bold text-gray-400">Kanal Dominan Teratas</div>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <div className="font-extrabold text-navy text-sm truncate mr-2">
+                        {sourceSummaryList[0]?.icon} {sourceSummaryList[0]?.source || '-'}
+                      </div>
+                      <span className="text-xs font-black text-cyan-dark">
+                        {sourceSummaryList[0]?.percentage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      {sourceSummaryList[0]?.count || 0} subscriber terdaftar
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
+                    <div className="text-[10px] uppercase font-bold text-gray-400">Kanal B2B Industri Terbesar</div>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <div className="font-extrabold text-blue-900 text-sm truncate mr-2">
+                        🏢 Formulir Web B2B
+                      </div>
+                      <span className="text-xs font-bold text-blue-700">
+                        {sourceSummaryList.find((s) => s.source === 'Formulir Web B2B')?.commercialCount || 0} PT
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      Porsi utama pabrik & gedung komersial
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
+                    <div className="text-[10px] uppercase font-bold text-gray-400">Kanal Edukasi & SEO Organik</div>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <div className="font-extrabold text-emerald-900 text-sm truncate mr-2">
+                        ✍️ Tips Sanitasi Blog
+                      </div>
+                      <span className="text-xs font-bold text-emerald-700">
+                        {sourceSummaryList.find((s) => s.source === 'Tips Sanitasi Blog')?.count || 0} Leads
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      Trafik pembaca panduan & artikel
+                    </div>
+                  </div>
+                </div>
+
+                {/* The Summary Table */}
+                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100/80 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                        <th className="py-3 px-4">Kanal / Sumber Pendaftaran (Source)</th>
+                        <th className="py-3 px-4 text-center">Total</th>
+                        <th className="py-3 px-4 min-w-[170px]">Pangsa Kontribusi (% Share)</th>
+                        <th className="py-3 px-4">Komposisi Segmen</th>
+                        <th className="py-3 px-4">Kinerja Saluran</th>
+                        <th className="py-3 px-4 text-center">Aksi Filter</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {sourceSummaryList.map((item) => {
+                        const isFiltered = subscriberSourceFilter === item.source;
+                        return (
+                          <tr
+                            key={item.source}
+                            onClick={() =>
+                              setSubscriberSourceFilter(isFiltered ? 'Semua' : item.source)
+                            }
+                            className={`transition cursor-pointer ${
+                              isFiltered
+                                ? 'bg-cyan/10 ring-1 ring-cyan font-medium'
+                                : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <td className="py-3 px-4">
+                              <div className="flex items-start gap-2.5">
+                                <span className="text-lg leading-none mt-0.5">{item.icon}</span>
+                                <div>
+                                  <div className="font-extrabold text-navy flex items-center gap-1.5">
+                                    <span>{item.source}</span>
+                                    {isFiltered && (
+                                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan text-white">
+                                        Aktif
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">
+                                    {item.categoryDescription}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-full text-xs font-black bg-navy/10 text-navy">
+                                {item.count}
+                              </span>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="font-extrabold text-navy">
+                                    {item.percentage.toFixed(1)}%
+                                  </span>
+                                  <span className="text-[10px] text-gray-400">
+                                    {item.count} dari {subscribersList.length}
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                  <div
+                                    className="bg-gradient-to-r from-cyan to-navy h-2 rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min(100, Math.max(4, item.percentage))}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                {item.commercialCount > 0 && (
+                                  <span className="px-2 py-0.5 rounded-md font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                                    🏢 {item.commercialCount} PT
+                                  </span>
+                                )}
+                                {item.residentialCount > 0 && (
+                                  <span className="px-2 py-0.5 rounded-md font-bold bg-orange/10 text-orange border border-orange/20">
+                                    🏡 {item.residentialCount} Residensial
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${item.performanceColor}`}
+                              >
+                                {item.performanceTag}
+                              </span>
+                            </td>
+
+                            <td className="py-3 px-4 text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSubscriberSourceFilter(isFiltered ? 'Semua' : item.source);
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                  isFiltered
+                                    ? 'bg-navy text-white shadow-2xs'
+                                    : 'bg-white hover:bg-slate-100 border border-gray-200 text-gray-700'
+                                }`}
+                              >
+                                {isFiltered ? '✓ Memfilter' : 'Filter Log'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100 font-extrabold text-navy border-t-2 border-gray-300">
+                        <td className="py-3 px-4 text-xs">
+                          TOTAL KESELURUHAN ({sourceSummaryList.length} Kanal Aktif)
+                        </td>
+                        <td className="py-3 px-4 text-center text-xs">
+                          {subscribersList.length}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-between text-xs font-black">
+                            <span>100.0%</span>
+                            <span className="text-[10px] text-gray-500 font-normal">Pangsa Total</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5 text-[10px]">
+                            <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-900 font-bold">
+                              🏢 {subscribersList.filter((s) => s.interest === 'komersial').length} PT
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-orange/20 text-orange font-bold">
+                              🏡 {subscribersList.filter((s) => s.interest === 'residensial').length} Residensial
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-[10px] text-gray-500">
+                          Data Terverifikasi CRM
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {subscriberSourceFilter !== 'Semua' && (
+                            <button
+                              type="button"
+                              onClick={() => setSubscriberSourceFilter('Semua')}
+                              className="text-[10px] font-bold text-cyan-dark hover:underline cursor-pointer"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               </div>
 
-              {/* Table inside Modal */}
-              <div className="border border-gray-200 rounded-2xl overflow-hidden">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 text-[11px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                      <th className="py-3 px-4">Nama / PIC</th>
-                      <th className="py-3 px-4">Perusahaan / Wilayah</th>
-                      <th className="py-3 px-4">Email</th>
-                      <th className="py-3 px-4">Segmen</th>
-                      <th className="py-3 px-4">Waktu</th>
-                      <th className="py-3 px-4">Sumber</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredSubscribers.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-8 text-center text-gray-400">
-                          Tidak ada subscriber yang cocok.
-                        </td>
+              {/* Detailed Subscribers Log Section */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-extrabold text-navy">
+                      📋 Detail Log Riwayat Pendaftaran Subscriber
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-navy text-white">
+                      {filteredSubscribers.length} Entri
+                    </span>
+                  </div>
+                  {subscriberSourceFilter !== 'Semua' && (
+                    <div className="flex items-center gap-1.5 text-xs text-navy bg-cyan/15 px-2.5 py-1 rounded-lg border border-cyan/30">
+                      <span>Memfilter Sumber:</span>
+                      <strong className="text-cyan-dark font-extrabold">"{subscriberSourceFilter}"</strong>
+                      <button
+                        onClick={() => setSubscriberSourceFilter('Semua')}
+                        className="ml-1 text-gray-500 hover:text-navy cursor-pointer font-bold"
+                        title="Hapus filter sumber"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Toolbar & Filters */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-gray-200">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative min-w-[200px]">
+                      <input
+                        type="text"
+                        value={subscriberSearch}
+                        onChange={(e) => setSubscriberSearch(e.target.value)}
+                        placeholder="Filter nama / email / PT / sumber..."
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs outline-none focus:border-cyan text-navy"
+                      />
+                      <span className="absolute left-2.5 top-2 text-xs text-gray-400">🔍</span>
+                    </div>
+
+                    <div className="flex items-center bg-gray-200 p-1 rounded-xl text-xs font-bold">
+                      <button
+                        onClick={() => setSubscriberCategoryFilter('Semua')}
+                        className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                          subscriberCategoryFilter === 'Semua' ? 'bg-white text-navy shadow-xs' : 'text-gray-600'
+                        }`}
+                      >
+                        Semua
+                      </button>
+                      <button
+                        onClick={() => setSubscriberCategoryFilter('komersial')}
+                        className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                          subscriberCategoryFilter === 'komersial' ? 'bg-white text-navy shadow-xs' : 'text-gray-600'
+                        }`}
+                      >
+                        Komersial
+                      </button>
+                      <button
+                        onClick={() => setSubscriberCategoryFilter('residensial')}
+                        className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                          subscriberCategoryFilter === 'residensial' ? 'bg-white text-navy shadow-xs' : 'text-gray-600'
+                        }`}
+                      >
+                        Residensial
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-gray-500">Sumber:</span>
+                      <select
+                        value={subscriberSourceFilter}
+                        onChange={(e) => setSubscriberSourceFilter(e.target.value)}
+                        className="px-2.5 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-navy outline-none focus:border-cyan cursor-pointer"
+                      >
+                        <option value="Semua">Semua Sumber ({subscribersList.length})</option>
+                        {availableSources.map((src) => {
+                          const count = subscribersList.filter((s) => s.source === src).length;
+                          return (
+                            <option key={src} value={src}>
+                              {src} ({count})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={() => setIsMaskEmail(!isMaskEmail)}
+                      className="px-3 py-1.5 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      {isMaskEmail ? '👁️ Tampilkan Email' : '🔒 Samarkan Email'}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleAddSimulationSubscriber}
+                      className="px-3 py-1.5 rounded-xl bg-white border border-gray-200 hover:bg-slate-100 text-xs font-bold text-navy transition cursor-pointer"
+                    >
+                      ⚡ +1 Simulasi
+                    </button>
+                    <button
+                      onClick={handleExportSubscribersCsv}
+                      className="px-3.5 py-1.5 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy-light transition cursor-pointer flex items-center gap-1"
+                    >
+                      <span>📥 Unduh CSV Log</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Table inside Modal */}
+                <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-[11px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                        <th className="py-3 px-4">Nama / PIC</th>
+                        <th className="py-3 px-4">Perusahaan / Wilayah</th>
+                        <th className="py-3 px-4">Email</th>
+                        <th className="py-3 px-4">Segmen</th>
+                        <th className="py-3 px-4">Waktu</th>
+                        <th className="py-3 px-4">Sumber Kanal</th>
                       </tr>
-                    ) : (
-                      filteredSubscribers.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50 transition">
-                          <td className="py-3 px-4 font-bold text-navy">{item.name}</td>
-                          <td className="py-3 px-4 text-gray-700">{item.company}</td>
-                          <td className="py-3 px-4 font-mono text-gray-600">{formatEmailDisplay(item.email)}</td>
-                          <td className="py-3 px-4">
-                            {item.interest === 'komersial' ? (
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-800">
-                                Komersial / PT
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-orange/10 text-orange">
-                                Residensial
-                              </span>
-                            )}
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredSubscribers.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-gray-400">
+                            Tidak ada subscriber yang cocok dengan filter yang dipilih.
                           </td>
-                          <td className="py-3 px-4 text-gray-500">{item.formattedDate}</td>
-                          <td className="py-3 px-4 text-gray-500">{item.source}</td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        filteredSubscribers.map((item) => {
+                          const meta = getSourceIconAndMeta(item.source);
+                          return (
+                            <tr key={item.id} className="hover:bg-slate-50 transition">
+                              <td className="py-3 px-4 font-bold text-navy">{item.name}</td>
+                              <td className="py-3 px-4 text-gray-700">{item.company}</td>
+                              <td className="py-3 px-4 font-mono text-gray-600">{formatEmailDisplay(item.email)}</td>
+                              <td className="py-3 px-4">
+                                {item.interest === 'komersial' ? (
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-800">
+                                    Komersial / PT
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-orange/10 text-orange">
+                                    Residensial
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-gray-500">{item.formattedDate}</td>
+                              <td className="py-3 px-4">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200 inline-flex items-center gap-1.5">
+                                  <span>{meta.icon}</span>
+                                  <span>{item.source}</span>
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
@@ -9968,6 +10294,16 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Render Map Print Preview Modal for Physical Site Visits */}
+      <MapPrintPreviewModal
+        isOpen={isMapPrintPreviewOpen}
+        onClose={() => setIsMapPrintPreviewOpen(false)}
+        hubs={mapHubs}
+        activeHubIndex={activeMapHubIndex}
+        onSelectHubIndex={(index) => handleSelectMapHub(index, false)}
+        onToast={triggerToast}
+      />
 
       {adminNotificationToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-navy text-white text-xs sm:text-sm font-semibold shadow-2xl border border-cyan/40 flex items-center gap-3">
