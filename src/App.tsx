@@ -9,6 +9,8 @@ import { generateInvoiceBastPdf } from './utils/generateInvoiceBastPdf';
 import { downloadAreaMapPng } from './utils/exportAreaMapToPng';
 import { ComplianceSeoMetadata } from './components/ComplianceSeoMetadata';
 import { MapPrintPreviewModal } from './components/MapPrintPreviewModal';
+import { CorporateClientsSection } from './components/CorporateClientsSection';
+import { CORPORATE_CLIENTS } from './data/corporateClients';
 import { highlightKeyword, getFaqMatchStats } from './utils/faqHighlighter';
 import teknisiSedotWcImg from './assets/images/teknisi_lapangan_sedot_wc_1791530702926.jpg';
 import teknisiPipaImg from './assets/images/teknisi_pelancaran_pipa_1791530724142.jpg';
@@ -802,6 +804,33 @@ export default function App() {
     }
   };
 
+  const handleSelectClientForQuote = (clientName: string, serviceScope?: string) => {
+    setRfpCompanyName(clientName);
+    if (serviceScope) {
+      if (serviceScope.toLowerCase().includes('stp') || serviceScope.toLowerCase().includes('sludge')) {
+        setRfpServiceType('Sedot Limbah STP / IPAL Pabrik');
+      } else if (serviceScope.toLowerCase().includes('grease') || serviceScope.toLowerCase().includes('lemak')) {
+        setRfpServiceType('Pengurasan Lemak Grease Trap Restoran / Kantin Pabrik');
+      } else if (serviceScope.toLowerCase().includes('drainase') || serviceScope.toLowerCase().includes('jetting')) {
+        setRfpServiceType('Pelancaran Pipa Hydro-Jetting High Pressure');
+      } else {
+        setRfpServiceType('Penyedotan Septic Tank Komersial / Gedung');
+      }
+    }
+    const quotationSection = document.getElementById('quotation');
+    if (quotationSection) {
+      quotationSection.scrollIntoView({ behavior: 'smooth' });
+      setIsRfpHighlighted(true);
+      setTimeout(() => {
+        rfpCompanyInputRef.current?.focus();
+      }, 550);
+      setTimeout(() => {
+        setIsRfpHighlighted(false);
+      }, 3500);
+      triggerToast(`🏢 Contoh profil rekanan ${clientName} dimuat ke formulir RFP B2B!`);
+    }
+  };
+
   // Chatbot FAQ State
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [chatInputText, setChatInputText] = useState('');
@@ -906,17 +935,17 @@ export default function App() {
   ];
 
   // Calculator State
-  const [calcPricePerCubic, setCalcPricePerCubic] = useState(600000);
+  const [calcPricePerCubic, setCalcPricePerCubic] = useState(700000);
   const [calcVolume, setCalcVolume] = useState<number>(1);
   const [selectedCalcOptionIndex, setSelectedCalcOptionIndex] = useState(0);
 
   const calcOptions = [
-    { value: 600000, label: 'Limbah Black Water (Tinja) - Rp 600.000/kubik (Non Manifes)', type: 'Limbah Black Water (Tinja)', option: 'Non Manifes' },
-    { value: 1000000, label: 'Limbah Grey Water (Lumpur, Lemak) - Rp 1.000.000/kubik (Non Manifes)', type: 'Limbah Grey Water (Lumpur, Lemak)', option: 'Non Manifes' },
-    { value: 1000000, label: 'Cleaning / Blower Lumpur - Rp 1.000.000/kubik (Non Manifes)', type: 'Cleaning / Blower Lumpur', option: 'Non Manifes' },
-    { value: 1000000, label: 'Limbah Black Water (Tinja) - Rp 1.000.000/kubik (Manifes)', type: 'Limbah Black Water (Tinja)', option: 'Manifes' },
-    { value: 1400000, label: 'Limbah Grey Water (Lumpur, Lemak) - Rp 1.400.000/kubik (Manifes)', type: 'Limbah Grey Water (Lumpur, Lemak)', option: 'Manifes' },
-    { value: 1400000, label: 'Cleaning / Blower Lumpur - Rp 1.400.000/kubik (Manifes)', type: 'Cleaning / Blower Lumpur', option: 'Manifes' },
+    { value: 700000, label: 'Limbah Black Water (Tinja) - Rp 700.000/kubik (Non Manifes)', type: 'Limbah Black Water (Tinja)', option: 'Non Manifes' },
+    { value: 1100000, label: 'Limbah Grey Water (Lumpur, Lemak) - Rp 1.100.000/kubik (Non Manifes)', type: 'Limbah Grey Water (Lumpur, Lemak)', option: 'Non Manifes' },
+    { value: 1100000, label: 'Cleaning / Blower Lumpur - Rp 1.100.000/kubik (Non Manifes)', type: 'Cleaning / Blower Lumpur', option: 'Non Manifes' },
+    { value: 1100000, label: 'Limbah Black Water (Tinja) - Rp 1.100.000/kubik (Manifes)', type: 'Limbah Black Water (Tinja)', option: 'Manifes' },
+    { value: 1500000, label: 'Limbah Grey Water (Lumpur, Lemak) - Rp 1.500.000/kubik (Manifes)', type: 'Limbah Grey Water (Lumpur, Lemak)', option: 'Manifes' },
+    { value: 1500000, label: 'Cleaning / Blower Lumpur - Rp 1.500.000/kubik (Manifes)', type: 'Cleaning / Blower Lumpur', option: 'Manifes' },
   ];
 
   const waNumber = '6289675064916';
@@ -2205,7 +2234,7 @@ export default function App() {
 
     if (q.includes('biaya') || q.includes('tarif') || q.includes('harga') || q.includes('ongkos') || q.includes('berapa') || q.includes('blower') || q.includes('cleaning') || q.includes('lumpur') || q.includes('kalkulator')) {
       return {
-        text: '💰 Estimasi Tarif Layanan Sedot WC & Pengurasan Lumpur Bekasi:\n• Limbah Black Water (Tinja) Non Manifes: Rp 600.000 / kubik\n• Limbah Grey Water (Lumpur/Lemak) Non Manifes: Rp 1.000.000 / kubik\n• Cleaning / Blower Lumpur Non Manifes: Rp 1.000.000 / kubik\n• Limbah Black Water dengan Manifes IPLT: Rp 1.000.000 / kubik\n• Limbah Grey Water dengan Manifes IPLT: Rp 1.400.000 / kubik\n• Cleaning / Blower Lumpur dengan Manifes IPLT: Rp 1.400.000 / kubik\n\nBiaya transparan tanpa biaya siluman. Anda juga bisa menghitung estimasi otomatis via kalkulator biaya kami.',
+        text: '💰 Estimasi Tarif Layanan Sedot WC & Pengurasan Lumpur Bekasi:\n• Limbah Black Water (Tinja) Non Manifes: Rp 700.000 / kubik\n• Limbah Grey Water (Lumpur/Lemak) Non Manifes: Rp 1.100.000 / kubik\n• Cleaning / Blower Lumpur Non Manifes: Rp 1.100.000 / kubik\n• Limbah Black Water dengan Manifes IPLT: Rp 1.100.000 / kubik\n• Limbah Grey Water dengan Manifes IPLT: Rp 1.500.000 / kubik\n• Cleaning / Blower Lumpur dengan Manifes IPLT: Rp 1.500.000 / kubik\n\nBiaya transparan tanpa biaya siluman. Anda juga bisa menghitung estimasi otomatis via kalkulator biaya kami.',
         actionLabel: 'Hitung di Kalkulator Biaya',
         actionUrl: '#kalkulator',
         options: [
@@ -3156,8 +3185,14 @@ export default function App() {
             </a>
 
             {/* Desktop Menu */}
-            <ul className="hidden lg:flex items-center space-x-5 xl:space-x-6">
+            <ul className="hidden lg:flex items-center space-x-4 xl:space-x-5">
               <li><a href="#hero" className="text-sm font-medium text-navy hover:text-cyan transition">Beranda</a></li>
+              <li>
+                <a href="#klien" className="text-sm font-bold text-navy hover:text-cyan transition flex items-center gap-1.5 group">
+                  <span>Klien Rekanan PT</span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">15+</span>
+                </a>
+              </li>
               <li><a href="#layanan" className="text-sm font-medium text-navy hover:text-cyan transition">Layanan Korporat</a></li>
               <li><a href="#spesialis" className="text-sm font-medium text-navy hover:text-cyan transition">Sektor Industri</a></li>
               <li><a href="#peta" className="text-sm font-medium text-navy hover:text-cyan transition">Kawasan & Pool</a></li>
@@ -3259,6 +3294,12 @@ export default function App() {
                 </button>
               </li>
               <li><a href="#hero" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Beranda</a></li>
+              <li>
+                <a href="#klien" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-bold text-navy flex items-center justify-between">
+                  <span>Klien Rekanan PT</span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">15 Perusahaan</span>
+                </a>
+              </li>
               <li><a href="#layanan" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Layanan Korporat</a></li>
               <li><a href="#spesialis" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Sektor Industri</a></li>
               <li><a href="#peta" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-base font-medium text-navy">Kawasan & Pool</a></li>
@@ -3448,6 +3489,12 @@ export default function App() {
           </div>
         </div>
       </section>
+
+      {/* Portofolio Rekanan Klien Korporat B2B (15+ Perusahaan Multinasional & Nasional) */}
+      <CorporateClientsSection
+        onSelectClientForQuote={handleSelectClientForQuote}
+        onOpenQuickQuote={handleLaunchQuickQuote}
+      />
 
       {/* Service Cards B2B & Industri */}
       <section id="layanan" className="py-16 md:py-24">
@@ -4708,15 +4755,34 @@ export default function App() {
                     {/* Baris 1: Nama Perusahaan & Lokasi */}
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                          Nama PT / CV / Perusahaan <span className="text-orange">*</span>
-                        </label>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            Nama PT / CV / Perusahaan <span className="text-orange">*</span>
+                          </label>
+                          <span className="text-[10px] text-cyan-dark font-semibold">15 Rekanan Terverifikasi</span>
+                        </div>
                         <input
                           ref={rfpCompanyInputRef}
                           type="text"
                           required
+                          list="rfp-corporate-clients-datalist"
                           value={rfpCompanyName}
-                          onChange={(e) => setRfpCompanyName(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRfpCompanyName(val);
+                            const matched = CORPORATE_CLIENTS.find(
+                              (c) => c.name.toLowerCase() === val.toLowerCase()
+                            );
+                            if (matched) {
+                              if (matched.location.includes('MM2100')) {
+                                setRfpLocation('Kawasan Industri MM2100 Cikarang Barat');
+                              } else if (matched.location.includes('Jababeka')) {
+                                setRfpLocation('Kawasan Industri Jababeka 1-7');
+                              } else if (matched.location.includes('GIIC') || matched.location.includes('Deltamas')) {
+                                setRfpLocation('GIIC Deltamas Cikarang Pusat');
+                              }
+                            }
+                          }}
                           placeholder="Contoh: PT Surya Manufaktur Indonesia"
                           className={`w-full px-4 py-2.5 rounded-xl border focus:border-cyan focus:ring-2 focus:ring-cyan/20 outline-none text-xs sm:text-sm text-navy transition ${
                             isRfpHighlighted
@@ -4724,6 +4790,40 @@ export default function App() {
                               : 'border-gray-200'
                           }`}
                         />
+                        <datalist id="rfp-corporate-clients-datalist">
+                          {CORPORATE_CLIENTS.map((c) => (
+                            <option key={c.id} value={c.name}>{c.sector} • {c.location}</option>
+                          ))}
+                        </datalist>
+
+                        {/* Quick Selection Chips from Real Corporate Partners */}
+                        <div className="flex flex-wrap items-center gap-1 mt-2">
+                          <span className="text-[10px] text-gray-400 font-semibold mr-1">Pilih Rekanan:</span>
+                          {CORPORATE_CLIENTS.slice(0, 6).map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setRfpCompanyName(c.name);
+                                if (c.location.includes('MM2100')) {
+                                  setRfpLocation('Kawasan Industri MM2100 Cikarang Barat');
+                                } else if (c.location.includes('Jababeka')) {
+                                  setRfpLocation('Kawasan Industri Jababeka 1-7');
+                                } else if (c.location.includes('Deltamas')) {
+                                  setRfpLocation('GIIC Deltamas Cikarang Pusat');
+                                }
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[10px] transition cursor-pointer ${
+                                rfpCompanyName === c.name
+                                  ? 'bg-orange text-white font-bold'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-gray-600'
+                              }`}
+                              title={c.name}
+                            >
+                              {c.shortName}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
@@ -4984,14 +5084,14 @@ export default function App() {
                     className="w-full p-3.5 rounded-xl border border-gray-200 focus:border-cyan focus:ring-2 focus:ring-cyan/20 outline-none text-gray-800 bg-white font-medium text-xs sm:text-sm transition shadow-sm"
                   >
                     <optgroup label="📋 Opsi Non Manifes:">
-                      <option value={0}>Limbah Black Water (Tinja) - Rp 600.000 / kubik (Non Manifes)</option>
-                      <option value={1}>Limbah Grey Water (Lumpur, Lemak) - Rp 1.000.000 / kubik (Non Manifes)</option>
-                      <option value={2}>Cleaning / Blower Lumpur - Rp 1.000.000 / kubik (Non Manifes)</option>
+                      <option value={0}>Limbah Black Water (Tinja) - Rp 700.000 / kubik (Non Manifes)</option>
+                      <option value={1}>Limbah Grey Water (Lumpur, Lemak) - Rp 1.100.000 / kubik (Non Manifes)</option>
+                      <option value={2}>Cleaning / Blower Lumpur - Rp 1.100.000 / kubik (Non Manifes)</option>
                     </optgroup>
                     <optgroup label="📜 Opsi Dengan Manifes Resmi IPLT:">
-                      <option value={3}>Limbah Black Water (Tinja) - Rp 1.000.000 / kubik (Manifes)</option>
-                      <option value={4}>Limbah Grey Water (Lumpur, Lemak) - Rp 1.400.000 / kubik (Manifes)</option>
-                      <option value={5}>Cleaning / Blower Lumpur - Rp 1.400.000 / kubik (Manifes)</option>
+                      <option value={3}>Limbah Black Water (Tinja) - Rp 1.100.000 / kubik (Manifes)</option>
+                      <option value={4}>Limbah Grey Water (Lumpur, Lemak) - Rp 1.500.000 / kubik (Manifes)</option>
+                      <option value={5}>Cleaning / Blower Lumpur - Rp 1.500.000 / kubik (Manifes)</option>
                     </optgroup>
                   </select>
                 </div>
@@ -5146,11 +5246,11 @@ export default function App() {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-600">Non Manifes:</span>
-                  <span className="font-extrabold text-navy text-sm">Rp 600.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
+                  <span className="font-extrabold text-navy text-sm">Rp 700.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-600">Dengan Manifes:</span>
-                  <span className="font-extrabold text-cyan-dark text-sm">Rp 1.000.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
+                  <span className="font-extrabold text-cyan-dark text-sm">Rp 1.100.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
                 </div>
               </div>
               <p className="text-[11px] text-gray-500 leading-normal border-t border-gray-100 pt-3">
@@ -5167,11 +5267,11 @@ export default function App() {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-600">Non Manifes:</span>
-                  <span className="font-extrabold text-navy text-sm">Rp 1.000.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
+                  <span className="font-extrabold text-navy text-sm">Rp 1.100.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-600">Dengan Manifes:</span>
-                  <span className="font-extrabold text-cyan-dark text-sm">Rp 1.400.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
+                  <span className="font-extrabold text-cyan-dark text-sm">Rp 1.500.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
                 </div>
               </div>
               <p className="text-[11px] text-gray-500 leading-normal border-t border-gray-100 pt-3">
@@ -5190,11 +5290,11 @@ export default function App() {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-700 font-semibold">Non Manifes:</span>
-                  <span className="font-extrabold text-orange text-sm">Rp 1.000.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
+                  <span className="font-extrabold text-orange text-sm">Rp 1.100.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-gray-700 font-semibold">Dengan Manifes:</span>
-                  <span className="font-extrabold text-navy text-sm">Rp 1.400.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
+                  <span className="font-extrabold text-navy text-sm">Rp 1.500.000 <span className="text-[11px] font-normal text-gray-500">/ m³</span></span>
                 </div>
               </div>
               <p className="text-[11px] text-gray-600 leading-normal border-t border-gray-100 pt-3">
@@ -9705,11 +9805,17 @@ export default function App() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Contoh: PT Mattel Indonesia / PT Denso Indonesia (untuk audit internal)"
+                    list="brochure-corporate-clients-datalist"
+                    placeholder="Contoh: PT. Hyundai / PT. Seino Indomobil Logistics (untuk audit internal)"
                     value={brochureClientName}
                     onChange={(e) => setBrochureClientName(e.target.value)}
                     className="flex-1 px-3 py-2 rounded-xl border border-gray-300 focus:border-cyan outline-none text-xs bg-white"
                   />
+                  <datalist id="brochure-corporate-clients-datalist">
+                    {CORPORATE_CLIENTS.map((c) => (
+                      <option key={c.id} value={c.name}>{c.sector}</option>
+                    ))}
+                  </datalist>
                   {brochureClientName && (
                     <button
                       type="button"
@@ -9720,8 +9826,28 @@ export default function App() {
                     </button>
                   )}
                 </div>
-                <p className="text-[11px] text-gray-500 mt-1">
-                  Nama perusahaan Anda akan otomatis tercantum pada lembar pengesahan brosur PDF sebagai rekanan tujuan audit.
+
+                {/* Quick Client Chips */}
+                <div className="flex flex-wrap items-center gap-1 mt-2">
+                  <span className="text-[10px] text-gray-500 font-semibold mr-1">Rekomendasi Rekanan:</span>
+                  {CORPORATE_CLIENTS.slice(0, 6).map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setBrochureClientName(c.name)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] transition cursor-pointer ${
+                        brochureClientName === c.name
+                          ? 'bg-cyan text-slate-900 font-bold'
+                          : 'bg-white hover:bg-cyan/10 text-gray-600 border border-gray-200'
+                      }`}
+                    >
+                      {c.shortName}
+                    </button>
+                  ))}
+                </div>
+
+                <p className="text-[11px] text-gray-500 mt-1.5">
+                  Nama perusahaan Anda akan otomatis tercantum pada halaman cover & lembar pengesahan brosur PDF sebagai rekanan tujuan audit.
                 </p>
               </div>
 
