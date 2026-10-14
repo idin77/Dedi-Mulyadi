@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import QRCode from 'qrcode';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { downloadAreaMapPng } from '../utils/exportAreaMapToPng';
 import { EquipmentMaintenanceQrScanner } from './EquipmentMaintenanceQrScanner';
 import { CORPORATE_CLIENTS } from '../data/corporateClients';
+import { QrCodeFrequencyD3Chart, recordQrGenerationIn30DayStorage } from './QrCodeFrequencyD3Chart';
 
 export { EquipmentMaintenanceQrScanner };
 
@@ -349,6 +350,7 @@ export interface RecentQrGenerationEntry {
 }
 
 export const RECENT_QR_GENERATION_STORAGE_KEY = 'kgr_recent_qr_generation_table_v1';
+export const QR_HISTORY_TABLE_STORAGE_KEY = 'kgr_qr_history_table_v1';
 
 export const DEFAULT_RECENT_QR_GENERATIONS: RecentQrGenerationEntry[] = [
   {
@@ -423,6 +425,71 @@ export const DEFAULT_RECENT_QR_GENERATIONS: RecentQrGenerationEntry[] = [
   },
 ];
 
+export interface CorporateWatermarkConfig {
+  logoUrl: string | null;
+  logoName: string;
+  companyName: string;
+  badgeText: string;
+  watermarkText: string;
+  includeInQrCenter: boolean;
+  includeCardWatermark: boolean;
+  includeSheetWatermark: boolean;
+  watermarkOpacity: number;
+}
+
+export const BRANDING_WATERMARK_STORAGE_KEY = 'kgr_print_hub_branding_watermark_v2';
+
+export const DEFAULT_BRANDING_WATERMARK: CorporateWatermarkConfig = {
+  logoUrl: null,
+  logoName: '',
+  companyName: 'PT KUSUMA GEMILANG RAYA',
+  badgeText: 'CORPORATE VERIFIED',
+  watermarkText: 'PT KGR BEKASI • LOGISTIK RESMI',
+  includeInQrCenter: true,
+  includeCardWatermark: true,
+  includeSheetWatermark: true,
+  watermarkOpacity: 0.12,
+};
+
+export const PRESET_BRANDING_LOGOS = [
+  {
+    id: 'kgr-official',
+    name: 'PT KGR Corporate Seal',
+    companyName: 'PT KUSUMA GEMILANG RAYA',
+    badgeText: 'OFFICIAL KGR BEKASI',
+    watermarkText: 'PT KGR • ARMADA REAKSI CEPAT BEKASI',
+    dataUrl:
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="%230a192f" stroke="%2322d3ee" stroke-width="5"/><text x="50" y="58" font-size="28" font-family="sans-serif" font-weight="900" fill="%2322d3ee" text-anchor="middle">KGR</text><circle cx="50" cy="50" r="40" fill="none" stroke="%23ffffff" stroke-width="1.5" stroke-dasharray="4,2"/></svg>',
+  },
+  {
+    id: 'mm2100-partner',
+    name: 'MM2100 Industrial Estate',
+    companyName: 'MM2100 INDUSTRIAL LOGISTICS',
+    badgeText: 'KAWASAN MM2100 PARTNER',
+    watermarkText: 'KAWASAN INDUSTRI MM2100 • RESMI KGR',
+    dataUrl:
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="92" height="92" x="4" y="4" rx="16" fill="%23064e3b" stroke="%2334d399" stroke-width="4"/><text x="50" y="45" font-size="20" font-family="sans-serif" font-weight="900" fill="%23ffffff" text-anchor="middle">MM2100</text><text x="50" y="66" font-size="12" font-family="sans-serif" font-weight="700" fill="%2334d399" text-anchor="middle">ESTATE</text></svg>',
+  },
+  {
+    id: 'jababeka-industrial',
+    name: 'Jababeka Industrial City',
+    companyName: 'JABABEKA INDUSTRIAL PARK',
+    badgeText: 'JABABEKA CERTIFIED',
+    watermarkText: 'JABABEKA CIKARANG • VENDOR RESMI',
+    dataUrl:
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="92" height="92" x="4" y="4" rx="16" fill="%231e3a8a" stroke="%2360a5fa" stroke-width="4"/><text x="50" y="44" font-size="18" font-family="sans-serif" font-weight="900" fill="%23ffffff" text-anchor="middle">JABABEK</text><text x="50" y="65" font-size="12" font-family="sans-serif" font-weight="700" fill="%2393c5fd" text-anchor="middle">CIKARANG</text></svg>',
+  },
+  {
+    id: 'iso-smk3',
+    name: 'ISO 9001 & SMK3 Seal',
+    companyName: 'KGR MUTU & K3 LINGKUNGAN',
+    badgeText: 'ISO 9001 & SMK3 VERIFIED',
+    watermarkText: 'MUTU K3 TERVERIFIKASI • DOKUMEN RESMI',
+    dataUrl:
+      'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,4 92,26 92,74 50,96 8,74 8,26" fill="%23b45309" stroke="%23fde047" stroke-width="4"/><text x="50" y="46" font-size="16" font-family="sans-serif" font-weight="900" fill="%23ffffff" text-anchor="middle">ISO 9001</text><text x="50" y="66" font-size="14" font-family="sans-serif" font-weight="800" fill="%23fde047" text-anchor="middle">SMK3</text></svg>',
+  },
+];
+
 export interface MapPrintPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -458,6 +525,35 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
   const [isEditingCustomFields, setIsEditingCustomFields] = useState(false);
   const [isExportingPng, setIsExportingPng] = useState(false);
 
+  // Configuration panel state: toggle between 'Show all hubs' and 'Show active hub only'
+  const [hubDisplayMode, setHubDisplayMode] = useState<'all' | 'active'>(() => {
+    if (typeof window === 'undefined') return 'all';
+    try {
+      const stored = localStorage.getItem('kgr_hub_print_display_mode');
+      if (stored === 'active' || stored === 'all') return stored;
+    } catch (e) {
+      console.warn('Failed to load hub display mode from localStorage:', e);
+    }
+    return 'all';
+  });
+  const [isConfigPanelOpen, setIsConfigPanelOpen] = useState<boolean>(true);
+
+  const handleToggleHubDisplayMode = (mode: 'all' | 'active') => {
+    setHubDisplayMode(mode);
+    try {
+      localStorage.setItem('kgr_hub_print_display_mode', mode);
+    } catch (e) {
+      console.warn('Failed to save hub display mode to localStorage:', e);
+    }
+    if (onToast) {
+      onToast(
+        mode === 'all'
+          ? '🌐 Dokumen Cetak: Menampilkan seluruh pos operasional (Show all hubs)'
+          : `📍 Dokumen Cetak: Menampilkan hanya hub aktif (Show active hub only: ${currentHub.shortName || currentHub.name})`
+      );
+    }
+  };
+
   // Dynamic QR Code generation for Google Maps Navigation
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isQrLoading, setIsQrLoading] = useState<boolean>(true);
@@ -480,6 +576,122 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
   const [customQrGeneratedTimestamp, setCustomQrGeneratedTimestamp] = useState<string>(() => {
     return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
   });
+
+  // Corporate branding & watermark upload state (stored in localStorage)
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const [brandingConfig, setBrandingConfig] = useState<CorporateWatermarkConfig>(() => {
+    if (typeof window === 'undefined') return DEFAULT_BRANDING_WATERMARK;
+    try {
+      const stored = localStorage.getItem(BRANDING_WATERMARK_STORAGE_KEY);
+      if (stored) {
+        return { ...DEFAULT_BRANDING_WATERMARK, ...JSON.parse(stored) };
+      }
+    } catch (e) {
+      console.warn('Failed to load branding watermark from localStorage:', e);
+    }
+    return DEFAULT_BRANDING_WATERMARK;
+  });
+
+  const updateBrandingConfig = (updates: Partial<CorporateWatermarkConfig>) => {
+    setBrandingConfig((prev) => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem(BRANDING_WATERMARK_STORAGE_KEY, JSON.stringify(next));
+      } catch (err) {
+        console.warn('Failed to save branding watermark to localStorage:', err);
+      }
+      return next;
+    });
+  };
+
+  const handleResetBrandingLogo = () => {
+    updateBrandingConfig({
+      logoUrl: null,
+      logoName: '',
+      companyName: 'PT KUSUMA GEMILANG RAYA',
+      badgeText: 'CORPORATE VERIFIED',
+      watermarkText: 'PT KGR BEKASI • LOGISTIK RESMI',
+    });
+    if (logoFileInputRef.current) {
+      logoFileInputRef.current.value = '';
+    }
+    if (onToast) onToast('↺ Logo kustom & watermark di-reset ke branding default PT KGR.');
+  };
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      if (onToast) onToast('⚠️ Mohon pilih file gambar (PNG, JPG, SVG, WebP)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const rawDataUrl = uploadEvent.target?.result as string;
+      if (!rawDataUrl) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 400;
+        let targetW = img.width;
+        let targetH = img.height;
+        if (targetW > maxDim || targetH > maxDim) {
+          if (targetW > targetH) {
+            targetH = Math.round((targetH * maxDim) / targetW);
+            targetW = maxDim;
+          } else {
+            targetW = Math.round((targetW * maxDim) / targetH);
+            targetH = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, targetW, targetH);
+          const compressedDataUrl = canvas.toDataURL(
+            file.type === 'image/png' ? 'image/png' : 'image/jpeg',
+            0.9
+          );
+          updateBrandingConfig({
+            logoUrl: compressedDataUrl,
+            logoName: file.name,
+            includeInQrCenter: true,
+            includeCardWatermark: true,
+            includeSheetWatermark: true,
+          });
+        } else {
+          updateBrandingConfig({
+            logoUrl: rawDataUrl,
+            logoName: file.name,
+            includeInQrCenter: true,
+            includeCardWatermark: true,
+            includeSheetWatermark: true,
+          });
+        }
+        if (onToast) {
+          onToast(`✅ Logo kustom "${file.name}" berhasil diunggah & disematkan pada hasil cetak QR!`);
+        }
+      };
+      img.onerror = () => {
+        updateBrandingConfig({
+          logoUrl: rawDataUrl,
+          logoName: file.name,
+          includeInQrCenter: true,
+          includeCardWatermark: true,
+          includeSheetWatermark: true,
+        });
+        if (onToast) {
+          onToast(`✅ Logo kustom "${file.name}" berhasil diterapkan!`);
+        }
+      };
+      img.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Recent Prints state (last 5 generated custom URLs in localStorage)
   const [recentPrints, setRecentPrints] = useState<RecentQrPrintItem[]>(() => {
@@ -515,11 +727,14 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
     return DEFAULT_PRINT_HISTORY;
   });
 
-  // Recent QR Generation Table state (persists last 10 generated custom URLs in localStorage)
+  // 30-Day D3 Chart & QR History Table state (persists every generated URL & timestamp, last 10 codes)
+  const [chartLastUpdated, setChartLastUpdated] = useState<string>(() => Date.now().toString());
   const [recentQrGenerations, setRecentQrGenerations] = useState<RecentQrGenerationEntry[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_RECENT_QR_GENERATIONS;
     try {
-      const stored = localStorage.getItem(RECENT_QR_GENERATION_STORAGE_KEY);
+      const stored =
+        localStorage.getItem(QR_HISTORY_TABLE_STORAGE_KEY) ||
+        localStorage.getItem(RECENT_QR_GENERATION_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -527,12 +742,12 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
         }
       }
     } catch (e) {
-      console.warn('Failed to load recent QR generations from localStorage:', e);
+      console.warn('Failed to load qr history table from localStorage:', e);
     }
     return DEFAULT_RECENT_QR_GENERATIONS;
   });
 
-  // Helper to add or update generated custom URL in Recent QR Generation table (capped at 10 items)
+  // Helper to add or update generated custom URL in qr-history-table (persists last 10 codes in localStorage)
   const addRecentQrGeneration = (
     url: string,
     label?: string,
@@ -560,7 +775,7 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
     setRecentQrGenerations((prev) => {
       const filtered = prev.filter((item) => item.url.toLowerCase() !== cleanUrl.toLowerCase());
       const newEntry: RecentQrGenerationEntry = {
-        id: `qr-gen-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: `qr-hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         url: cleanUrl,
         label: cleanLabel,
         note: cleanNote,
@@ -572,8 +787,11 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
       const updated = [newEntry, ...filtered].slice(0, 10);
       try {
         localStorage.setItem(RECENT_QR_GENERATION_STORAGE_KEY, JSON.stringify(updated));
+        localStorage.setItem(QR_HISTORY_TABLE_STORAGE_KEY, JSON.stringify(updated));
+        recordQrGenerationIn30DayStorage(1);
+        setChartLastUpdated(Date.now().toString());
       } catch (err) {
-        console.warn('Failed to save recent QR generations to localStorage:', err);
+        console.warn('Failed to save QR history table to localStorage:', err);
       }
       return updated;
     });
@@ -583,10 +801,82 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
     setRecentQrGenerations([]);
     try {
       localStorage.removeItem(RECENT_QR_GENERATION_STORAGE_KEY);
+      localStorage.removeItem(QR_HISTORY_TABLE_STORAGE_KEY);
+      setChartLastUpdated(Date.now().toString());
     } catch (e) {
-      console.warn('Failed to clear recent QR generations in localStorage:', e);
+      console.warn('Failed to clear QR history table in localStorage:', e);
     }
-    if (onToast) onToast('🗑️ Tabel Recent QR Generation berhasil dibersihkan dari penyimpanan lokal.');
+    if (onToast) onToast('🗑️ qr-history-table berhasil dibersihkan dari penyimpanan lokal.');
+  };
+
+  // Sorting state for qr-history-table: sort previous QR entries by date (newest/oldest) and URL string
+  const [qrSortMode, setQrSortMode] = useState<'date-desc' | 'date-asc' | 'url-asc' | 'url-desc'>('date-desc');
+
+  const getEntryTime = (entry: RecentQrGenerationEntry): number => {
+    if (entry.isoTimestamp) {
+      const t = new Date(entry.isoTimestamp).getTime();
+      if (!isNaN(t)) return t;
+    }
+    if (entry.id && entry.id.includes('-')) {
+      const parts = entry.id.split('-');
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const parsedNum = parseInt(parts[i], 10);
+        if (!isNaN(parsedNum) && parsedNum > 1000000000000) return parsedNum;
+      }
+    }
+    if (entry.id && entry.id.startsWith('gen-')) {
+      const num = parseInt(entry.id.replace('gen-', ''), 10);
+      if (!isNaN(num)) {
+        return 2000000000000 - num * 60000;
+      }
+    }
+    const cleanStr = (entry.timestamp || '')
+      .replace(' WIB', '')
+      .replace('Mei', 'May')
+      .replace('Agu', 'Aug')
+      .replace('Okt', 'Oct')
+      .replace('Des', 'Dec');
+    const t = new Date(cleanStr).getTime();
+    return isNaN(t) ? 0 : t;
+  };
+
+  const sortedQrGenerations = useMemo(() => {
+    const list = [...recentQrGenerations];
+    switch (qrSortMode) {
+      case 'date-desc':
+        return list.sort((a, b) => getEntryTime(b) - getEntryTime(a));
+      case 'date-asc':
+        return list.sort((a, b) => getEntryTime(a) - getEntryTime(b));
+      case 'url-asc':
+        return list.sort((a, b) => a.url.localeCompare(b.url, undefined, { sensitivity: 'base' }));
+      case 'url-desc':
+        return list.sort((a, b) => b.url.localeCompare(a.url, undefined, { sensitivity: 'base' }));
+      default:
+        return list;
+    }
+  }, [recentQrGenerations, qrSortMode]);
+
+  const handleSetQrSortMode = (mode: 'date-desc' | 'date-asc' | 'url-asc' | 'url-desc') => {
+    setQrSortMode(mode);
+    if (onToast) {
+      const modeLabels: Record<string, string> = {
+        'date-desc': '📅 Tanggal: Terbaru (Newest first)',
+        'date-asc': '📅 Tanggal: Terlama (Oldest first)',
+        'url-asc': '🔗 URL String: A - Z (Ascending)',
+        'url-desc': '🔗 URL String: Z - A (Descending)',
+      };
+      onToast(`Tabel QR diurutkan berdasarkan ${modeLabels[mode]}`);
+    }
+  };
+
+  const handleToggleDateSort = () => {
+    const nextMode = qrSortMode === 'date-desc' ? 'date-asc' : 'date-desc';
+    handleSetQrSortMode(nextMode);
+  };
+
+  const handleToggleUrlSort = () => {
+    const nextMode = qrSortMode === 'url-asc' ? 'url-desc' : 'url-asc';
+    handleSetQrSortMode(nextMode);
   };
 
   // Re-print button handler: re-renders the specific QR code in the document
@@ -606,7 +896,9 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
     addPrintHistoryEntry(entry.url, entry.label, immediatePrint ? 'PRINT' : 'GENERATE');
 
     // Scroll smoothly to active QR section
-    const qrSection = document.getElementById('print-hub-custom-url-qr-section');
+    const qrSection =
+      document.getElementById('print-qr-hub-section') ||
+      document.getElementById('print-hub-custom-url-qr-section');
     if (qrSection) {
       qrSection.scrollIntoView({ behavior: 'smooth' });
     }
@@ -751,6 +1043,7 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
       (window as any).addPrintHistoryEntry = addPrintHistoryEntry;
       (window as any).handleClearPrintHistory = handleClearPrintHistory;
       (window as any).getRecentQrGenerations = () => recentQrGenerations;
+      (window as any).getQrHistoryTable = () => recentQrGenerations;
       (window as any).addRecentQrGeneration = addRecentQrGeneration;
       (window as any).handleRePrintQr = handleRePrintQr;
       (window as any).handleClearRecentQrGenerations = handleClearRecentQrGenerations;
@@ -955,15 +1248,53 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
   const handleDownloadCustomQrPng = async () => {
     const urlToUse = effectiveCustomUrl;
     try {
-      const dataUrl = await QRCode.toDataURL(urlToUse, {
-        width: 480,
+      const canvas = document.createElement('canvas');
+      const qrSize = 600;
+      canvas.width = qrSize;
+      canvas.height = qrSize;
+
+      const hasLogo = Boolean(brandingConfig.includeInQrCenter && brandingConfig.logoUrl);
+
+      await QRCode.toCanvas(canvas, urlToUse, {
+        width: qrSize,
         margin: 2,
         color: {
           dark: customQrColor,
           light: '#ffffff',
         },
-        errorCorrectionLevel: customQrLevel,
+        errorCorrectionLevel: hasLogo ? 'H' : customQrLevel,
       });
+
+      const ctx = canvas.getContext('2d');
+      if (ctx && hasLogo && brandingConfig.logoUrl) {
+        const logoImg = new Image();
+        logoImg.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve) => {
+          logoImg.onload = () => resolve();
+          logoImg.onerror = () => resolve();
+          logoImg.src = brandingConfig.logoUrl!;
+        });
+
+        if (logoImg.width > 0 && logoImg.height > 0) {
+          const logoSize = qrSize * 0.22;
+          const logoX = (qrSize - logoSize) / 2;
+          const logoY = (qrSize - logoSize) / 2;
+          const pad = 8;
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.roundRect(logoX - pad, logoY - pad, logoSize + pad * 2, logoSize + pad * 2, 12);
+          ctx.fill();
+
+          ctx.strokeStyle = '#0a192f';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+        }
+      }
+
+      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       const safeTitle = (customQrLabel || 'custom_qr_kgr').replace(/[^a-zA-Z0-9]/g, '_');
       link.download = `QR_OnSite_${safeTitle}.png`;
@@ -971,7 +1302,9 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      if (onToast) onToast('📥 QR Code Kustom On-Site berhasil diunduh sebagai gambar PNG!');
+      if (onToast) {
+        onToast('📥 QR Code Kustom On-Site (dengan Logo/Watermark) berhasil diunduh sebagai gambar PNG!');
+      }
     } catch (err) {
       console.error('Failed to export custom QR PNG:', err);
       if (onToast) onToast('Gagal mengunduh QR Code Kustom.');
@@ -1049,6 +1382,26 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
         <div className="flex items-center gap-2 w-full md:w-auto justify-end">
           <button
             type="button"
+            id="toggle-config-panel-btn"
+            data-testid="toggle-config-panel-btn"
+            onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)}
+            className={`px-3 py-2 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 cursor-pointer ${
+              isConfigPanelOpen
+                ? 'bg-cyan text-navy border-cyan shadow-sm font-bold'
+                : 'bg-white/10 hover:bg-white/20 text-cyan-light border-white/20'
+            }`}
+            title="Buka / Tutup Panel Konfigurasi Cetak (Show all hubs / Show active hub only)"
+          >
+            <span>⚙️</span>
+            <span className="hidden sm:inline">Konfigurasi Hub</span>
+            <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+              hubDisplayMode === 'all' ? 'bg-navy text-cyan' : 'bg-emerald-900 text-emerald-200'
+            }`}>
+              {hubDisplayMode === 'all' ? 'All Hubs' : 'Active Only'}
+            </span>
+          </button>
+          <button
+            type="button"
             onClick={() => setIsEditingCustomFields(!isEditingCustomFields)}
             className="px-3 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-cyan-light border border-white/20 transition flex items-center gap-1.5 cursor-pointer"
             title="Kustomisasi nama klien, petugas, atau catatan lapangan"
@@ -1078,27 +1431,43 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           </button>
           <button
             type="button"
+            id="btn-nav-print-qr-hub"
+            data-testid="btn-nav-print-qr-hub"
             onClick={() => {
-              const el = document.getElementById('print-hub-custom-url-qr-section');
+              const el =
+                document.getElementById('print-qr-hub-section') ||
+                document.getElementById('print-hub-custom-url-qr-section');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
             className="px-3 py-2 rounded-xl text-xs font-semibold bg-cyan/20 hover:bg-cyan/30 text-cyan border border-cyan/40 transition flex items-center gap-1.5 cursor-pointer"
-            title="Kustomisasi URL target & generate QR dinamis untuk cetak on-site"
+            title="Lompat ke bagian Print QR Hub (Input Custom URL & Downloadable Dynamic QR)"
           >
-            <span>🔗</span>
-            <span className="hidden sm:inline">QR Kustom On-Site</span>
+            <span>📱</span>
+            <span className="hidden sm:inline">Print QR Hub</span>
           </button>
           <button
             type="button"
             onClick={() => {
-              const el = document.getElementById('print-hub-recent-qr-generation-table');
+              const el = document.getElementById('print-hub-qr-frequency-chart');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="px-3 py-2 rounded-xl text-xs font-semibold bg-cyan/20 hover:bg-cyan/30 text-cyan border border-cyan/40 transition flex items-center gap-1.5 cursor-pointer"
+            title="Lihat Grafik D3 Frekuensi QR Code 30 Hari Terakhir"
+          >
+            <span>📈</span>
+            <span className="hidden sm:inline">D3 Frekuensi 30 Hari</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById('qr-history-table-container') || document.getElementById('print-hub-recent-qr-generation-table');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
             className="px-3 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-cyan-light border border-white/20 transition flex items-center gap-1.5 cursor-pointer"
-            title="Lihat Tabel Recent QR Generation (10 URL Tersimpan di LocalStorage)"
+            title="Lihat qr-history-table (10 Kode QR Terakhir di LocalStorage)"
           >
-            <span>📊</span>
-            <span className="hidden sm:inline">Tabel QR ({recentQrGenerations.length})</span>
+            <span>📋</span>
+            <span className="hidden sm:inline">QR History Table ({recentQrGenerations.length})</span>
           </button>
           <button
             type="button"
@@ -1161,6 +1530,181 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Configuration Panel within the Print Preview Modal (hidden in print) */}
+      {isConfigPanelOpen && (
+        <div
+          id="print-preview-config-panel"
+          data-testid="print-preview-config-panel"
+          className="print-hide w-full max-w-4xl bg-slate-900 text-white rounded-2xl border-2 border-cyan/40 p-4 sm:p-5 mb-4 shadow-2xl animate-fadeIn"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-3 border-b border-cyan/20 gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-cyan/20 border border-cyan text-cyan flex items-center justify-center text-lg font-black shrink-0 shadow-sm">
+                ⚙️
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-extrabold text-white text-sm sm:text-base tracking-tight leading-tight">
+                    Configuration Panel (Panel Konfigurasi Dokumen Cetak)
+                  </h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan/20 text-cyan border border-cyan/30">
+                    KGR-PRINT-CONFIG
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300">
+                  Atur cakupan pos siaga operasional yang dirender ke dalam lembar cetak dokumen fisik (<strong>#print-hub-document</strong>).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[11px] font-semibold text-gray-300">Mode Aktif:</span>
+              <span
+                id="active-hub-display-mode-badge"
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                  hubDisplayMode === 'all'
+                    ? 'bg-cyan/25 text-cyan border-cyan/50 shadow-xs'
+                    : 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50 shadow-xs'
+                }`}
+              >
+                {hubDisplayMode === 'all' ? 'Show all hubs' : 'Show active hub only'}
+              </span>
+            </div>
+          </div>
+
+          {/* Configuration Toggle Group: 'Show all hubs' vs 'Show active hub only' */}
+          <div className="bg-slate-950/80 p-3.5 sm:p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="max-w-md">
+              <label className="block text-xs font-bold text-gray-200 uppercase tracking-wider mb-1">
+                Pilihan Format Cetak Hub (Print Hub Display Mode):
+              </label>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Pilih antara menampilkan seluruh jaringan 3 pos operasional (Show all hubs) atau memfokuskan lembar kerja hanya pada 1 pos kerja aktif teknisi (Show active hub only).
+              </p>
+              {/* Radio buttons for explicit form accessibility & automation testing */}
+              <div className="flex items-center gap-4 mt-2">
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-200 hover:text-cyan">
+                  <input
+                    type="radio"
+                    name="hub-display-mode-radio"
+                    id="radio-show-all-hubs"
+                    value="all"
+                    checked={hubDisplayMode === 'all'}
+                    onChange={() => handleToggleHubDisplayMode('all')}
+                    className="w-4 h-4 text-cyan accent-cyan cursor-pointer"
+                  />
+                  <span>Show all hubs</span>
+                </label>
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-200 hover:text-cyan">
+                  <input
+                    type="radio"
+                    name="hub-display-mode-radio"
+                    id="radio-show-active-hub"
+                    value="active"
+                    checked={hubDisplayMode === 'active'}
+                    onChange={() => handleToggleHubDisplayMode('active')}
+                    className="w-4 h-4 text-cyan accent-cyan cursor-pointer"
+                  />
+                  <span>Show active hub only</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Segmented Button Toggles */}
+            <div
+              id="hub-display-toggle-panel"
+              className="inline-flex p-1 bg-slate-900 rounded-xl border border-cyan/40 shadow-inner shrink-0 w-full sm:w-auto justify-center"
+              role="group"
+              aria-label="Toggle hub display mode"
+            >
+              <button
+                type="button"
+                id="toggle-show-all-hubs"
+                data-testid="toggle-show-all-hubs"
+                onClick={() => handleToggleHubDisplayMode('all')}
+                className={`px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                  hubDisplayMode === 'all'
+                    ? 'bg-cyan text-navy shadow-md font-extrabold scale-102 ring-2 ring-cyan'
+                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                }`}
+                aria-pressed={hubDisplayMode === 'all'}
+              >
+                <span className="text-base">🌐</span>
+                <span>Show all hubs</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
+                    hubDisplayMode === 'all' ? 'bg-navy text-cyan' : 'bg-white/10 text-gray-400'
+                  }`}
+                >
+                  3 Hubs
+                </span>
+              </button>
+
+              <button
+                type="button"
+                id="toggle-show-active-hub"
+                data-testid="toggle-show-active-hub"
+                onClick={() => handleToggleHubDisplayMode('active')}
+                className={`px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                  hubDisplayMode === 'active'
+                    ? 'bg-cyan text-navy shadow-md font-extrabold scale-102 ring-2 ring-cyan'
+                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                }`}
+                aria-pressed={hubDisplayMode === 'active'}
+              >
+                <span className="text-base">📍</span>
+                <span>Show active hub only</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
+                    hubDisplayMode === 'active' ? 'bg-navy text-cyan' : 'bg-white/10 text-gray-400'
+                  }`}
+                >
+                  1 Hub
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Contextual Mode Description & Hub Chooser */}
+          <div className="mt-3 pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-gray-300">
+              <span className="text-cyan font-bold">ℹ️ Efek pada Lembar Cetak:</span>
+              {hubDisplayMode === 'all' ? (
+                <span className="text-gray-300">
+                  Dokumen menyertakan skematik 3 pos, direktori seluruh pos siaga ({hubs.map((h) => h.shortName || h.name).join(', ')}), beserta kontak & navigasi QR masing-masing.
+                </span>
+              ) : (
+                <span className="text-gray-300">
+                  Dokumen difokuskan hanya untuk pos siaga <strong>{currentHub.name} ({currentHub.badge})</strong>, menyaring peta dan cakupan wilayah secara spesifik.
+                </span>
+              )}
+            </div>
+
+            {/* Quick Hub Selector when active hub mode is selected */}
+            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+              <span className="text-[11px] text-gray-400 font-semibold">
+                {hubDisplayMode === 'active' ? 'Ganti Hub Aktif:' : 'Pos Utama Terpilih:'}
+              </span>
+              {hubs.map((hub, idx) => (
+                <button
+                  key={hub.id}
+                  type="button"
+                  onClick={() => onSelectHubIndex(idx)}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1 ${
+                    activeHubIndex === idx
+                      ? 'bg-cyan text-navy shadow-xs ring-1 ring-cyan'
+                      : 'bg-slate-800 text-gray-300 hover:bg-slate-700 hover:text-white border border-slate-700'
+                  }`}
+                >
+                  <span>{hub.pinIcon || '📍'}</span>
+                  <span>{hub.shortName || hub.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Optional In-Preview Customization Drawer (hidden in print) */}
       {isEditingCustomFields && (
@@ -1264,17 +1808,55 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           className="w-full max-w-4xl bg-white text-navy rounded-2xl shadow-2xl border border-gray-300 p-6 sm:p-8 md:p-10 transition-all font-sans relative overflow-hidden flex-1"
           style={{ minHeight: '1050px' }}
         >
-        {/* Subtle Watermark on Sheet */}
-        <div className="absolute right-4 bottom-4 pointer-events-none opacity-5 text-gray-900 font-black text-6xl tracking-widest uppercase select-none">
-          PT KGR BEKASI
-        </div>
+        {/* Corporate Branding Watermark on Sheet (visible on printout & preview) */}
+        {brandingConfig.includeSheetWatermark ? (
+          <div
+            id="print-hub-corporate-sheet-watermark"
+            data-testid="corporate-sheet-watermark"
+            className="absolute right-4 bottom-4 pointer-events-none select-none flex items-center gap-3 z-0 transition-opacity"
+            style={{ opacity: brandingConfig.watermarkOpacity }}
+          >
+            {brandingConfig.logoUrl && (
+              <img
+                src={brandingConfig.logoUrl}
+                alt="Corporate Watermark Logo"
+                className="h-16 sm:h-20 max-w-[160px] object-contain grayscale contrast-125"
+              />
+            )}
+            <div className="text-right">
+              <div className="text-gray-900 font-black text-2xl sm:text-4xl tracking-widest uppercase leading-none">
+                {brandingConfig.watermarkText || brandingConfig.companyName || 'PT KGR BEKASI'}
+              </div>
+              <div className="text-gray-700 font-mono text-[9px] tracking-wider uppercase mt-1">
+                CORPORATE BRANDING WATERMARK • {customQrGeneratedTimestamp}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="absolute right-4 bottom-4 pointer-events-none opacity-5 text-gray-900 font-black text-6xl tracking-widest uppercase select-none">
+            PT KGR BEKASI
+          </div>
+        )}
 
         {/* 1. DOCUMENT HEADER */}
         <div className="border-b-2 border-navy pb-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-navy text-white flex items-center justify-center font-black text-lg border-2 border-cyan shadow-sm shrink-0">
-              KGR
-            </div>
+            {brandingConfig.logoUrl ? (
+              <div className="relative shrink-0">
+                <img
+                  src={brandingConfig.logoUrl}
+                  alt={brandingConfig.companyName || 'Corporate Logo'}
+                  className="w-12 h-12 rounded-xl object-contain border-2 border-cyan/50 bg-white p-1 shadow-sm"
+                />
+                <span className="absolute -bottom-1 -right-1 bg-navy text-cyan text-[7px] font-black px-1 rounded border border-cyan/40">
+                  LOGO
+                </span>
+              </div>
+            ) : (
+              <div className="w-12 h-12 rounded-xl bg-navy text-white flex items-center justify-center font-black text-lg border-2 border-cyan shadow-sm shrink-0">
+                KGR
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base sm:text-lg font-black tracking-tight text-navy">
@@ -1315,15 +1897,27 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           <div>
             <h1 className="text-sm sm:text-base font-extrabold uppercase tracking-wide flex items-center gap-2">
               <span>LEMBAR RUTE OPERASIONAL & SITE VISIT LAPANGAN</span>
-              <span className="text-cyan text-xs font-normal">| {currentHub.name}</span>
+              <span className="text-cyan text-xs font-normal">
+                | {hubDisplayMode === 'all' ? 'SELURUH POS SIAGA BEKASI (ALL HUBS)' : currentHub.name}
+              </span>
             </h1>
             <p className="text-[11px] text-cyan-200">
-              Panduan navigasi fisik, spesifikasi pos armada siaga, dan radius cakupan wilayah
+              {hubDisplayMode === 'all'
+                ? 'Panduan navigasi fisik terpadu 3 pos pangkalan armada siaga operasional dan radius cakupan wilayah Bekasi'
+                : `Panduan navigasi fisik, spesifikasi pos armada siaga ${currentHub.name}, dan radius cakupan wilayah`}
             </p>
           </div>
-          <span className="text-xs px-2.5 py-1 bg-cyan text-navy font-bold rounded-lg shrink-0">
-            {currentHub.badge}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs px-2.5 py-1 bg-cyan text-navy font-bold rounded-lg shrink-0">
+              {hubDisplayMode === 'all' ? '3 POS SIAGA TERINTEGRASI' : currentHub.badge}
+            </span>
+            <span
+              id="print-hub-document-mode-indicator"
+              className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/10 text-cyan-light border border-white/20 hidden sm:inline-block"
+            >
+              {hubDisplayMode === 'all' ? 'Show all hubs' : 'Show active hub only'}
+            </span>
+          </div>
         </div>
 
         {/* 3. SITE VISIT CLIENT & OFFICER BRIEF */}
@@ -1426,6 +2020,10 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
               {/* Standby Hub Markers on schematic map */}
               {hubs.map((hub, idx) => {
                 const isActive = activeHubIndex === idx;
+                // When in 'Show active hub only' mode, hide markers of non-active hubs
+                if (hubDisplayMode === 'active' && !isActive) {
+                  return null;
+                }
                 return (
                   <div
                     key={hub.id}
@@ -1674,20 +2272,163 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           </div>
         </div>
 
+        {/* ALL HUBS COMPREHENSIVE DIRECTORY & SPECIFICATIONS (Rendered when 'Show all hubs' is active) */}
+        {hubDisplayMode === 'all' && (
+          <div
+            id="print-hub-all-hubs-directory"
+            data-testid="print-hub-all-hubs-directory"
+            className="mb-4 bg-slate-50 border-2 border-cyan/40 rounded-xl p-3.5 sm:p-4 text-xs shadow-xs"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-2.5 border-b border-gray-200 gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg bg-navy text-cyan flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                  🏢
+                </span>
+                <div>
+                  <h3 className="font-extrabold text-navy text-xs sm:text-sm uppercase tracking-wide flex items-center gap-2 flex-wrap">
+                    <span>Direktori Seluruh Pos Siaga Operasional</span>
+                    <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan/20 text-cyan-dark border border-cyan/40">
+                      Show all hubs
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-gray-500">
+                    Jaringan pangkalan armada respon cepat 24 jam PT Kusuma Gemilang Raya di seluruh wilayah Bekasi
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-navy text-cyan border border-cyan/30 shrink-0 self-start sm:self-auto">
+                {hubs.length} Pos Siaga Siap Armada
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+              {hubs.map((hub, idx) => {
+                const isActive = activeHubIndex === idx;
+                const navUrl = hub.mapsDirectUrl || getGoogleMapsNavUrl(hub);
+                return (
+                  <div
+                    key={hub.id}
+                    className={`p-3 rounded-xl border transition flex flex-col justify-between ${
+                      isActive
+                        ? 'bg-white border-cyan ring-2 ring-cyan/40 shadow-xs'
+                        : 'bg-white/90 border-gray-200'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500">
+                          {hub.badge}
+                        </span>
+                        {isActive ? (
+                          <span className="text-[8px] font-bold bg-cyan/20 text-cyan-dark px-1.5 py-0.2 rounded border border-cyan/40">
+                            ● Pos Aktif Dokumen
+                          </span>
+                        ) : (
+                          <span className="text-[8px] font-semibold text-gray-400">
+                            Pos Pendukung
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-extrabold text-navy text-xs leading-tight mb-1">
+                        {hub.name}
+                      </h4>
+                      <p className="text-[10px] text-gray-600 mb-2 leading-snug line-clamp-2">
+                        {hub.address}
+                      </p>
+
+                      <div className="space-y-1 text-[10px] bg-slate-50 p-2 rounded-lg border border-gray-100 mb-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Hotline 24 Jam:</span>
+                          <span className="font-mono font-bold text-navy">{hub.phone}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Kesiapan Armada:</span>
+                          <span className="font-bold text-navy">{hub.armadaCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Estimasi Respon:</span>
+                          <span className="font-bold text-emerald-700">⚡ {hub.response}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Koordinat GPS:</span>
+                          <span className="font-mono text-[9px] text-gray-600 font-semibold">{hub.lat}, {hub.lng}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-gray-100 mt-auto">
+                      <div className="w-12 h-12 shrink-0 bg-white p-0.5 rounded-lg border border-gray-200 flex items-center justify-center shadow-2xs">
+                        {generateMapsDirectUrlQrCode(hub, { size: 44, level: 'M' })}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[8px] font-bold text-gray-500 uppercase block">Navigasi HP:</span>
+                        <a
+                          href={navUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[9px] font-mono text-cyan-dark hover:underline truncate block font-semibold"
+                        >
+                          Buka Rute Maps ↗
+                        </a>
+                        <span className="text-[8px] text-gray-400 block truncate">
+                          Scan QR via kamera smartphone
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 5. COVERAGE AREA (CAKUPAN WILAYAH & KAWASAN) */}
         <div className="bg-cyan/5 border border-cyan/30 rounded-xl p-3.5 mb-4 text-xs">
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
             <h3 className="font-bold text-navy text-xs uppercase tracking-wide flex items-center gap-1.5">
               <span>🌐</span>
-              <span>Cakupan Wilayah Penanganan & Kawasan Industri Prioritas</span>
+              <span>
+                {hubDisplayMode === 'all'
+                  ? 'Cakupan Wilayah Penanganan & Kawasan Industri Prioritas (Seluruh Pos Siaga Bekasi)'
+                  : `Cakupan Wilayah Penanganan & Kawasan Industri Prioritas (${currentHub.shortName || currentHub.name})`}
+              </span>
             </h3>
             <span className="text-[10px] font-semibold text-cyan-dark bg-cyan/15 px-2 py-0.5 rounded">
-              Prioritas Respon 15-30 Menit
+              {hubDisplayMode === 'all' ? 'Cakupan Total Seluruh Bekasi Kota & Kabupaten' : `Prioritas Respon ${currentHub.response}`}
             </span>
           </div>
-          <p className="text-[11px] text-gray-700 leading-relaxed bg-white p-2.5 rounded-lg border border-cyan/20">
-            {currentHub.coverage}
-          </p>
+
+          {hubDisplayMode === 'all' ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+              {hubs.map((hub, idx) => {
+                const isActive = activeHubIndex === idx;
+                return (
+                  <div
+                    key={hub.id}
+                    className={`p-2.5 rounded-lg border text-[10px] ${
+                      isActive ? 'bg-white border-cyan/60 ring-1 ring-cyan/40' : 'bg-white border-cyan/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between font-bold text-navy mb-1 pb-1 border-b border-gray-100">
+                      <span className="flex items-center gap-1">
+                        <span>{hub.pinIcon || '📍'}</span>
+                        <span>{hub.shortName || hub.name}</span>
+                      </span>
+                      <span className="text-emerald-700 font-mono text-[9px]">⚡ {hub.response}</span>
+                    </div>
+                    <p className="text-gray-700 leading-relaxed text-[10px]">
+                      {hub.coverage}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[11px] text-gray-700 leading-relaxed bg-white p-2.5 rounded-lg border border-cyan/20">
+              {currentHub.coverage}
+            </p>
+          )}
+
           <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-gray-600">
             <span className="font-bold text-navy">Kesesuaian Armada:</span>
             <span className="px-2 py-0.5 rounded bg-white border border-gray-200">
@@ -1699,34 +2440,46 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
             <span className="px-2 py-0.5 rounded bg-white border border-gray-200">
               ✓ Sambungan Selang Panjang s/d 150 Meter
             </span>
+            {hubDisplayMode === 'all' && (
+              <span className="px-2 py-0.5 rounded bg-navy text-cyan font-bold border border-cyan/40">
+                Total 15+ Armada Truk Siaga 24 Jam
+              </span>
+            )}
           </div>
         </div>
 
-        {/* 6. DEDICATED TECHNICIAN ON-SITE QR GENERATOR SECTION */}
+        {/* 6. DEDICATED 'PRINT QR HUB' SECTION FOR PROFESSIONAL ON-SITE PRINTING */}
         <div
-          id="print-hub-custom-url-qr-section"
+          id="print-qr-hub-section"
+          data-testid="print-qr-hub-section"
           className="border-2 border-cyan/40 bg-gradient-to-br from-white via-cyan/[0.03] to-slate-50 rounded-xl p-3.5 sm:p-4 mb-4 text-xs shadow-xs relative overflow-hidden"
         >
+          {/* Legacy anchor for existing references */}
+          <div id="print-hub-custom-url-qr-section" className="hidden" />
+
           {/* Section Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2.5 mb-3 border-b border-cyan/20 gap-2">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-navy text-cyan border border-cyan/40 flex items-center gap-1">
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-navy text-cyan border border-cyan/40 flex items-center gap-1 shadow-2xs">
                   <span>📱</span>
-                  <span>QR Code Generator for On-Site Printing</span>
+                  <span>Print QR Hub</span>
                 </span>
                 <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-300">
-                  MODUL TEKNISI LAPANGAN (ON-SITE READY)
+                  PROFESSIONAL ON-SITE PRINTING
                 </span>
                 <span className="hidden sm:inline text-[9px] font-mono text-gray-500">
-                  qrcode.react High-Res Vector SVG
+                  qrcode.react High-Res Vector SVG & Downloadable PNG
                 </span>
               </div>
-              <h3 className="text-sm sm:text-base font-extrabold text-navy mt-1 tracking-tight">
-                QR Code Generator for On-Site Printing (Modul Teknisi Lapangan)
+              <h3 className="text-sm sm:text-base font-extrabold text-navy mt-1 tracking-tight flex items-center gap-2 flex-wrap">
+                <span>Print QR Hub</span>
+                <span className="text-xs font-semibold text-cyan-dark bg-cyan/15 px-2 py-0.5 rounded border border-cyan/30">
+                  Dynamic QR Code Generator for On-Site Printing
+                </span>
               </h3>
               <p className="text-[11px] text-gray-600 mt-0.5 leading-snug">
-                Didesain khusus untuk teknisi lapangan: masukkan Custom URL (titik manhole STP, pintu loading dock pabrik, rute armada, atau formulir BAST) lalu klik <strong>Generate QR Code</strong> untuk me-render kode QR resolusi tinggi via <code>qrcode.react</code> yang siap dicetak langsung di lokasi.
+                Bagian khusus <strong>Print QR Hub</strong> di dalam dokumen cetak (<code>#print-hub-document</code>): masukkan Custom URL (titik manhole STP, pintu loading dock pabrik, rute armada truk, atau dokumen digital) lalu klik <strong>Generate QR Code</strong> untuk me-render kode QR dinamis beresolusi tinggi yang dapat diunduh (downloadable PNG) dan siap dicetak secara profesional di lokasi proyek (professional on-site printing).
               </p>
             </div>
             <div className="print-hide flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
@@ -1745,7 +2498,7 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                   htmlFor="custom-url-qr-input"
                   className="block text-[11px] font-bold text-navy uppercase tracking-wider"
                 >
-                  Custom URL (Titik Lokasi / Dokumen Kerja Teknisi): <span className="text-orange">*</span>
+                  Custom URL (Titik Lokasi / Dokumen Kerja Teknisi On-Site): <span className="text-orange">*</span>
                 </label>
                 <span className="text-[10px] text-gray-500 font-mono">
                   {customQrUrl ? `${customQrUrl.length} karakter` : 'Belum diisi'}
@@ -1755,8 +2508,8 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                 <div className="relative flex-1">
                   <input
                     id="custom-url-qr-input"
-                    name="custom-url"
                     data-testid="custom-url-input"
+                    name="custom-url"
                     type="url"
                     value={customQrUrl}
                     onChange={(e) => {
@@ -1778,18 +2531,30 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                   <button
                     id="custom-url-generate-btn"
                     data-testid="generate-qr-button"
                     type="button"
                     onClick={handleGenerateCustomQr}
                     className="px-4 py-2 bg-navy hover:bg-navy-light text-cyan font-bold rounded-lg transition text-xs flex items-center justify-center gap-1.5 border border-cyan/40 shadow-xs cursor-pointer active:scale-95"
-                    title="Generate QR Code using qrcode.react for dynamic on-site rendering"
+                    title="Generate Dynamic QR Code using qrcode.react for dynamic on-site rendering"
                     aria-label="Generate QR Code"
                   >
                     <span>⚡</span>
                     <span>Generate QR Code</span>
+                  </button>
+                  <button
+                    id="print-qr-hub-download-direct-btn"
+                    data-testid="download-qr-button"
+                    type="button"
+                    onClick={handleDownloadCustomQrPng}
+                    className="px-3.5 py-2 bg-cyan/15 hover:bg-cyan/25 text-cyan-dark font-bold rounded-lg transition text-xs flex items-center justify-center gap-1.5 border border-cyan/40 shadow-xs cursor-pointer active:scale-95"
+                    title="Download dynamic QR Code as high-resolution PNG for professional printing"
+                    aria-label="Download QR Code"
+                  >
+                    <span>📥</span>
+                    <span>Download QR</span>
                   </button>
                   <button
                     id="custom-url-generate-and-print-btn"
@@ -1803,7 +2568,7 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
-                    <span>Generate & Print Immediately</span>
+                    <span>Print QR Hub</span>
                   </button>
                 </div>
               </div>
@@ -1924,6 +2689,245 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                   <span>📋</span>
                   <span>BAST & Log Perawatan</span>
                 </button>
+              </div>
+            </div>
+
+            {/* CORPORATE BRANDING & WATERMARK UPLOAD SECTION (Inside #print-hub-document) */}
+            <div
+              id="print-hub-branding-watermark-section"
+              data-testid="print-hub-branding-watermark-section"
+              className="mt-3 pt-3 border-t-2 border-cyan/30 bg-gradient-to-r from-cyan/[0.04] to-slate-50 p-3 sm:p-3.5 rounded-xl border border-gray-200"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-2.5 border-b border-gray-200 gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-navy text-cyan flex items-center justify-center font-bold text-xs shadow-2xs">
+                    🏢
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] sm:text-xs font-extrabold text-navy uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Corporate Branding & Watermark Upload</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-cyan/20 text-cyan-dark border border-cyan/40">
+                        QR Printout Ready
+                      </span>
+                    </h4>
+                    <p className="text-[10px] text-gray-500 leading-tight">
+                      Unggah logo perusahaan atau watermark branding korporat untuk disematkan pada hasil cetak QR Code & lembar dokumen.
+                    </p>
+                  </div>
+                </div>
+
+                {brandingConfig.logoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleResetBrandingLogo}
+                    id="remove-corporate-logo-btn"
+                    data-testid="remove-logo-button"
+                    className="text-[10px] text-red-600 hover:text-red-700 font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 border border-red-200 transition cursor-pointer self-start sm:self-auto flex items-center gap-1"
+                    title="Hapus logo kustom dan kembalikan ke branding default KGR"
+                  >
+                    <span>🗑️</span>
+                    <span>Reset Logo</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Hidden File Input */}
+              <input
+                ref={logoFileInputRef}
+                id="print-hub-logo-file-input"
+                data-testid="print-hub-logo-file-input"
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                onChange={handleLogoFileUpload}
+                className="hidden"
+                aria-label="Upload custom logo or corporate branding watermark"
+              />
+
+              {/* Upload Trigger & Active Logo Preview */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center mb-3">
+                <div className="sm:col-span-5 flex items-center gap-2">
+                  <button
+                    type="button"
+                    id="upload-custom-logo-btn"
+                    data-testid="upload-logo-button"
+                    onClick={() => logoFileInputRef.current?.click()}
+                    className="w-full px-3 py-2 bg-navy hover:bg-navy-light text-cyan font-bold rounded-lg transition text-xs flex items-center justify-center gap-2 border border-cyan/40 shadow-xs cursor-pointer active:scale-95"
+                    title="Unggah file gambar logo kustom dari komputer (PNG, JPG, SVG, WebP)"
+                  >
+                    <span>📁</span>
+                    <span>Unggah Logo / Watermark Baru</span>
+                  </button>
+                </div>
+
+                <div className="sm:col-span-7">
+                  {brandingConfig.logoUrl ? (
+                    <div className="flex items-center gap-2 p-1.5 bg-white rounded-lg border border-cyan/40 shadow-2xs">
+                      <img
+                        src={brandingConfig.logoUrl}
+                        alt="Logo Kustom"
+                        className="w-8 h-8 object-contain rounded bg-slate-50 border border-gray-200 p-0.5 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-bold text-navy truncate">
+                            {brandingConfig.logoName || 'Logo Perusahaan Kustom'}
+                          </span>
+                          <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-200">
+                            ● Aktif di Cetak QR
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-gray-400 font-mono">
+                          Disematkan di QR, kartu print pass, & watermark lembar
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-gray-500 bg-white/80 p-2 rounded-lg border border-dashed border-gray-300 flex items-center gap-1.5">
+                      <span className="text-gray-400">ℹ️</span>
+                      <span>Belum ada logo kustom. Klik tombol di samping atau pilih preset korporat di bawah.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Corporate Presets */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">
+                    Preset Cepat Watermark Korporat:
+                  </span>
+                  <span className="text-[9px] text-gray-400">1-klik terapkan untuk uji cetak langsung</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {PRESET_BRANDING_LOGOS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        updateBrandingConfig({
+                          logoUrl: preset.dataUrl,
+                          logoName: preset.name,
+                          companyName: preset.companyName,
+                          badgeText: preset.badgeText,
+                          watermarkText: preset.watermarkText,
+                          includeInQrCenter: true,
+                          includeCardWatermark: true,
+                          includeSheetWatermark: true,
+                        });
+                        if (onToast) onToast(`🏢 Preset watermark "${preset.name}" berhasil diterapkan!`);
+                      }}
+                      className="px-2 py-1.5 rounded-lg bg-white hover:bg-cyan/10 text-navy font-semibold text-[10px] border border-gray-200 hover:border-cyan/40 transition cursor-pointer flex items-center gap-1.5 shadow-2xs text-left"
+                    >
+                      <img
+                        src={preset.dataUrl}
+                        alt={preset.name}
+                        className="w-5 h-5 object-contain rounded shrink-0 bg-slate-50"
+                      />
+                      <span className="truncate">{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Corporate Text & Watermark Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2.5">
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-600 uppercase tracking-wider mb-0.5">
+                    Nama Korporat / Klien:
+                  </label>
+                  <input
+                    type="text"
+                    value={brandingConfig.companyName}
+                    onChange={(e) => updateBrandingConfig({ companyName: e.target.value })}
+                    placeholder="Contoh: PT KUSUMA GEMILANG RAYA"
+                    className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-[11px] text-navy focus:outline-hidden focus:border-cyan shadow-2xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-600 uppercase tracking-wider mb-0.5">
+                    Teks Watermark Dokumen:
+                  </label>
+                  <input
+                    type="text"
+                    value={brandingConfig.watermarkText}
+                    onChange={(e) => updateBrandingConfig({ watermarkText: e.target.value })}
+                    placeholder="Contoh: DOKUMEN RESMI LOGISTIK TEKNISI BEKASI"
+                    className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-[11px] text-navy focus:outline-hidden focus:border-cyan shadow-2xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-gray-600 uppercase tracking-wider mb-0.5">
+                    Badge Verifikasi QR Print:
+                  </label>
+                  <input
+                    type="text"
+                    value={brandingConfig.badgeText}
+                    onChange={(e) => updateBrandingConfig({ badgeText: e.target.value })}
+                    placeholder="Contoh: CORPORATE VERIFIED / PARTNER"
+                    className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-[11px] text-navy focus:outline-hidden focus:border-cyan shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              {/* Feature Inclusion Toggles & Opacity Selector */}
+              <div className="pt-2 border-t border-gray-200 flex flex-wrap items-center justify-between gap-2 text-[10px]">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      data-testid="toggle-qr-center-logo"
+                      checked={brandingConfig.includeInQrCenter}
+                      onChange={(e) => updateBrandingConfig({ includeInQrCenter: e.target.checked })}
+                      className="rounded border-gray-300 text-cyan focus:ring-cyan h-3.5 w-3.5 cursor-pointer"
+                    />
+                    <span className="font-semibold text-navy">Embed di Tengah QR</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      data-testid="toggle-qr-card-watermark"
+                      checked={brandingConfig.includeCardWatermark}
+                      onChange={(e) => updateBrandingConfig({ includeCardWatermark: e.target.checked })}
+                      className="rounded border-gray-300 text-cyan focus:ring-cyan h-3.5 w-3.5 cursor-pointer"
+                    />
+                    <span className="font-semibold text-navy">Badge Watermark Kartu QR</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      data-testid="toggle-sheet-watermark"
+                      checked={brandingConfig.includeSheetWatermark}
+                      onChange={(e) => updateBrandingConfig({ includeSheetWatermark: e.target.checked })}
+                      className="rounded border-gray-300 text-cyan focus:ring-cyan h-3.5 w-3.5 cursor-pointer"
+                    />
+                    <span className="font-semibold text-navy">Watermark Lembar Dokumen</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-gray-500">Transparansi Watermark:</span>
+                  {[
+                    { val: 0.05, label: '5%' },
+                    { val: 0.12, label: '12%' },
+                    { val: 0.25, label: '25%' },
+                    { val: 0.4, label: '40%' },
+                  ].map((op) => (
+                    <button
+                      key={op.val}
+                      type="button"
+                      onClick={() => updateBrandingConfig({ watermarkOpacity: op.val })}
+                      className={`px-1.5 py-0.5 rounded font-mono font-bold transition cursor-pointer ${
+                        brandingConfig.watermarkOpacity === op.val
+                          ? 'bg-navy text-cyan'
+                          : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200'
+                      }`}
+                    >
+                      {op.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -2107,7 +3111,52 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           </div>
 
           {/* DYNAMIC ON-SITE PRINTABLE QR DISPLAY CARD */}
-          <div className="bg-white border-2 border-cyan/30 rounded-xl p-3 sm:p-4 shadow-xs">
+          <div
+            id="print-qr-hub-card"
+            data-testid="print-qr-hub-card"
+            className="bg-white border-2 border-cyan/30 rounded-xl p-3 sm:p-4 shadow-xs relative overflow-hidden"
+          >
+            {/* Corporate Branding Watermark Header on QR Print Card (visible on printout) */}
+            {brandingConfig.includeCardWatermark && (
+              <div
+                id="qr-printout-branding-watermark"
+                data-testid="qr-printout-branding-watermark"
+                className="mb-3 pb-2.5 border-b-2 border-cyan/30 flex flex-wrap items-center justify-between gap-2 bg-slate-50/90 -mx-3 -mt-3 sm:-mx-4 sm:-mt-4 p-2.5 sm:p-3 rounded-t-xl"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {brandingConfig.logoUrl ? (
+                    <img
+                      src={brandingConfig.logoUrl}
+                      alt="Corporate Branding Logo"
+                      className="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-md border border-cyan/40 bg-white p-0.5 shadow-2xs shrink-0"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-md bg-navy text-cyan font-black text-xs flex items-center justify-center border-2 border-cyan shadow-2xs shrink-0">
+                      KGR
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-black text-navy text-xs sm:text-sm uppercase tracking-tight truncate">
+                        {brandingConfig.companyName || 'PT KUSUMA GEMILANG RAYA'}
+                      </span>
+                      <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        {brandingConfig.badgeText || 'CORPORATE VERIFIED'}
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-gray-500 font-mono truncate">
+                      Watermark: {brandingConfig.watermarkText || 'PT KGR BEKASI • ON-SITE PASS'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right text-[8px] font-mono text-gray-400 shrink-0">
+                  <span className="px-1.5 py-0.5 rounded bg-white border border-gray-200 text-navy font-bold">
+                    AUTH: #{(brandingConfig.companyName || 'KGR').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
               {/* QR Container rendered with qrcode.react */}
               <div
@@ -2119,12 +3168,24 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                     id="custom-url-qr-svg"
                     value={effectiveCustomUrl}
                     size={120}
-                    level={customQrLevel}
+                    level={brandingConfig.includeInQrCenter && brandingConfig.logoUrl ? 'H' : customQrLevel}
                     fgColor={customQrColor}
                     bgColor="#ffffff"
                     marginSize={2}
                     title={customQrLabel || 'QR Code Kustom Navigasi Lapangan'}
                     className="w-full h-full object-contain cursor-pointer transition hover:scale-102"
+                    imageSettings={
+                      brandingConfig.includeInQrCenter && brandingConfig.logoUrl
+                        ? {
+                            src: brandingConfig.logoUrl,
+                            x: undefined,
+                            y: undefined,
+                            height: 28,
+                            width: 28,
+                            excavate: true,
+                          }
+                        : undefined
+                    }
                   />
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-[8px] font-mono font-bold text-gray-500">
@@ -2138,16 +3199,19 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
               {/* Metadata, Label & Prominent Custom URL for Printing */}
               <div className="min-w-0 flex-1 text-center sm:text-left">
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mb-1">
-                  <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-navy text-white">
-                    ON-SITE DISPATCH PASS
+                  <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-navy text-white shadow-2xs">
+                    PRINT QR HUB • ON-SITE PASS
                   </span>
                   <span className="text-[9px] font-bold text-cyan-dark bg-cyan/15 px-1.5 py-0.5 rounded border border-cyan/30">
                     HASIL CETAK RESMI
                   </span>
+                  <span className="text-[9px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    ● Dynamic Vector QR
+                  </span>
                 </div>
 
                 <h4 className="font-extrabold text-navy text-xs sm:text-sm leading-snug">
-                  {customQrLabel || 'Navigasi Khusus On-Site & Gerbang Pabrik'}
+                  {customQrLabel || 'Print QR Hub: Navigasi Khusus On-Site & Gerbang Pabrik'}
                 </h4>
 
                 <p className="text-[11px] text-gray-600 mt-0.5 leading-snug">
@@ -2180,26 +3244,31 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                 {/* Immediate Print & Utility Actions */}
                 <div className="print-hide mt-2.5 flex items-center gap-2 flex-wrap">
                   <button
-                    id="print-immediately-btn"
+                    id="print-qr-hub-print-btn"
+                    data-testid="print-qr-hub-button"
                     type="button"
                     onClick={handlePrint}
                     className="px-3.5 py-1.5 bg-orange hover:bg-orange-dark text-white font-bold rounded-lg transition text-xs flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
-                    title="Print this document immediately with the generated custom QR code"
+                    title="Print QR Hub: Cetak lembar dokumen ini langsung dengan kode QR dinamis"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
-                    <span>Print Immediately</span>
+                    <span>Print QR Hub</span>
                   </button>
                   <button
+                    id="print-qr-hub-download-btn"
+                    data-testid="print-qr-hub-download-btn"
                     type="button"
                     onClick={handleDownloadCustomQrPng}
-                    className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-xs transition cursor-pointer flex items-center gap-1"
-                    title="Unduh QR Code sebagai file gambar PNG"
+                    className="px-3 py-1.5 bg-navy hover:bg-navy-light text-cyan font-bold rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5 border border-cyan/40 shadow-xs"
+                    title="Unduh QR Code sebagai file gambar PNG resolusi tinggi untuk cetak profesional"
                   >
-                    <span>📥 Unduh PNG</span>
+                    <span>📥</span>
+                    <span>Download QR Code (PNG HD)</span>
                   </button>
                   <button
+                    id="print-qr-hub-copy-url-btn"
                     type="button"
                     onClick={handleCopyCustomUrl}
                     className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-xs transition cursor-pointer flex items-center gap-1"
@@ -2256,27 +3325,35 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           </div>
         </div>
 
-        {/* 7. RECENT QR GENERATION TABLE (Persists last 10 generated custom URLs in localStorage) */}
+        {/* 7. D3.JS QR FREQUENCY VISUALIZATION CHART (Frequency over the last 30 days based on localStorage) */}
+        <div id="print-hub-qr-d3-chart-wrapper" className="mb-4">
+          <QrCodeFrequencyD3Chart lastUpdatedTimestamp={chartLastUpdated} />
+        </div>
+
+        {/* 8. QR HISTORY TABLE (Persists every generated URL and timestamp, allows re-print of last 10 codes) */}
         <div
-          id="print-hub-recent-qr-generation-table"
+          id="qr-history-table-container"
           className="border-2 border-cyan/40 bg-gradient-to-br from-white via-cyan/[0.02] to-slate-50 rounded-xl p-3.5 sm:p-4 mb-4 text-xs shadow-xs"
         >
+          {/* Also maintain anchor for legacy references */}
+          <div id="print-hub-recent-qr-generation-table" className="hidden" />
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-3 border-b border-gray-200 gap-2">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-navy text-cyan flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                📊
+                📋
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-extrabold text-navy text-xs sm:text-sm uppercase tracking-wider">
-                    Recent QR Generation
+                  <h3 className="font-extrabold text-navy text-xs sm:text-sm uppercase tracking-wider flex items-center gap-1.5">
+                    <span>QR History Table</span>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan/20 text-cyan-dark border border-cyan/30">
+                      {recentQrGenerations.length} / 10 Tersimpan di localStorage
+                    </span>
                   </h3>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan/20 text-cyan-dark border border-cyan/30">
-                    {recentQrGenerations.length} / 10 Tersimpan (localStorage)
-                  </span>
                 </div>
                 <p className="text-[10px] text-gray-500">
-                  Tabel audit persistensi 10 URL kustom terakhir untuk memudahkan teknisi melakukan re-print kode QR di lapangan.
+                  Daftar riwayat 10 kode QR terakhir beserta timestamp. Klik tombol <strong>Re-Print</strong> untuk me-render ulang kode QR pada lembar cetak.
                 </p>
               </div>
             </div>
@@ -2287,38 +3364,196 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                   type="button"
                   onClick={handleClearRecentQrGenerations}
                   className="px-2.5 py-1 text-[10px] font-semibold text-gray-500 hover:text-rose-600 rounded-lg border border-gray-200 hover:border-rose-300 bg-white hover:bg-rose-50 transition cursor-pointer flex items-center gap-1 shadow-2xs"
-                  title="Bersihkan riwayat Recent QR Generation dari localStorage"
+                  title="Bersihkan riwayat qr-history-table dari localStorage"
                 >
                   <span>🗑️</span>
-                  <span>Reset Tabel</span>
+                  <span>Reset Riwayat</span>
                 </button>
               )}
             </div>
           </div>
 
+          {/* Sorting Controls Toolbar (Sort by Date: Newest/Oldest and URL String) */}
+          {recentQrGenerations.length > 0 && (
+            <div
+              id="qr-history-sort-toolbar"
+              data-testid="qr-history-sort-toolbar"
+              className="print-hide flex flex-wrap items-center justify-between gap-2.5 mb-3 p-2.5 bg-slate-50 border border-cyan/20 rounded-xl text-xs"
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] uppercase font-bold text-navy flex items-center gap-1">
+                  <span>⇅</span>
+                  <span>Urutkan Data (Sort By):</span>
+                </span>
+
+                {/* Quick Sort Buttons */}
+                <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 shadow-2xs flex-wrap">
+                  <button
+                    type="button"
+                    id="sort-date-newest"
+                    data-testid="sort-date-newest"
+                    onClick={() => handleSetQrSortMode('date-desc')}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      qrSortMode === 'date-desc'
+                        ? 'bg-navy text-cyan font-bold shadow-2xs'
+                        : 'text-gray-600 hover:text-navy hover:bg-gray-100'
+                    }`}
+                    title="Urutkan Tanggal: Terbaru (Newest first)"
+                  >
+                    <span>📅 Terbaru (Newest)</span>
+                    {qrSortMode === 'date-desc' && <span className="text-cyan text-xs">▼</span>}
+                  </button>
+
+                  <button
+                    type="button"
+                    id="sort-date-oldest"
+                    data-testid="sort-date-oldest"
+                    onClick={() => handleSetQrSortMode('date-asc')}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      qrSortMode === 'date-asc'
+                        ? 'bg-navy text-cyan font-bold shadow-2xs'
+                        : 'text-gray-600 hover:text-navy hover:bg-gray-100'
+                    }`}
+                    title="Urutkan Tanggal: Terlama (Oldest first)"
+                  >
+                    <span>📅 Terlama (Oldest)</span>
+                    {qrSortMode === 'date-asc' && <span className="text-cyan text-xs">▲</span>}
+                  </button>
+
+                  <button
+                    type="button"
+                    id="sort-url-asc"
+                    data-testid="sort-url-asc"
+                    onClick={() => handleSetQrSortMode('url-asc')}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      qrSortMode === 'url-asc'
+                        ? 'bg-navy text-cyan font-bold shadow-2xs'
+                        : 'text-gray-600 hover:text-navy hover:bg-gray-100'
+                    }`}
+                    title="Urutkan URL: A ke Z"
+                  >
+                    <span>🔗 URL (A-Z)</span>
+                    {qrSortMode === 'url-asc' && <span className="text-cyan text-xs">▲</span>}
+                  </button>
+
+                  <button
+                    type="button"
+                    id="sort-url-desc"
+                    data-testid="sort-url-desc"
+                    onClick={() => handleSetQrSortMode('url-desc')}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      qrSortMode === 'url-desc'
+                        ? 'bg-navy text-cyan font-bold shadow-2xs'
+                        : 'text-gray-600 hover:text-navy hover:bg-gray-100'
+                    }`}
+                    title="Urutkan URL: Z ke A"
+                  >
+                    <span>🔗 URL (Z-A)</span>
+                    {qrSortMode === 'url-desc' && <span className="text-cyan text-xs">▼</span>}
+                  </button>
+                </div>
+
+                {/* Dropdown for compact selection */}
+                <select
+                  id="qr-history-sort-select"
+                  data-testid="qr-history-sort-select"
+                  value={qrSortMode}
+                  onChange={(e) => handleSetQrSortMode(e.target.value as any)}
+                  className="px-2 py-1 rounded-lg border border-gray-200 bg-white text-[10px] font-semibold text-gray-700 outline-none focus:border-cyan cursor-pointer hidden md:inline-block shadow-2xs"
+                  title="Pilih opsi pengurutan tabel"
+                >
+                  <option value="date-desc">Urutkan: Tanggal (Terbaru / Newest)</option>
+                  <option value="date-asc">Urutkan: Tanggal (Terlama / Oldest)</option>
+                  <option value="url-asc">Urutkan: URL String (A - Z)</option>
+                  <option value="url-desc">Urutkan: URL String (Z - A)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                <span className="font-mono bg-white px-2 py-0.5 rounded border border-gray-200">
+                  Aktif: <strong className="text-navy">{
+                    qrSortMode === 'date-desc' ? 'Tanggal (Terbaru)' :
+                    qrSortMode === 'date-asc' ? 'Tanggal (Terlama)' :
+                    qrSortMode === 'url-asc' ? 'URL (A-Z)' : 'URL (Z-A)'
+                  }</strong>
+                </span>
+                {qrSortMode !== 'date-desc' && (
+                  <button
+                    type="button"
+                    id="reset-qr-sort-btn"
+                    onClick={() => handleSetQrSortMode('date-desc')}
+                    className="text-cyan-dark hover:underline font-bold cursor-pointer"
+                    title="Kembalikan ke urutan default (Terbaru)"
+                  >
+                    ↺ Reset
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {recentQrGenerations.length > 0 ? (
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
               <table
-                id="recent-qr-generation-table"
-                className="w-full text-left border-collapse text-[11px]"
+                id="qr-history-table"
+                data-testid="qr-history-table"
+                className="qr-history-table w-full text-left border-collapse text-[11px]"
               >
                 <thead>
                   <tr className="bg-slate-100 text-navy uppercase text-[9px] tracking-wider border-b border-gray-200 font-bold">
                     <th className="py-2.5 px-3 text-center w-10">No</th>
-                    <th className="py-2.5 px-3 w-40">Timestamp</th>
-                    <th className="py-2.5 px-3">Custom URL</th>
+                    <th
+                      id="th-sort-date"
+                      data-testid="th-sort-date"
+                      onClick={handleToggleDateSort}
+                      className="py-2.5 px-3 w-44 cursor-pointer select-none hover:bg-slate-200 transition group"
+                      title="Klik untuk mengurutkan tanggal (Terbaru / Terlama)"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span>Timestamp</span>
+                        <span
+                          className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border transition ${
+                            qrSortMode.startsWith('date-')
+                              ? 'bg-navy text-cyan border-cyan/40 shadow-2xs'
+                              : 'bg-white text-gray-500 border-gray-200 group-hover:text-navy'
+                          }`}
+                        >
+                          {qrSortMode === 'date-desc' ? '▼ Terbaru' : qrSortMode === 'date-asc' ? '▲ Terlama' : '↕ Urut'}
+                        </span>
+                      </div>
+                    </th>
+                    <th
+                      id="th-sort-url"
+                      data-testid="th-sort-url"
+                      onClick={handleToggleUrlSort}
+                      className="py-2.5 px-3 cursor-pointer select-none hover:bg-slate-200 transition group"
+                      title="Klik untuk mengurutkan URL string (A-Z / Z-A)"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span>Generated URL</span>
+                        <span
+                          className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border transition ${
+                            qrSortMode.startsWith('url-')
+                              ? 'bg-navy text-cyan border-cyan/40 shadow-2xs'
+                              : 'bg-white text-gray-500 border-gray-200 group-hover:text-navy'
+                          }`}
+                        >
+                          {qrSortMode === 'url-asc' ? '▲ A-Z' : qrSortMode === 'url-desc' ? '▼ Z-A' : '↕ Urut'}
+                        </span>
+                      </div>
+                    </th>
                     <th className="py-2.5 px-3 w-44">Label / Keterangan</th>
                     <th className="py-2.5 px-3 w-24 text-center">Status</th>
                     <th className="py-2.5 px-3 w-32 text-center print-hide">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {recentQrGenerations.map((entry, idx) => {
+                  {sortedQrGenerations.map((entry, idx) => {
                     const isCurrent =
                       customQrUrl.trim().toLowerCase() === entry.url.trim().toLowerCase();
                     return (
                       <tr
-                        key={entry.id || `qr-gen-row-${idx}`}
+                        key={entry.id || `qr-hist-row-${idx}`}
                         className={`transition ${
                           isCurrent ? 'bg-cyan/10 font-medium' : 'hover:bg-slate-50'
                         }`}
@@ -2368,6 +3603,7 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                               onClick={() => handleRePrintQr(entry, false)}
                               className="px-2.5 py-1 rounded-md bg-navy hover:bg-navy-light text-cyan hover:text-white font-bold text-[10px] transition cursor-pointer flex items-center gap-1 shadow-2xs"
                               title="Re-render kode QR ini ke dokumen cetak"
+                              aria-label={`Re-Print QR ${entry.label}`}
                             >
                               <span>🔄</span>
                               <span>Re-Print</span>
@@ -2377,6 +3613,7 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                               onClick={() => handleRePrintQr(entry, true)}
                               className="p-1 rounded-md bg-orange hover:bg-orange-dark text-white text-[10px] transition cursor-pointer shadow-2xs"
                               title="Re-render dan buka dialog cetak langsung"
+                              aria-label={`Re-Print dan cetak ${entry.label}`}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -2392,15 +3629,15 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
             </div>
           ) : (
             <div className="p-4 text-center text-gray-500 bg-white rounded-lg border border-dashed border-gray-300">
-              <p className="text-[11px]">Belum ada riwayat QR yang digenerate di localStorage.</p>
+              <p className="text-[11px]">Belum ada riwayat QR di qr-history-table.</p>
               <p className="text-[10px] text-gray-400 mt-0.5">
-                Masukkan URL kustom pada form di atas dan klik <strong>⚡ Generate Dynamic</strong> untuk menambahkannya ke tabel ini.
+                Masukkan URL pada form di atas dan klik <strong>⚡ Generate QR Code</strong> untuk menyimpannya ke tabel ini.
               </p>
             </div>
           )}
         </div>
 
-        {/* 8. PHYSICAL SITE VISIT INSPECTION CHECKLIST (Formulir Pengawasan Lapangan) */}
+        {/* 9. PHYSICAL SITE VISIT INSPECTION CHECKLIST (Formulir Pengawasan Lapangan) */}
         <div className="border border-gray-300 rounded-xl p-3 mb-4 text-xs bg-white">
           <div className="flex items-center justify-between border-b border-gray-200 pb-1.5 mb-2">
             <h3 className="font-bold text-navy uppercase text-[11px] flex items-center gap-1.5">
@@ -2462,12 +3699,12 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           </div>
         </div>
 
-        {/* 9. EQUIPMENT QR SCANNER & MAINTENANCE LOG AUDIT MODULE (react-qr-reader) */}
+        {/* 10. EQUIPMENT QR SCANNER & MAINTENANCE LOG AUDIT MODULE (react-qr-reader) */}
         <div className="mb-4">
           <EquipmentMaintenanceQrScanner onToast={onToast} />
         </div>
 
-        {/* 10. SIGNATURE & VERIFICATION ROW */}
+        {/* 11. SIGNATURE & VERIFICATION ROW */}
         <div className="grid grid-cols-2 gap-8 pt-2 pb-2 text-center text-xs">
           <div className="border-t border-gray-400 pt-1.5">
             <p className="text-[10px] text-gray-500 font-semibold mb-8">
@@ -2485,13 +3722,19 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           </div>
         </div>
 
-        {/* 11. FOOTER LEGAL & COMPLIANCE BAR */}
-        <div className="border-t border-gray-300 pt-2.5 mt-2 flex flex-col sm:flex-row items-center justify-between text-[9px] text-gray-500">
+        {/* 12. FOOTER LEGAL & COMPLIANCE BAR */}
+        <div className="border-t border-gray-300 pt-2.5 mt-2 flex flex-col sm:flex-row items-center justify-between text-[9px] text-gray-500 gap-1">
           <div>
             PT KUSUMA GEMILANG RAYA • Hotline 24 Jam: 0896-7506-4916 • Email: legal@sedotwckusuma.com • Navigasi: Scan QR di atas via Google Maps
           </div>
-          <div className="font-mono text-gray-400 mt-1 sm:mt-0">
-            Dokumen Resmi Kunjungan Lapangan & Rute Logistik Hub • Halaman 1 dari 1 (A4)
+          <div className="font-mono text-gray-400 mt-1 sm:mt-0 flex items-center gap-1.5 flex-wrap sm:justify-end">
+            <span
+              id="print-hub-footer-mode-tag"
+              className="px-1.5 py-0.2 rounded bg-slate-100 text-gray-600 border border-gray-200 font-semibold"
+            >
+              Lingkup: {hubDisplayMode === 'all' ? 'Seluruh Pos Siaga (Show all hubs)' : `Pos Tunggal - ${currentHub.shortName || currentHub.name} (Show active hub only)`}
+            </span>
+            <span>• Halaman 1 dari 1 (A4)</span>
           </div>
         </div>
       </div>
