@@ -222,6 +222,16 @@ function AnimatedFaqDetails({
   );
 }
 
+export interface TestimonialAiAnalysis {
+  sentiment: string;
+  sentimentScore?: number;
+  keyHighlights: string[];
+  summary: string;
+  videoStoryboard?: string[];
+  recommendedTags?: string[];
+  analyzedAt?: string;
+}
+
 export interface TestimonialItem {
   id: string;
   initial: string;
@@ -235,6 +245,13 @@ export interface TestimonialItem {
   rating: number; // Nilai kuantitatif 1.0 - 5.0
   totalVotes: number;
   userGivenRating?: number | null;
+  videoUrl?: string; // Data URL, MP4 link, atau YouTube / Shorts link
+  videoThumbnail?: string;
+  videoDuration?: string;
+  videoType?: 'upload' | 'link' | 'ai-generated';
+  videoTitle?: string;
+  videoScript?: string;
+  aiAnalysis?: TestimonialAiAnalysis;
   satisfactionMetrics: {
     aspect: string;
     score: number;
@@ -249,11 +266,34 @@ const initialTestimonialsData: TestimonialItem[] = [
     textColor: 'text-orange',
     text: '"Pelayanannya sangat cepat dan profesional. Truk sedotnya datang tepat waktu, teknisinya pakai APD lengkap, dan setelah selesai area kerjanya dibersihkan sampai higienis. Sangat puas!"',
     author: 'Bapak Budi Santoso',
-    role: 'Perumahan Cluster, Bekasi Selatan',
+    role: 'Perumahan Cluster Galaxy, Bekasi Selatan',
     category: 'Residensial',
     date: '3 hari yang lalu',
     rating: 5.0,
     totalVotes: 48,
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoThumbnail: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
+    videoDuration: '0:38',
+    videoType: 'upload',
+    videoTitle: 'Ulasan Lapangan: Sedot Septic Tank Bersih & Cepat di Bekasi Selatan',
+    videoScript: 'Halo warga Bekasi, ini saya Budi dari Cluster Galaxy. Baru saja selesai sedot septic tank bersama PT Kusuma Gemilang Raya. Pengerjaan cepat cuma 25 menit, armada bersih dan tidak ada bau sama sekali!',
+    aiAnalysis: {
+      sentiment: 'Sangat Positif',
+      sentimentScore: 99,
+      keyHighlights: [
+        'Armada tangki vakum tiba dalam waktu 25 menit setelah pemesanan',
+        'Teknisi disiplin mengenakan APD higienis dan selang kedap tanpa ceceran',
+        'Hasil hisap tuntas dengan pembersihan disinfektan area kerja'
+      ],
+      summary: 'Klien sangat mengapresiasi kecepatan armada serta standar higienitas pengerjaan bebas bau di area residensial.',
+      videoStoryboard: [
+        'Scene 1 (0:00 - 0:10): Klien memperlihatkan area septic tank rumah sebelum pengerjaan.',
+        'Scene 2 (0:10 - 0:25): Truk tangki vakum tiba dan teknisi sigap memasang selang kedap.',
+        'Scene 3 (0:25 - 0:38): Toilet dites flush lancar tuntas dan penyerahan kuitansi bergaransi.'
+      ],
+      recommendedTags: ['#SedotWCBekasi', '#HigienisBebasBau', '#TeknisiProfesional', '#GaransiPuas'],
+      analyzedAt: '2026-10-10T08:30:00.000Z'
+    },
     satisfactionMetrics: [
       { aspect: 'Ketepatan Waktu Tangki', score: 5.0 },
       { aspect: 'Kebersihan Kerja & APD', score: 5.0 },
@@ -272,6 +312,29 @@ const initialTestimonialsData: TestimonialItem[] = [
     date: '1 minggu yang lalu',
     rating: 5.0,
     totalVotes: 62,
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    videoThumbnail: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
+    videoDuration: '0:45',
+    videoType: 'link',
+    videoTitle: 'Testimoni Kepatuhan Limbah B2B & Manifes IPLT Kawasan Cikarang',
+    videoScript: 'Untuk fasilitas industri, kepatuhan limbah adalah prioritas utama. PT Kusuma Gemilang Raya adalah mitra resmi kami dengan legalitas NIB lengkap dan dokumen pembuangan IPLT Pemda yang tertib.',
+    aiAnalysis: {
+      sentiment: 'Sangat Positif',
+      sentimentScore: 100,
+      keyHighlights: [
+        'Kepatuhan 100% legalitas perizinan NIB KBLI 37011 & manifes resmi IPLT',
+        'Kesiapan armada vakum kapasitas besar dan kepatuhan SOP K3 CSMS',
+        'Dokumen Berita Acara Serah Terima (BAST) terbit rapi dan cepat'
+      ],
+      summary: 'Vendor B2B terpercaya dengan transparansi manifestasi lingkungan hidup untuk audit kepatuhan industri.',
+      videoStoryboard: [
+        'Scene 1 (0:00 - 0:15): Inspeksi tim fasilitas pabrik pada izin resmi dan APD teknisi.',
+        'Scene 2 (0:15 - 0:32): Proses penyedotan bak penampungan STP industri kapasitas 8 m³.',
+        'Scene 3 (0:32 - 0:45): Validasi manifes IPLT resmi dan tanda tangan BAST operasional.'
+      ],
+      recommendedTags: ['#IndustriCikarang', '#ManifesIPLT', '#AuditLingkungan', '#VendorB2BResmi'],
+      analyzedAt: '2026-10-08T14:15:00.000Z'
+    },
     satisfactionMetrics: [
       { aspect: 'Manifes Resmi IPLT', score: 5.0 },
       { aspect: 'Standar Keselamatan K3', score: 5.0 },
@@ -326,10 +389,72 @@ const initialTestimonialsData: TestimonialItem[] = [
     date: '1 bulan yang lalu',
     rating: 5.0,
     totalVotes: 44,
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    videoThumbnail: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+    videoDuration: '0:32',
+    videoType: 'link',
+    videoTitle: 'Perawatan Grease Trap Higienis Restoran Bebas Bau di Jam Operasional Tutup',
+    videoScript: 'Sebagai pemilik restoran, kebersihan dapur adalah segalanya. PT Kusuma Gemilang Raya membersihkan grease trap kami di malam hari tanpa sisa bau, pipa cuci piring lancar kembali!',
+    aiAnalysis: {
+      sentiment: 'Sangat Positif',
+      sentimentScore: 98,
+      keyHighlights: [
+        'Jadwal fleksibel malam hari tanpa mengganggu operasional F&B',
+        'Pengerjaan grease trap tuntas dengan disinfeksi bebas aroma',
+        'Teknisi ramah dan memahami tata kelola higienitas restoran'
+      ],
+      summary: 'Layanan spesialis grease trap komersial malam hari yang higienis dan terpercaya untuk pelaku usaha kuliner.',
+      videoStoryboard: [
+        'Scene 1 (0:00 - 0:08): Kondisi bak grease trap dapur sebelum dibersihkan.',
+        'Scene 2 (0:08 - 0:22): Pengurasan lemak jenuh dan lumpur menggunakan pompa vakum sanitasi.',
+        'Scene 3 (0:22 - 0:32): Pengecekan air pembuangan lancar dan dapur kembali higienis.'
+      ],
+      recommendedTags: ['#GreaseTrapResto', '#BebasBauDapur', '#HigienisKuliner', '#SummareconBekasi'],
+      analyzedAt: '2026-09-28T22:10:00.000Z'
+    },
     satisfactionMetrics: [
       { aspect: 'Pengerjaan Tanpa Bau', score: 5.0 },
       { aspect: 'Fleksibilitas Jadwal', score: 5.0 },
       { aspect: 'Higienitas Standar F&B', score: 5.0 },
+    ],
+  },
+  {
+    id: 'testi-6',
+    initial: 'K',
+    bgColor: 'bg-teal-500/10',
+    textColor: 'text-teal-600',
+    text: '"Pemasangan Septic Tank Biofilter di rumah baru kami di Mustika Jaya berjalan sangat rapi. Air buangannya jernih ramah lingkungan dan tidak mencemari sumur resapan tanah. Mantap sekali PT Kusuma Gemilang Raya!"',
+    author: 'Bpk. Kuncoro Adi',
+    role: 'Pemilik Rumah Baru, Mustika Jaya Bekasi',
+    category: 'Residensial',
+    date: '1 bulan yang lalu',
+    rating: 5.0,
+    totalVotes: 35,
+    videoDuration: '0:29',
+    videoType: 'ai-generated',
+    videoTitle: 'Testimoni Pemasangan Septic Tank Biofilter Ramah Lingkungan',
+    videoScript: 'Sistem biofilter dari PT Kusuma Gemilang Raya membuat kami tenang. Instalasi cepat dalam 1 hari dan air buangannya sudah memenuhi baku mutu ramah lingkungan.',
+    aiAnalysis: {
+      sentiment: 'Sangat Positif',
+      sentimentScore: 99,
+      keyHighlights: [
+        'Teknologi biofilter modern dengan media sarang tawon & bakteri pengurai',
+        'Hasil olahan efluen aman bagi air tanah sekitar perumahan',
+        'Pemasangan rapi dan bergaransi konstruksi hingga 5 tahun'
+      ],
+      summary: 'Klien sangat puas dengan efisiensi dan keamanan ekologis instalasi septic tank biofilter modern.',
+      videoStoryboard: [
+        'Scene 1 (0:00 - 0:08): Galian dan penempatan tabung biofilter fiberglass di halaman.',
+        'Scene 2 (0:08 - 0:20): Pemasangan pipa inlet, outlet resapan, dan inokulasi bio-bakteri.',
+        'Scene 3 (0:20 - 0:29): Pengurukan kembali dengan permukaan rapi dan penjelasan garansi.'
+      ],
+      recommendedTags: ['#BiofilterBekasi', '#SepticTankModern', '#RamahLingkungan', '#BebasKuras'],
+      analyzedAt: '2026-09-20T11:00:00.000Z'
+    },
+    satisfactionMetrics: [
+      { aspect: 'Kualitas Tabung Biofilter', score: 5.0 },
+      { aspect: 'Kecepatan Instalasi 1 Hari', score: 5.0 },
+      { aspect: 'Keamanan Lingkungan Sumur', score: 5.0 },
     ],
   },
 ];
@@ -656,6 +781,7 @@ export default function App() {
 
   // Brochure & Legalitas NIB PDF States
   const [isBrochureModalOpen, setIsBrochureModalOpen] = useState(false);
+  const [isBiofilterModalOpen, setIsBiofilterModalOpen] = useState(false);
   const [isDownloadingBrochurePdf, setIsDownloadingBrochurePdf] = useState(false);
   const [brochureClientName, setBrochureClientName] = useState('');
   const [copiedDocField, setCopiedDocField] = useState<string | null>(null);
@@ -740,7 +866,7 @@ export default function App() {
 6. SK Pengesahan Kemenkumham: AHU-0018924.AH.01.01.TAHUN 2021
 7. Pembuangan Akhir Limbah: REG-IPLT/DLH-BKS/2026/0411 (IPLT Resmi DLH Pemda Bekasi)
 8. Rekening Giro Bank PT: Mandiri 156-00-1892401-2 a.n PT Kusuma Gemilang Raya
-9. Structured Data SEO: https://jasasedotwcbekasi.web.id/ (Schema.org LocalBusiness 24/7)
+9. Structured Data SEO: https://sedot-wc-bekasi.my.id/ (Schema.org LocalBusiness 24/7)
 10. Kontak WhatsApp Resmi: +62 896-7506-4916 (Layanan 24 Jam Bekasi)`;
 
     if (navigator?.clipboard?.writeText) {
@@ -1018,7 +1144,7 @@ export default function App() {
 
   // Testimonials data with quantitative ratings
   const [testimonials, setTestimonials] = useState<TestimonialItem[]>(initialTestimonialsData);
-  const [testimonialCategoryFilter, setTestimonialCategoryFilter] = useState<'Semua' | 'Residensial' | 'Industri & B2B' | 'Komersial'>('Semua');
+  const [testimonialCategoryFilter, setTestimonialCategoryFilter] = useState<'Semua' | 'Residensial' | 'Industri & B2B' | 'Komersial' | 'Hanya Video'>('Semua');
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [hoveredCardRating, setHoveredCardRating] = useState<{ id: string; star: number } | null>(null);
 
@@ -1033,6 +1159,178 @@ export default function App() {
   const [newReviewCleanlinessScore, setNewReviewCleanlinessScore] = useState(5);
   const [newReviewCostTransparencyScore, setNewReviewCostTransparencyScore] = useState(5);
 
+  // Video testimonial & Gemini AI States
+  const [selectedVideoTestimonial, setSelectedVideoTestimonial] = useState<TestimonialItem | null>(null);
+  const [analyzingTestimonialId, setAnalyzingTestimonialId] = useState<string | null>(null);
+  const [generatingPlaceholderId, setGeneratingPlaceholderId] = useState<string | null>(null);
+  const [expandedAiDetailsId, setExpandedAiDetailsId] = useState<string | null>(null);
+
+  // Form states for video and Gemini AI inside Review Modal
+  const [newReviewVideoMode, setNewReviewVideoMode] = useState<'none' | 'file' | 'link' | 'ai'>('none');
+  const [newReviewVideoUrl, setNewReviewVideoUrl] = useState('');
+  const [newReviewVideoFileName, setNewReviewVideoFileName] = useState('');
+  const [newReviewVideoTitle, setNewReviewVideoTitle] = useState('');
+  const [newReviewVideoDuration, setNewReviewVideoDuration] = useState('0:30');
+  const [newReviewAiAnalysis, setNewReviewAiAnalysis] = useState<TestimonialAiAnalysis | null>(null);
+  const [isPreAnalyzingReview, setIsPreAnalyzingReview] = useState(false);
+  const [isGeneratingModalPlaceholder, setIsGeneratingModalPlaceholder] = useState(false);
+
+  // Helper functions for Gemini AI and video
+  const handleAnalyzeCardWithGemini = async (testimonial: TestimonialItem) => {
+    setAnalyzingTestimonialId(testimonial.id);
+    try {
+      const res = await fetch('/api/gemini/analyze-testimonial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: testimonial.text,
+          author: testimonial.author,
+          role: testimonial.role,
+          rating: testimonial.rating,
+          category: testimonial.category,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.analysis) {
+        setTestimonials((prev) =>
+          prev.map((item) =>
+            item.id === testimonial.id ? { ...item, aiAnalysis: data.analysis } : item
+          )
+        );
+        setExpandedAiDetailsId(testimonial.id);
+        triggerToast(`✨ Berhasil! Analisis Gemini AI untuk ulasan ${testimonial.author} selesai.`);
+      } else {
+        triggerToast('⚠️ Gagal memproses analisis Gemini AI.');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('⚠️ Terjadi kendala saat menghubungi server Gemini AI.');
+    } finally {
+      setAnalyzingTestimonialId(null);
+    }
+  };
+
+  const handleGenerateCardVideoPlaceholder = async (testimonial: TestimonialItem) => {
+    setGeneratingPlaceholderId(testimonial.id);
+    try {
+      const res = await fetch('/api/gemini/generate-placeholder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          author: testimonial.author,
+          category: testimonial.category,
+          keyPoints: testimonial.text,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.placeholder) {
+        const ph = data.placeholder;
+        setTestimonials((prev) =>
+          prev.map((item) =>
+            item.id === testimonial.id
+              ? {
+                  ...item,
+                  videoType: 'ai-generated',
+                  videoTitle: ph.title || `Video Testimoni: ${item.author}`,
+                  videoDuration: ph.duration || '0:30',
+                  videoScript: ph.script || item.text,
+                  videoUrl: item.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+                }
+              : item
+          )
+        );
+        triggerToast(`🎬 Video placeholder AI untuk ${testimonial.author} siap ditinjau!`);
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('⚠️ Gagal membuat video placeholder AI.');
+    } finally {
+      setGeneratingPlaceholderId(null);
+    }
+  };
+
+  const handleAnalyzeDraftWithGemini = async () => {
+    if (!newReviewText.trim()) {
+      triggerToast('⚠️ Tulis testimoni Anda terlebih dahulu sebelum meminta analisis Gemini AI.');
+      return;
+    }
+    setIsPreAnalyzingReview(true);
+    try {
+      const res = await fetch('/api/gemini/analyze-testimonial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: newReviewText,
+          author: newReviewAuthor || 'Pelanggan',
+          role: newReviewRole || 'Bekasi',
+          rating: newReviewRating,
+          category: newReviewCategory,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.analysis) {
+        setNewReviewAiAnalysis(data.analysis);
+        triggerToast('✨ Hasil analisis sentimen & storyboard Gemini AI berhasil dibuat!');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('⚠️ Terjadi kendala saat menganalisis ulasan.');
+    } finally {
+      setIsPreAnalyzingReview(false);
+    }
+  };
+
+  const handleGenerateModalPlaceholder = async () => {
+    setIsGeneratingModalPlaceholder(true);
+    try {
+      const res = await fetch('/api/gemini/generate-placeholder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          author: newReviewAuthor || 'Pelanggan',
+          category: newReviewCategory,
+          keyPoints: newReviewText || 'Pelayanan cepat, armada higienis dan hasil bersih tanpa bau',
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.placeholder) {
+        const ph = data.placeholder;
+        setNewReviewVideoMode('ai');
+        setNewReviewVideoTitle(ph.title || 'Video Testimoni AI');
+        setNewReviewVideoDuration(ph.duration || '0:30');
+        setNewReviewVideoUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
+        triggerToast('🎬 Placeholder video testimoni AI berhasil dibuat otomatis!');
+      }
+    } catch (err) {
+      console.error(err);
+      triggerToast('⚠️ Gagal membuat placeholder video.');
+    } finally {
+      setIsGeneratingModalPlaceholder(false);
+    }
+  };
+
+  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 50 * 1024 * 1024) {
+      triggerToast('⚠️ Ukuran video maksimal 50MB.');
+      return;
+    }
+
+    setNewReviewVideoFileName(file.name);
+    setNewReviewVideoTitle(file.name.replace(/\.[^/.]+$/, ''));
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setNewReviewVideoUrl(event.target.result as string);
+        setNewReviewVideoDuration('0:30');
+        triggerToast(`📹 File video "${file.name}" berhasil diunggah!`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Quantitative rating calculations
   const totalVotesCount = testimonials.reduce((acc, curr) => acc + curr.totalVotes, 0);
   const overallAverageRating = (
@@ -1042,6 +1340,7 @@ export default function App() {
 
   const filteredTestimonials = testimonials.filter((t) => {
     if (testimonialCategoryFilter === 'Semua') return true;
+    if (testimonialCategoryFilter === 'Hanya Video') return Boolean(t.videoUrl || t.videoType);
     return t.category === testimonialCategoryFilter;
   });
   const currentTestimonials = filteredTestimonials.length > 0 ? filteredTestimonials : testimonials;
@@ -1115,6 +1414,18 @@ export default function App() {
       rating: newReviewRating,
       totalVotes: 1,
       userGivenRating: newReviewRating,
+      videoUrl: newReviewVideoUrl.trim() || undefined,
+      videoType:
+        newReviewVideoMode === 'file'
+          ? 'upload'
+          : newReviewVideoMode === 'link'
+          ? 'link'
+          : newReviewVideoMode === 'ai'
+          ? 'ai-generated'
+          : undefined,
+      videoTitle: newReviewVideoTitle.trim() || (newReviewVideoUrl ? `Video Testimoni: ${newReviewAuthor.trim()}` : undefined),
+      videoDuration: newReviewVideoDuration || '0:30',
+      aiAnalysis: newReviewAiAnalysis || undefined,
       satisfactionMetrics: [
         { aspect: 'Ketepatan Waktu Armada', score: newReviewPunctualityScore },
         { aspect: 'Kebersihan Kerja & APD', score: newReviewCleanlinessScore },
@@ -1134,8 +1445,14 @@ export default function App() {
     setNewReviewPunctualityScore(5);
     setNewReviewCleanlinessScore(5);
     setNewReviewCostTransparencyScore(5);
+    setNewReviewVideoMode('none');
+    setNewReviewVideoUrl('');
+    setNewReviewVideoFileName('');
+    setNewReviewVideoTitle('');
+    setNewReviewAiAnalysis(null);
 
-    triggerToast(`🎉 Terima kasih! Nilai kepuasan ${newReviewRating}/5 bintang dan testimoni Anda berhasil dipublikasikan.`);
+    const videoMsg = newReviewVideoUrl ? ' bersama video testimoni terlampir' : '';
+    triggerToast(`🎉 Terima kasih! Nilai kepuasan ${newReviewRating}/5 bintang dan ulasan Anda${videoMsg} berhasil dipublikasikan.`);
   };
 
   // Galeri Proyek Data
@@ -3842,7 +4159,7 @@ export default function App() {
 
             {/* Card 4: Pembuatan Septic Tank Biofilter (Modern & Ramah Lingkungan) */}
             <div className="bg-navy-light/40 backdrop-blur-sm p-6 sm:p-7 rounded-3xl border border-white/10 hover:border-emerald-400/50 transition duration-300 flex flex-col justify-between group relative overflow-hidden">
-              <div className="absolute -top-12 -right-12 w-28 h-28 bg-emerald-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-emerald-500/20 transition duration-500" />
+              <div className="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-emerald-500/20 transition duration-500" />
               <div>
                 <div className="flex items-center justify-between mb-5">
                   <div className="w-13 h-13 bg-emerald-500/20 rounded-2xl flex items-center justify-center group-hover:scale-105 transition duration-300">
@@ -3850,51 +4167,70 @@ export default function App() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 tracking-wider uppercase">
-                    🌱 Eco Biofilter
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 tracking-wider uppercase flex items-center gap-1">
+                    <span>🌱</span> Modern & Ramah Lingkungan
                   </span>
                 </div>
-                <h3 className="text-lg font-bold mb-2.5 text-white flex items-center gap-1.5">
+                <h3 className="text-lg font-bold mb-2 text-white flex items-center gap-1.5">
                   <span>Pembuatan Septic Tank Biofilter</span>
                 </h3>
-                <p className="text-gray-400 text-xs sm:text-sm leading-relaxed mb-4">
-                  Pembuatan & pemasangan tangki septik bioteknologi modern dengan media filtrasi bertingkat (<span className="text-emerald-300">honeycomb & bio-ball</span>). Mengurai limbah secara biologis menjadi air ramah lingkungan tanpa mencemari air tanah dan bebas kuras rutin.
+                <p className="text-gray-300 text-xs sm:text-sm leading-relaxed mb-4">
+                  Sistem pengolahan air limbah domestik modern berbasis bioteknologi ramah lingkungan. Dilengkapi media filtrasi bertingkat (<span className="text-emerald-300 font-semibold">honeycomb & bio-ball</span>) yang mengurai tinja secara biologis sehingga air buangan aman, jernih, dan tidak mencemari sumur air tanah warga sekitar.
                 </p>
-                <div className="space-y-2 mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+                <div className="space-y-2 mb-4 bg-white/5 p-3.5 rounded-2xl border border-white/5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block">
                     Keunggulan Sistem Biofilter:
                   </span>
-                  <ul className="space-y-1.5 text-gray-300 text-xs sm:text-sm">
+                  <ul className="space-y-2 text-gray-300 text-xs sm:text-sm">
                     <li className="flex items-start">
-                      <span className="text-emerald-400 mr-2 shrink-0">▸</span>
-                      <span><strong>Bebas Kuras & Anti Penuh:</strong> Bakteri anaerob mengurai feses secara kontinu.</span>
+                      <span className="text-emerald-400 mr-2 shrink-0 font-bold">✓</span>
+                      <span><strong>Ramah Lingkungan & Higienis:</strong> Air olahan buangan memenuhi baku mutu lingkungan DLH & aman bagi sumur tanah.</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-emerald-400 mr-2 shrink-0">▸</span>
-                      <span><strong>Ramah Lingkungan & Higienis:</strong> Air olahan bening, aman ke saluran drainase kota.</span>
+                      <span className="text-emerald-400 mr-2 shrink-0 font-bold">✓</span>
+                      <span><strong>Bebas Kuras Bertahun-tahun:</strong> Bakteri anaerob aktif mengurai feses menjadi cairan secara berkesinambungan.</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-emerald-400 mr-2 shrink-0">▸</span>
-                      <span><strong>Fiberglass (FRP) Anti-Bocor:</strong> Tangki kuat tahan tekanan tanah & anti rembes puluhan tahun.</span>
+                      <span className="text-emerald-400 mr-2 shrink-0 font-bold">✓</span>
+                      <span><strong>Bahan Fiberglass (FRP) Anti-Bocor:</strong> Tangki kokoh tahan tekanan dan pergeseran tanah, anti retak & anti rembes.</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-emerald-400 mr-2 shrink-0">▸</span>
-                      <span><strong>Zero-Odour:</strong> Sistem ventilasi khusus bebas bau di lingkungan hunian.</span>
+                      <span className="text-emerald-400 mr-2 shrink-0 font-bold">✓</span>
+                      <span><strong>Zero Odour & Anti Mampet:</strong> Dilengkapi sistem aerasi alami kedap aroma tanpa bau menyengat di sekitar hunian.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-emerald-400 mr-2 shrink-0 font-bold">✓</span>
+                      <span><strong>Pemasangan Cepat 1 Hari:</strong> Unit siap tanam (plug & play), menghemat waktu serta biaya konstruksi galian.</span>
                     </li>
                   </ul>
                 </div>
               </div>
-              <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between">
-                <span className="text-[11px] text-emerald-300 font-semibold">Rumah, Ruko & Proyek</span>
-                <a
-                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, saya ingin konsultasi mengenai pembuatan/pemasangan Septic Tank Biofilter modern dan ramah lingkungan.')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-navy font-bold text-xs transition duration-200 flex items-center gap-1 shadow-sm cursor-pointer"
-                >
-                  <span>Konsultasi</span>
-                  <span>→</span>
-                </a>
+
+              <div className="mt-4 pt-4 border-t border-white/10 space-y-2.5">
+                <div className="flex items-center justify-between text-[11px] text-gray-400">
+                  <span className="text-emerald-300 font-semibold flex items-center gap-1">
+                    <span>🛡️</span> Garansi Kebocoran 5 Tahun
+                  </span>
+                  <span>Hunian, Ruko & Proyek</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsBiofilterModalOpen(true)}
+                    className="w-full py-2 px-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition duration-200 flex items-center justify-center gap-1 cursor-pointer border border-white/10"
+                  >
+                    <span>ℹ️ Cara Kerja</span>
+                  </button>
+                  <a
+                    href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, saya ingin konsultasi mengenai pembuatan/pemasangan Septic Tank Biofilter modern dan ramah lingkungan.')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-navy font-bold text-xs transition duration-200 flex items-center justify-center gap-1 shadow-sm cursor-pointer"
+                  >
+                    <span>Konsultasi</span>
+                    <span>→</span>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -6574,22 +6910,33 @@ export default function App() {
                 <span className="text-xs font-semibold text-gray-500 mr-2 shrink-0 hidden sm:inline">
                   Filter Kategori:
                 </span>
-                {(['Semua', 'Residensial', 'Industri & B2B', 'Komersial'] as const).map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      setTestimonialCategoryFilter(cat);
-                      setActiveTestimonial(0);
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                      testimonialCategoryFilter === cat
-                        ? 'bg-navy text-white shadow-sm'
-                        : 'bg-slate-100 text-gray-600 hover:bg-slate-200 hover:text-navy'
-                    }`}
-                  >
-                    {cat} {cat === 'Semua' ? `(${testimonials.length})` : ''}
-                  </button>
-                ))}
+                {(['Semua', 'Hanya Video', 'Residensial', 'Industri & B2B', 'Komersial'] as const).map((cat) => {
+                  const count =
+                    cat === 'Semua'
+                      ? testimonials.length
+                      : cat === 'Hanya Video'
+                      ? testimonials.filter((t) => t.videoUrl || t.videoType).length
+                      : testimonials.filter((t) => t.category === cat).length;
+
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setTestimonialCategoryFilter(cat);
+                        setActiveTestimonial(0);
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-1 ${
+                        testimonialCategoryFilter === cat
+                          ? 'bg-navy text-white shadow-sm'
+                          : 'bg-slate-100 text-gray-600 hover:bg-slate-200 hover:text-navy'
+                      }`}
+                    >
+                      {cat === 'Hanya Video' && <span>📹</span>}
+                      <span>{cat === 'Hanya Video' ? 'Video Testimoni' : cat}</span>
+                      <span className="opacity-75 text-[11px]">({count})</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <button
@@ -6620,19 +6967,28 @@ export default function App() {
                   4: '4.0 ★ Sangat Baik',
                   5: '5.0 ★ Luar Biasa / Sangat Puas!',
                 };
+                const hasVideo = Boolean(t.videoUrl || t.videoType);
+                const isAnalyzing = analyzingTestimonialId === t.id;
+                const isGeneratingPh = generatingPlaceholderId === t.id;
+                const isAiExpanded = expandedAiDetailsId === t.id;
 
                 return (
                   <div key={t.id} className="min-w-full p-2 sm:p-4">
                     <div className="bg-white p-6 sm:p-10 rounded-3xl shadow-sm border border-gray-200 mx-auto max-w-3xl">
-                      {/* Card Header: Category & Verified Status */}
+                      {/* Card Header: Category, Video Badge & Verified Status */}
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-6 pb-4 border-b border-gray-100">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-cyan/10 text-cyan-dark border border-cyan/20">
                             {t.category}
                           </span>
                           <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 flex items-center gap-1">
                             <span>✓</span> Pelanggan Terverifikasi
                           </span>
+                          {hasVideo && (
+                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/10 text-red-600 border border-red-500/20 flex items-center gap-1 animate-pulse">
+                              <span>📹</span> Video Testimoni ({t.videoDuration || '0:30'})
+                            </span>
+                          )}
                         </div>
                         <span className="text-xs text-gray-400 font-medium">
                           📅 {t.date}
@@ -6658,6 +7014,96 @@ export default function App() {
                         </span>
                       </div>
 
+                      {/* Video Player Card Feature */}
+                      {hasVideo ? (
+                        <div className="mb-6 rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-md group relative">
+                          <div className="relative aspect-video sm:aspect-[21/9] bg-gradient-to-br from-slate-900 via-navy to-slate-800 flex items-center justify-center overflow-hidden">
+                            {t.videoThumbnail ? (
+                              <img
+                                src={t.videoThumbnail}
+                                alt={t.videoTitle || 'Thumbnail Video Testimoni'}
+                                className="w-full h-full object-cover opacity-60 group-hover:opacity-75 transition-opacity duration-300"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-radial from-slate-800 to-slate-950 opacity-90 flex items-center justify-center">
+                                <span className="text-5xl opacity-40">🚛</span>
+                              </div>
+                            )}
+
+                            {/* Play Button Overlay */}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedVideoTestimonial(t)}
+                              className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-orange/90 hover:bg-orange text-white flex items-center justify-center shadow-2xl transition transform group-hover:scale-110 cursor-pointer z-10"
+                              aria-label="Putar Video Testimoni"
+                            >
+                              <svg className="w-8 h-8 fill-current ml-1" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </button>
+
+                            {/* Top Video Badges */}
+                            <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-black/70 text-white backdrop-blur-sm border border-white/20 flex items-center gap-1">
+                                <span>▶️</span> {t.videoDuration || '0:35'}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange/90 text-white shadow-sm">
+                                {t.videoType === 'upload' ? 'Upload Klien' : t.videoType === 'ai-generated' ? 'AI Storyboard' : 'Video Link'}
+                              </span>
+                            </div>
+
+                            {/* Bottom Info Ribbon */}
+                            <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-white z-10 flex items-center justify-between">
+                              <div className="truncate pr-2">
+                                <p className="text-xs sm:text-sm font-bold truncate">
+                                  {t.videoTitle || `Ulasan Lapangan: ${t.author}`}
+                                </p>
+                                <p className="text-[11px] text-gray-300 truncate">
+                                  {t.videoScript || t.text}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedVideoTestimonial(t)}
+                                className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold rounded-lg backdrop-blur-sm transition whitespace-nowrap cursor-pointer shrink-0"
+                              >
+                                Tonton Video
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-6 p-3.5 bg-slate-50 border border-dashed border-gray-300 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-orange/10 text-orange flex items-center justify-center shrink-0">
+                              🎬
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-navy">Belum ada video terlampir untuk ulasan ini</p>
+                              <p className="text-[11px] text-gray-500">Buat storyboard dan simulasi video testimoni otomatis dengan Gemini AI.</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateCardVideoPlaceholder(t)}
+                            disabled={isGeneratingPh}
+                            className="px-3.5 py-1.5 bg-navy hover:bg-navy-light text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
+                          >
+                            {isGeneratingPh ? (
+                              <>
+                                <span className="animate-spin text-sm">⏳</span>
+                                <span>Membuat Placeholder...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>🎬</span>
+                                <span>Buat AI Video Placeholder</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
                       {/* Testimonial Quote Text */}
                       <p className="text-gray-700 text-base sm:text-lg italic mb-6 leading-relaxed text-center font-normal px-2 sm:px-6">
                         {t.text}
@@ -6672,6 +7118,128 @@ export default function App() {
                           <p className="font-extrabold text-navy text-base">{t.author}</p>
                           <p className="text-xs sm:text-sm text-gray-500">{t.role}</p>
                         </div>
+                      </div>
+
+                      {/* GEMINI AI ANALYSIS & STORYBOARD PANEL */}
+                      <div className="mb-6 bg-gradient-to-br from-indigo-50/70 via-sky-50/50 to-amber-50/50 border border-indigo-200/80 rounded-2xl p-4 sm:p-5 text-left">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-sm">
+                              ✨
+                            </span>
+                            <span className="font-extrabold text-navy text-xs sm:text-sm">
+                              Gemini AI • Evaluasi Mutu & Analisis Sentimen
+                            </span>
+                          </div>
+
+                          {t.aiAnalysis ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-800 border border-emerald-400/40">
+                              Sentimen: {t.aiAnalysis.sentiment} ({t.aiAnalysis.sentimentScore || 98}%)
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleAnalyzeCardWithGemini(t)}
+                              disabled={isAnalyzing}
+                              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            >
+                              {isAnalyzing ? (
+                                <>
+                                  <span className="animate-spin text-xs">⏳</span>
+                                  <span>Menganalisis...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>✨</span>
+                                  <span>Analisis dengan Gemini AI</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+
+                        {t.aiAnalysis ? (
+                          <div className="space-y-3">
+                            <p className="text-xs text-navy/90 font-medium bg-white/70 p-2.5 rounded-xl border border-indigo-100">
+                              💡 <span className="font-semibold text-navy">Ringkasan Mutu:</span> {t.aiAnalysis.summary}
+                            </p>
+
+                            {/* Key Highlights */}
+                            <div className="space-y-1.5">
+                              <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider block">
+                                Poin Utama Kepuasan Layanan:
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {t.aiAnalysis.keyHighlights.map((pt, pIdx) => (
+                                  <div
+                                    key={pIdx}
+                                    className="bg-white/90 border border-indigo-100/80 rounded-xl px-2.5 py-1.5 text-xs text-gray-700 flex items-start gap-1.5"
+                                  >
+                                    <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                                    <span>{pt}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Expandable Storyboard Script */}
+                            {t.aiAnalysis.videoStoryboard && t.aiAnalysis.videoStoryboard.length > 0 && (
+                              <div className="pt-2 border-t border-indigo-100/70">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedAiDetailsId(isAiExpanded ? null : t.id)}
+                                  className="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>{isAiExpanded ? '▼ Sembunyikan' : '▶ Tampilkan'} Rencana Adegan Video (Storyboard AI)</span>
+                                </button>
+
+                                {isAiExpanded && (
+                                  <div className="mt-2.5 space-y-2 bg-white/90 p-3 rounded-xl border border-indigo-100 animate-in fade-in">
+                                    <span className="text-[11px] font-bold text-gray-500 block">
+                                      Panduan Pengambilan Video 30 Detik:
+                                    </span>
+                                    {t.aiAnalysis.videoStoryboard.map((scene, sIdx) => (
+                                      <div key={sIdx} className="text-xs text-gray-700 flex items-start gap-2">
+                                        <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[10px] shrink-0">
+                                          {sIdx + 1}
+                                        </span>
+                                        <span>{scene}</span>
+                                      </div>
+                                    ))}
+                                    {t.aiAnalysis.recommendedTags && (
+                                      <div className="flex flex-wrap gap-1 pt-1.5">
+                                        {t.aiAnalysis.recommendedTags.map((tag, tgIdx) => (
+                                          <span
+                                            key={tgIdx}
+                                            className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Re-analyze Button */}
+                            <div className="pt-1 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleAnalyzeCardWithGemini(t)}
+                                disabled={isAnalyzing}
+                                className="text-[11px] font-semibold text-gray-500 hover:text-indigo-600 transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                              >
+                                {isAnalyzing ? 'Sedang memperbarui...' : '🔄 Perbarui Analisis Gemini AI'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-600">
+                            Klik tombol di atas untuk menganalisis sentimen ulasan ini, mengekstrak poin mutu utama, dan merumuskan video storyboard berbasis Gemini AI.
+                          </p>
+                        )}
                       </div>
 
                       {/* Specific Satisfaction Metrics Breakdown */}
@@ -10102,6 +10670,217 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Modal Edukasi & Keunggulan Septic Tank Biofilter Modern */}
+      {isBiofilterModalOpen && (
+        <div
+          role="dialog"
+          aria-label="Modal Keunggulan Septic Tank Biofilter Modern"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setIsBiofilterModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 text-navy"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-emerald-900 via-emerald-800 to-navy text-white flex items-center justify-between border-b border-white/10 relative">
+              <div className="pr-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 uppercase tracking-wider">
+                    🌱 TEKNOLOGI SANITASI HIJAU (GO GREEN)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20 text-white">
+                    Standar Baku Mutu DLH
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-lg sm:text-2xl text-white leading-tight">
+                  Keunggulan Sistem Septic Tank Biofilter Modern
+                </h3>
+                <p className="text-xs sm:text-sm text-emerald-100/90 mt-1">
+                  PT Kusuma Gemilang Raya • Pembuatan, Suplai & Pemasangan Tangki Bioteknologi Ramah Lingkungan di Bekasi.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsBiofilterModalOpen(false)}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer shrink-0"
+                title="Tutup Modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-5 sm:p-7 overflow-y-auto space-y-6 text-xs sm:text-sm">
+              {/* Highlight Intro Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200/80 flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl font-black shrink-0 shadow-md">
+                  🌿
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-emerald-950 text-sm sm:text-base">
+                    Mengapa Harus Menggunakan Septic Tank Biofilter?
+                  </h4>
+                  <p className="text-emerald-800/90 text-xs sm:text-sm mt-1 leading-relaxed">
+                    Septic tank konvensional dari batu bata rentan retak akibat pergeseran tanah, mencemari air sumur warga dengan bakteri <em>E. coli</em>, serta cepat penuh karena tidak ada media pengurai aktif. <strong>Biofilter modern</strong> mengolah limbah secara biologis di dalam tabung kedap <em>Fiberglass Reinforced Plastic (FRP)</em> sehingga air buangan aman dialirkan ke parit umum tanpa bau dan tidak mencemari lingkungan.
+                  </p>
+                </div>
+              </div>
+
+              {/* 4 Tahapan Cara Kerja Bioteknologi */}
+              <div>
+                <h4 className="font-bold text-navy text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <span>⚙️</span>
+                  <span>4 Tahapan Alur Kerja Filtrasi Biologis:</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3.5 bg-slate-50 border border-gray-200 rounded-2xl">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-bold text-xs inline-flex items-center justify-center mb-1.5">
+                      1
+                    </span>
+                    <h5 className="font-bold text-navy text-xs">Chamber Sedimentasi Awal</h5>
+                    <p className="text-gray-600 text-[11px] mt-1 leading-relaxed">
+                      Limbah kloset masuk dan dipisahkan antara partikel padat dan cair secara gravitasi. Partikel padat mulai diurai oleh bakteri pengurai pertama.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-gray-200 rounded-2xl">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-bold text-xs inline-flex items-center justify-center mb-1.5">
+                      2
+                    </span>
+                    <h5 className="font-bold text-navy text-xs">Media Filtrasi Honeycomb</h5>
+                    <p className="text-gray-600 text-[11px] mt-1 leading-relaxed">
+                      Limbah cair dialirkan melewati media sarang tawon (honeycomb) yang menjadi rumah bagi jutaan bakteri anaerob untuk mengurai zat organik terlarut.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-gray-200 rounded-2xl">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-bold text-xs inline-flex items-center justify-center mb-1.5">
+                      3
+                    </span>
+                    <h5 className="font-bold text-navy text-xs">Media Bio-Ball & Penjernihan</h5>
+                    <p className="text-gray-600 text-[11px] mt-1 leading-relaxed">
+                      Penyaringan sekunder menggunakan ribuan bio-ball untuk menghancurkan mikropartikel tersisa sehingga air menjadi bening dan tidak pekat.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-gray-200 rounded-2xl">
+                    <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-bold text-xs inline-flex items-center justify-center mb-1.5">
+                      4
+                    </span>
+                    <h5 className="font-bold text-navy text-xs">Desinfeksi Klorinasi & Outflow</h5>
+                    <p className="text-gray-600 text-[11px] mt-1 leading-relaxed">
+                      Sebelum keluar ke got/drainase kota, air melewati tabung klorin/disinfektan pembunuh kuman patogen. Air keluar ramah lingkungan dan bebas bau.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabel Komparasi Biofilter vs Konvensional */}
+              <div>
+                <h4 className="font-bold text-navy text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <span>📊</span>
+                  <span>Tabel Perbandingan: Septic Tank Biofilter vs Konvensional</span>
+                </h4>
+                <div className="overflow-x-auto rounded-2xl border border-gray-200">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-navy text-white">
+                        <th className="p-3 font-bold border-b border-navy-light">Parameter & Fitur</th>
+                        <th className="p-3 font-bold border-b border-navy-light text-emerald-300">Septic Tank Biofilter PT Kusuma</th>
+                        <th className="p-3 font-bold border-b border-navy-light text-gray-300">Septic Tank Konvensional Bata</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      <tr className="hover:bg-slate-50">
+                        <td className="p-3 font-bold text-gray-700">Dampak Air Tanah / Sumur</td>
+                        <td className="p-3 text-emerald-700 font-semibold bg-emerald-50/50">100% Aman (Ramah Lingkungan & Tidak Meresap Racun)</td>
+                        <td className="p-3 text-red-600 font-medium">Berisiko tinggi mencemari sumur dengan bakteri <em>E. coli</em></td>
+                      </tr>
+                      <tr className="hover:bg-slate-50">
+                        <td className="p-3 font-bold text-gray-700">Kekuatan & Risiko Bocor</td>
+                        <td className="p-3 text-emerald-700 font-semibold bg-emerald-50/50">Fiberglass (FRP) Elastis, Anti-Retak & Anti-Bocor</td>
+                        <td className="p-3 text-red-600 font-medium">Mudah retak saat tanah amblas/gempa ringan</td>
+                      </tr>
+                      <tr className="hover:bg-slate-50">
+                        <td className="p-3 font-bold text-gray-700">Frekuensi Kuras Sedot</td>
+                        <td className="p-3 text-emerald-700 font-semibold bg-emerald-50/50">Bebas kuras bertahun-tahun (bakteri mengurai terus menerus)</td>
+                        <td className="p-3 text-red-600 font-medium">Wajib sedot rutin 1-2 tahun sekali saat lumpur penuh</td>
+                      </tr>
+                      <tr className="hover:bg-slate-50">
+                        <td className="p-3 font-bold text-gray-700">Aroma & Bau Gas</td>
+                        <td className="p-3 text-emerald-700 font-semibold bg-emerald-50/50">Zero Odour (Sistem ventilasi khusus & minim gas metana)</td>
+                        <td className="p-3 text-red-600 font-medium">Sering mengeluarkan aroma tidak sedap di sekitar pekarangan</td>
+                      </tr>
+                      <tr className="hover:bg-slate-50">
+                        <td className="p-3 font-bold text-gray-700">Durasi Pemasangan</td>
+                        <td className="p-3 text-emerald-700 font-semibold bg-emerald-50/50">Cepat (1 Hari Kerja Langsung Siap Pakai)</td>
+                        <td className="p-3 text-red-600 font-medium">Lama (5 - 8 hari menunggu plesteran & cor kering)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Rekomendasi Kapasitas Sesuai Kebutuhan */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-gray-200 space-y-3">
+                <h4 className="font-bold text-navy text-xs uppercase tracking-wider">
+                  Pilihan Kapasitas Septic Tank Biofilter PT Kusuma Gemilang Raya:
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="bg-white p-3 rounded-xl border border-gray-200">
+                    <p className="font-black text-emerald-600 text-base">RC-05</p>
+                    <p className="text-xs font-bold text-navy mt-0.5">500 Liter</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">3 - 5 Orang (Cluster)</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-gray-200">
+                    <p className="font-black text-emerald-600 text-base">RC-10</p>
+                    <p className="text-xs font-bold text-navy mt-0.5">1.000 Liter</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">6 - 9 Orang (Hunian)</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-gray-200">
+                    <p className="font-black text-emerald-600 text-base">RC-20</p>
+                    <p className="text-xs font-bold text-navy mt-0.5">2.000 Liter</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">12 - 18 Orang (Kost/Ruko)</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-gray-200">
+                    <p className="font-black text-emerald-600 text-base">Custom</p>
+                    <p className="text-xs font-bold text-navy mt-0.5">3.000 - 15.000L</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Pabrik, Mall & RS</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 bg-slate-50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                <span>🛡️</span> Garansi Resmi Kebocoran 5 Tahun PT Kusuma Gemilang Raya
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsBiofilterModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-100 transition cursor-pointer text-xs"
+                >
+                  Tutup
+                </button>
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, saya tertarik memesan atau konsultasi pemasangan Septic Tank Biofilter modern untuk rumah/kantor saya.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition flex items-center gap-2 shadow-sm cursor-pointer text-xs"
+                >
+                  <span>💬 Konsultasi & Pesan via WA</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Beri Nilai Kepuasan & Tulis Testimoni Kuantitatif */}
       {isReviewModalOpen && (
         <div
@@ -10307,6 +11086,198 @@ export default function App() {
                 />
               </div>
 
+              {/* Video Testimonial Attachment Section */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📹</span>
+                    <span className="text-xs font-bold text-navy">
+                      Lampirkan Video Testimoni (Opsional):
+                    </span>
+                  </div>
+                  {newReviewVideoMode !== 'none' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewReviewVideoMode('none');
+                        setNewReviewVideoUrl('');
+                        setNewReviewVideoFileName('');
+                        setNewReviewVideoTitle('');
+                      }}
+                      className="text-[11px] text-red-500 hover:text-red-700 font-semibold cursor-pointer"
+                    >
+                      ✕ Hapus Video
+                    </button>
+                  )}
+                </div>
+
+                {/* Video Mode Tabs */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewReviewVideoMode('file')}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      newReviewVideoMode === 'file'
+                        ? 'bg-navy text-white shadow-xs'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span>📁</span>
+                    <span className="truncate">Unggah File</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewReviewVideoMode('link')}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      newReviewVideoMode === 'link'
+                        ? 'bg-navy text-white shadow-xs'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span>🔗</span>
+                    <span className="truncate">Tautkan Link</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateModalPlaceholder()}
+                    disabled={isGeneratingModalPlaceholder}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      newReviewVideoMode === 'ai'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50'
+                    }`}
+                  >
+                    <span>🤖</span>
+                    <span className="truncate">{isGeneratingModalPlaceholder ? 'Membuat...' : 'AI Storyboard'}</span>
+                  </button>
+                </div>
+
+                {/* Tab Content: File Upload */}
+                {newReviewVideoMode === 'file' && (
+                  <div className="space-y-2 pt-1">
+                    <label className="block border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-cyan cursor-pointer bg-white transition">
+                      <span className="text-2xl block mb-1">🎬</span>
+                      <span className="text-xs font-bold text-navy block">
+                        {newReviewVideoFileName ? newReviewVideoFileName : 'Pilih Video Singkat (MP4 / WebM)'}
+                      </span>
+                      <span className="text-[11px] text-gray-500 block mt-0.5">
+                        Maksimal ukuran file 50MB (durasi rekomendasi 15-60 detik)
+                      </span>
+                      <input
+                        type="file"
+                        accept="video/mp4,video/webm,video/quicktime"
+                        className="hidden"
+                        onChange={handleVideoFileChange}
+                      />
+                    </label>
+                    {newReviewVideoUrl && (
+                      <div className="p-2.5 bg-white rounded-xl border border-emerald-200 flex items-center justify-between">
+                        <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1.5">
+                          <span>✓</span> Video siap dipublikasikan ({newReviewVideoDuration})
+                        </span>
+                        <span className="text-[11px] text-gray-400 font-mono">{newReviewVideoFileName}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tab Content: External Link */}
+                {newReviewVideoMode === 'link' && (
+                  <div className="space-y-2 pt-1">
+                    <input
+                      type="url"
+                      placeholder="Masukkan URL Video (YouTube, TikTok, Google Drive, atau MP4)..."
+                      value={newReviewVideoUrl}
+                      onChange={(e) => {
+                        setNewReviewVideoUrl(e.target.value);
+                        if (!newReviewVideoTitle) {
+                          setNewReviewVideoTitle(`Video Testimoni: ${newReviewAuthor || 'Klien'}`);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-white text-xs font-medium text-navy focus:outline-none focus:border-cyan"
+                    />
+                    <p className="text-[11px] text-gray-500">
+                      Mendukung format link YouTube Shorts, video TikTok, atau URL streaming video MP4 publik.
+                    </p>
+                  </div>
+                )}
+
+                {/* Tab Content: AI Storyboard Placeholder */}
+                {newReviewVideoMode === 'ai' && (
+                  <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl space-y-1.5 text-xs text-indigo-900">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold flex items-center gap-1">
+                        <span>✨</span> Simulasi AI Video Storyboard Siap
+                      </span>
+                      <span className="text-[10px] bg-indigo-200/60 px-2 py-0.5 rounded-full font-bold">
+                        Durasi: {newReviewVideoDuration}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-indigo-700">
+                      Placeholder video dan panduan naskah telah disiapkan otomatis oleh Gemini AI berdasarkan ulasan Anda.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Gemini AI Pre-analysis & Storyboard Generator in Form */}
+              <div className="bg-gradient-to-r from-indigo-50/70 via-sky-50/50 to-indigo-50/70 border border-indigo-200 rounded-2xl p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-sm">
+                      ✨
+                    </span>
+                    <span className="text-xs font-bold text-navy">
+                      Gemini AI • Evaluasi Sentimen & Naskah Video
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAnalyzeDraftWithGemini}
+                    disabled={isPreAnalyzingReview}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isPreAnalyzingReview ? (
+                      <>
+                        <span className="animate-spin text-xs">⏳</span>
+                        <span>Menganalisis...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>✨</span>
+                        <span>Pra-Analisis dengan Gemini</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {newReviewAiAnalysis ? (
+                  <div className="bg-white/90 rounded-xl p-3 border border-indigo-100 space-y-2 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-navy">Hasil Analisis Gemini AI:</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {newReviewAiAnalysis.sentiment} ({newReviewAiAnalysis.sentimentScore || 98}%)
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-700 italic">
+                      "{newReviewAiAnalysis.summary}"
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                      {newReviewAiAnalysis.keyHighlights.map((hl, hIdx) => (
+                        <div key={hIdx} className="text-[11px] text-gray-600 flex items-start gap-1">
+                          <span className="text-emerald-500 font-bold">✓</span>
+                          <span>{hl}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-600">
+                    Ingin melihat skor sentimen dan poin sorotan AI sebelum mengirim? Klik tombol di atas untuk menjalankan model Gemini 3.8 Flash.
+                  </p>
+                )}
+              </div>
+
               {/* Modal Buttons */}
               <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
                 <button
@@ -10322,11 +11293,140 @@ export default function App() {
                     className="px-6 py-2.5 bg-orange hover:bg-orange-dark text-white font-bold rounded-xl shadow-md transition cursor-pointer text-xs flex items-center gap-1.5"
                   >
                     <span>⭐</span>
-                    <span>Simpan & Terbitkan Nilai Kepuasan</span>
+                    <span>Simpan & Terbitkan Ulasan</span>
                   </button>
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Video Player Testimoni & Gemini AI Evaluation */}
+      {selectedVideoTestimonial && (
+        <div
+          role="dialog"
+          aria-label="Modal Video Testimoni Klien"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+          onClick={() => setSelectedVideoTestimonial(null)}
+        >
+          <div
+            className="bg-navy rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl border border-white/20 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200 text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-navy via-slate-900 to-navy text-white flex items-center justify-between border-b border-white/10">
+              <div className="pr-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40 uppercase">
+                    📹 VIDEO TESTIMONI RESMI
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300">
+                    Terverifikasi
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-base sm:text-lg text-white leading-tight">
+                  {selectedVideoTestimonial.videoTitle || `Ulasan Lapangan: ${selectedVideoTestimonial.author}`}
+                </h3>
+                <p className="text-xs text-gray-400">
+                  {selectedVideoTestimonial.author} • {selectedVideoTestimonial.role}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedVideoTestimonial(null)}
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Video Player Area */}
+            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+              {selectedVideoTestimonial.videoUrl ? (
+                selectedVideoTestimonial.videoUrl.includes('youtube.com') || selectedVideoTestimonial.videoUrl.includes('youtu.be') ? (
+                  <iframe
+                    className="w-full h-full"
+                    src={selectedVideoTestimonial.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                    title={selectedVideoTestimonial.videoTitle || 'Video Testimoni'}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    controls
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-contain"
+                    src={selectedVideoTestimonial.videoUrl}
+                  />
+                )
+              ) : (
+                <div className="text-center p-6 space-y-2">
+                  <span className="text-4xl">🎬</span>
+                  <p className="font-bold text-sm">Simulasi AI Video Storyboard</p>
+                  <p className="text-xs text-gray-400 max-w-md mx-auto">
+                    {selectedVideoTestimonial.videoScript || selectedVideoTestimonial.text}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Body: Gemini AI Storyboard & Review Quote */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm bg-slate-900/90 text-gray-200">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                <p className="italic text-gray-300 text-sm leading-relaxed mb-3">
+                  {selectedVideoTestimonial.text}
+                </p>
+                <div className="flex items-center justify-between text-xs text-gray-400 border-t border-white/10 pt-2.5">
+                  <span className="text-amber-400 font-bold">
+                    ★ {selectedVideoTestimonial.rating.toFixed(1)} / 5.0 ({selectedVideoTestimonial.totalVotes} Suara)
+                  </span>
+                  <span>Kategori: {selectedVideoTestimonial.category}</span>
+                </div>
+              </div>
+
+              {selectedVideoTestimonial.aiAnalysis && (
+                <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-indigo-300 flex items-center gap-1.5 text-xs">
+                      <span>✨</span> Gemini AI Evaluasi & Mutu
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300">
+                      Sentimen: {selectedVideoTestimonial.aiAnalysis.sentiment} ({selectedVideoTestimonial.aiAnalysis.sentimentScore || 98}%)
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    {selectedVideoTestimonial.aiAnalysis.summary}
+                  </p>
+                  {selectedVideoTestimonial.aiAnalysis.videoStoryboard && (
+                    <div className="space-y-1.5 pt-2 border-t border-indigo-500/20">
+                      <span className="text-[10px] uppercase font-bold text-gray-400">Rangkaian Adegan Video (Storyboard):</span>
+                      {selectedVideoTestimonial.aiAnalysis.videoStoryboard.map((sc, idx) => (
+                        <div key={idx} className="text-xs text-gray-300 flex items-start gap-2">
+                          <span className="text-indigo-400 font-bold">{idx + 1}.</span>
+                          <span>{sc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-950 border-t border-white/10 flex items-center justify-between">
+              <span className="text-[11px] text-gray-400">
+                PT Kusuma Gemilang Raya • Jasa Sedot WC & Pengolahan Limbah Terverifikasi
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedVideoTestimonial(null)}
+                className="px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                Tutup Video
+              </button>
+            </div>
           </div>
         </div>
       )}

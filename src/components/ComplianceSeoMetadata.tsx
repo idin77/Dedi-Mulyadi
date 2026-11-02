@@ -118,7 +118,7 @@ export const rawComplianceMetadata: ComplianceMetadataItem[] = [
     icon: '🌐',
     name: 'Structured Data Schema.org (Google SEO Trust)',
     code: 'Schema LocalBusiness',
-    value: 'https://jasasedotwcbekasi.web.id/#localbusiness',
+    value: 'https://sedot-wc-bekasi.my.id/#localbusiness',
     status: 'Google Schema Valid',
     statusColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
     issuer: 'Schema.org & Google Search Console Structured Data Engine',
@@ -163,7 +163,7 @@ export function ComplianceSeoMetadata({
 6. SK Pengesahan Kemenkumham: AHU-0018924.AH.01.01.TAHUN 2021
 7. Pembuangan Akhir Limbah: REG-IPLT/DLH-BKS/2026/0411 (IPLT Resmi DLH Pemda Bekasi)
 8. Rekening Giro Bank PT: Mandiri 156-00-1892401-2 a.n PT Kusuma Gemilang Raya
-9. Structured Data SEO: https://jasasedotwcbekasi.web.id/ (Schema.org LocalBusiness 24/7)
+9. Structured Data SEO: https://sedot-wc-bekasi.my.id/ (Schema.org LocalBusiness 24/7)
 10. Kontak WhatsApp Resmi: +62 896-7506-4916 (Layanan 24 Jam Bekasi)`;
 
     if (navigator?.clipboard?.writeText) {
