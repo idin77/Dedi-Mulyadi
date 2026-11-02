@@ -114,8 +114,8 @@ export function generateBrochurePdf(options?: BrochurePdfOptions): jsPDF {
       desc: 'Penyedotan rutin bak aerasi, sedimentasi, dan ekualisasi dengan pompa vakum high-pressure. Dilengkapi Berita Acara & Manifest IPLT resmi.',
     },
     {
-      title: 'B. Septic Tank Gedung Bertingkat, Mall, Hotel & Rumah Sakit',
-      desc: 'Sistem tangki kedap udara, zero-odour tanpa kebocoran bau di area komersial. Pengerjaan fleksibel di malam hari atau shift hening.',
+      title: 'B. Pembuatan Septic Tank Biofilter & Tangki Komersial Gedung / RS',
+      desc: 'Instalasi septic tank bioteknologi ramah lingkungan & bebas kuras rutin, serta perawatan tangki komersial kedap udara zero-odour.',
     },
     {
       title: 'C. Pengurasan Lemak Grease Trap Restoran & Kantin Pabrik Skala Besar',

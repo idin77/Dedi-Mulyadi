@@ -5,6 +5,8 @@ import { downloadAreaMapPng } from '../utils/exportAreaMapToPng';
 import { EquipmentMaintenanceQrScanner } from './EquipmentMaintenanceQrScanner';
 import { CORPORATE_CLIENTS } from '../data/corporateClients';
 import { QrCodeFrequencyD3Chart, recordQrGenerationIn30DayStorage } from './QrCodeFrequencyD3Chart';
+import html2canvas from 'html2canvas';
+import mbBekasiLogoImg from '../assets/images/mb_bekasi_logo.jpeg';
 
 export { EquipmentMaintenanceQrScanner };
 
@@ -440,11 +442,11 @@ export interface CorporateWatermarkConfig {
 export const BRANDING_WATERMARK_STORAGE_KEY = 'kgr_print_hub_branding_watermark_v2';
 
 export const DEFAULT_BRANDING_WATERMARK: CorporateWatermarkConfig = {
-  logoUrl: null,
-  logoName: '',
-  companyName: 'PT KUSUMA GEMILANG RAYA',
+  logoUrl: mbBekasiLogoImg,
+  logoName: 'MB BEKASI LOGO.jpeg',
+  companyName: 'MB BEKASI • PT KUSUMA GEMILANG RAYA',
   badgeText: 'CORPORATE VERIFIED',
-  watermarkText: 'PT KGR BEKASI • LOGISTIK RESMI',
+  watermarkText: 'MB BEKASI • LOGISTIK RESMI KGR',
   includeInQrCenter: true,
   includeCardWatermark: true,
   includeSheetWatermark: true,
@@ -452,6 +454,14 @@ export const DEFAULT_BRANDING_WATERMARK: CorporateWatermarkConfig = {
 };
 
 export const PRESET_BRANDING_LOGOS = [
+  {
+    id: 'mb-bekasi-official',
+    name: 'MB Bekasi Official Logo',
+    companyName: 'MB BEKASI • PT KUSUMA GEMILANG RAYA',
+    badgeText: 'MB BEKASI RESMI',
+    watermarkText: 'MB BEKASI • LOGISTIK RESMI KGR BEKASI',
+    dataUrl: mbBekasiLogoImg,
+  },
   {
     id: 'kgr-official',
     name: 'PT KGR Corporate Seal',
@@ -1308,6 +1318,64 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
     } catch (err) {
       console.error('Failed to export custom QR PNG:', err);
       if (onToast) onToast('Gagal mengunduh QR Code Kustom.');
+    }
+  };
+
+  /**
+   * Downloads a QR code container element as a high-resolution PNG using html2canvas
+   */
+  const handleDownloadQrWithHtml2Canvas = async (
+    targetElementIdOrElement: string | HTMLElement,
+    filename: string = 'QR_Code.png'
+  ) => {
+    try {
+      const el =
+        typeof targetElementIdOrElement === 'string'
+          ? document.getElementById(targetElementIdOrElement)
+          : targetElementIdOrElement;
+
+      if (!el) {
+        if (onToast) onToast('⚠️ Elemen QR Code tidak ditemukan di dalam #print-hub-document.');
+        return;
+      }
+
+      // Temporarily hide buttons or print-hide elements inside the container so they aren't captured in the PNG
+      const hiddenElements: HTMLElement[] = [];
+      el.querySelectorAll<HTMLElement>('.print-hide, button').forEach((node) => {
+        if (node.style.display !== 'none' && node.style.visibility !== 'hidden') {
+          hiddenElements.push(node);
+          node.style.visibility = 'hidden';
+        }
+      });
+
+      const canvas = await html2canvas(el, {
+        scale: 3, // 3x resolution for ultra-sharp PNG export suitable for on-site printing
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      });
+
+      // Restore element visibility
+      hiddenElements.forEach((node) => {
+        node.style.visibility = '';
+      });
+
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      if (onToast) {
+        onToast('📥 Berhasil mengunduh gambar PNG dari QR code menggunakan html2canvas!');
+      }
+    } catch (err) {
+      console.error('Failed to download QR code using html2canvas:', err);
+      // Fallback to direct canvas PNG export if html2canvas meets any security/CORS hurdle
+      handleDownloadCustomQrPng();
     }
   };
 
@@ -2184,6 +2252,28 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                     <span className="print-hide text-[8px] font-semibold text-cyan-dark mt-1 group-hover:underline">
                       🔍 Tap untuk Zoom HD
                     </span>
+
+                    {/* Tombol 'Download QR Code' tepat di bawah elemen QR code */}
+                    <button
+                      type="button"
+                      id="download-hub-qr-code-btn"
+                      data-testid="download-hub-qr-code-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownloadQrWithHtml2Canvas(
+                          'print-hub-qr-injected-slot',
+                          `QR_Maps_${currentHub.id}.png`
+                        );
+                      }}
+                      className="print-hide mt-1.5 w-full px-2 py-1 bg-navy hover:bg-navy-light text-cyan font-bold rounded-md transition text-[9px] flex items-center justify-center gap-1 border border-cyan/40 shadow-2xs cursor-pointer active:scale-95"
+                      title="Unduh QR Code Navigasi Google Maps sebagai gambar PNG menggunakan html2canvas"
+                      aria-label="Download QR Code"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      <span>Download QR Code</span>
+                    </button>
                   </div>
 
                   {/* Information & Prominently Displayed Google Maps URL */}
@@ -3194,6 +3284,27 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                   </span>
                   <span className="text-emerald-700 font-semibold">● Live Vector HD</span>
                 </div>
+
+                {/* Tombol 'Download QR Code' tepat di bawah elemen QR code */}
+                <button
+                  type="button"
+                  id="download-qr-code-btn"
+                  data-testid="download-qr-code-btn"
+                  onClick={() =>
+                    handleDownloadQrWithHtml2Canvas(
+                      'custom-url-qr-code-container',
+                      `QR_Code_${(customQrLabel || 'custom_qr').replace(/[^a-zA-Z0-9]/g, '_')}.png`
+                    )
+                  }
+                  className="print-hide mt-2 w-full px-2.5 py-1.5 bg-navy hover:bg-navy-light text-cyan font-bold rounded-lg transition text-[10px] flex items-center justify-center gap-1.5 border border-cyan/40 shadow-xs cursor-pointer active:scale-95"
+                  title="Unduh QR Code sebagai gambar PNG menggunakan html2canvas"
+                  aria-label="Download QR Code"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Download QR Code</span>
+                </button>
               </div>
 
               {/* Metadata, Label & Prominent Custom URL for Printing */}
@@ -3260,12 +3371,18 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
                     id="print-qr-hub-download-btn"
                     data-testid="print-qr-hub-download-btn"
                     type="button"
-                    onClick={handleDownloadCustomQrPng}
-                    className="px-3 py-1.5 bg-navy hover:bg-navy-light text-cyan font-bold rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5 border border-cyan/40 shadow-xs"
-                    title="Unduh QR Code sebagai file gambar PNG resolusi tinggi untuk cetak profesional"
+                    onClick={() =>
+                      handleDownloadQrWithHtml2Canvas(
+                        'custom-url-qr-code-container',
+                        `QR_Code_${(customQrLabel || 'custom_qr').replace(/[^a-zA-Z0-9]/g, '_')}.png`
+                      )
+                    }
+                    className="px-3 py-1.5 bg-navy hover:bg-navy-light text-cyan font-bold rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5 border border-cyan/40 shadow-xs active:scale-95"
+                    title="Unduh QR Code sebagai gambar PNG menggunakan html2canvas"
+                    aria-label="Download QR Code"
                   >
                     <span>📥</span>
-                    <span>Download QR Code (PNG HD)</span>
+                    <span>Download QR Code</span>
                   </button>
                   <button
                     id="print-qr-hub-copy-url-btn"

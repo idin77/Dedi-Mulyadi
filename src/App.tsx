@@ -3752,53 +3752,150 @@ export default function App() {
             <p className="text-gray-400 mt-4 max-w-2xl mx-auto">Menjangkau kebutuhan sanitasi kompleks dengan standar operasional tinggi untuk berbagai sektor profesional.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Card 1: Industri Manufaktur */}
-            <div className="bg-navy-light/40 backdrop-blur-sm p-8 rounded-3xl border border-white/10 hover:border-orange/50 transition duration-300">
-              <div className="w-14 h-14 bg-orange/20 rounded-2xl flex items-center justify-center mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
+            <div className="bg-navy-light/40 backdrop-blur-sm p-6 sm:p-7 rounded-3xl border border-white/10 hover:border-orange/50 transition duration-300 flex flex-col justify-between group">
+              <div>
+                <div className="w-13 h-13 bg-orange/20 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-105 transition duration-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-orange" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold mb-2.5 text-white">Industri Manufaktur</h3>
+                <p className="text-gray-400 text-xs sm:text-sm leading-relaxed mb-5">Penanganan limbah STP dan IPAL pabrik dengan protokol keselamatan ketat dan dokumen manifest B3 yang sesuai regulasi pemerintah.</p>
+                <ul className="space-y-2 text-gray-300 text-xs sm:text-sm">
+                  <li className="flex items-center"><span className="text-orange mr-2">▸</span> Sedot limbah STP & IPAL</li>
+                  <li className="flex items-center"><span className="text-orange mr-2">▸</span> Penanganan Non B3 terjadwal</li>
+                  <li className="flex items-center"><span className="text-orange mr-2">▸</span> Compliance dokumentasi</li>
+                </ul>
               </div>
-              <h3 className="text-xl font-bold mb-3">Industri Manufaktur</h3>
-              <p className="text-gray-400 text-sm leading-relaxed mb-6">Penanganan limbah STP dan IPAL pabrik dengan protokol keselamatan ketat dan dokumen manifest B3 yang sesuai regulasi pemerintah.</p>
-              <ul className="space-y-2 text-gray-300 text-sm">
-                <li className="flex items-center"><span className="text-orange mr-2">▸</span> Sedot limbah STP & IPAL</li>
-                <li className="flex items-center"><span className="text-orange mr-2">▸</span> Penanganan Non B3 terjadwal</li>
-                <li className="flex items-center"><span className="text-orange mr-2">▸</span> Compliance dokumentasi</li>
-              </ul>
+              <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Pabrik & Kawasan Industri</span>
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, kami ingin konsultasi penanganan limbah STP/IPAL kawasan industri manufaktur.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-orange hover:text-orange-light flex items-center gap-1 transition"
+                >
+                  Konsultasi →
+                </a>
+              </div>
             </div>
 
             {/* Card 2: Hotel & Restoran */}
-            <div className="bg-navy-light/40 backdrop-blur-sm p-8 rounded-3xl border border-white/10 hover:border-cyan/50 transition duration-300">
-              <div className="w-14 h-14 bg-cyan/20 rounded-2xl flex items-center justify-center mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-cyan" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
+            <div className="bg-navy-light/40 backdrop-blur-sm p-6 sm:p-7 rounded-3xl border border-white/10 hover:border-cyan/50 transition duration-300 flex flex-col justify-between group">
+              <div>
+                <div className="w-13 h-13 bg-cyan/20 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-105 transition duration-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-cyan" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold mb-2.5 text-white">Hotel & Restoran</h3>
+                <p className="text-gray-400 text-xs sm:text-sm leading-relaxed mb-5">Layanan sanitasi diskrit dan higienis untuk menjaga reputasi bisnis perhotelan dan F&B Anda tanpa mengganggu kenyamanan tamu.</p>
+                <ul className="space-y-2 text-gray-300 text-xs sm:text-sm">
+                  <li className="flex items-center"><span className="text-cyan mr-2">▸</span> Grease trap & limbah dapur</li>
+                  <li className="flex items-center"><span className="text-cyan mr-2">▸</span> Sanitasi tanpa bau</li>
+                  <li className="flex items-center"><span className="text-cyan mr-2">▸</span> Pengerjaan cepat & diskret</li>
+                </ul>
               </div>
-              <h3 className="text-xl font-bold mb-3">Hotel & Restoran</h3>
-              <p className="text-gray-400 text-sm leading-relaxed mb-6">Layanan sanitasi diskrit dan higienis untuk menjaga reputasi bisnis perhotelan dan F&B Anda tanpa mengganggu kenyamanan tamu.</p>
-              <ul className="space-y-2 text-gray-300 text-sm">
-                <li className="flex items-center"><span className="text-cyan mr-2">▸</span> Grease trap & limbah dapur</li>
-                <li className="flex items-center"><span className="text-cyan mr-2">▸</span> Sanitasi tanpa bau</li>
-                <li className="flex items-center"><span className="text-cyan mr-2">▸</span> Pengerjaan cepat & diskret</li>
-              </ul>
+              <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Hospitality & Komersial</span>
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, kami ingin konsultasi sanitasi dan pengurasan grease trap hotel/restoran.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-cyan hover:text-cyan-light flex items-center gap-1 transition"
+                >
+                  Konsultasi →
+                </a>
+              </div>
             </div>
 
-            {/* Card 3: Gedung Perkantoran & Mall */}
-            <div className="bg-navy-light/40 backdrop-blur-sm p-8 rounded-3xl border border-white/10 hover:border-yellow-500/50 transition duration-300">
-              <div className="w-14 h-14 bg-yellow-500/20 rounded-2xl flex items-center justify-center mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
+            {/* Card 3: Gedung Perkantoran, Mall & RS */}
+            <div className="bg-navy-light/40 backdrop-blur-sm p-6 sm:p-7 rounded-3xl border border-white/10 hover:border-yellow-500/50 transition duration-300 flex flex-col justify-between group">
+              <div>
+                <div className="w-13 h-13 bg-yellow-500/20 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-105 transition duration-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M12 7v4m-2-2h4m-5 9v-4a1 1 0 011-1h2a1 1 0 011 1v4" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold mb-2.5 text-white">Gedung, Mall & Rumah Sakit</h3>
+                <p className="text-gray-400 text-xs sm:text-sm leading-relaxed mb-5">Perawatan sistem plumbing, tangki septik komersial, dan saluran air kotor gedung bertingkat dengan jaminan kedap bau dan operasional tanpa gangguan.</p>
+                <ul className="space-y-2 text-gray-300 text-xs sm:text-sm">
+                  <li className="flex items-center"><span className="text-yellow-500 mr-2">▸</span> Kuras septic tank komersial</li>
+                  <li className="flex items-center"><span className="text-yellow-500 mr-2">▸</span> Pengerjaan malam / off-peak</li>
+                  <li className="flex items-center"><span className="text-yellow-500 mr-2">▸</span> Kontrak SLA perawatan gedung</li>
+                </ul>
               </div>
-              <h3 className="text-xl font-bold mb-3">Gedung, Mall & Rumah Sakit</h3>
-              <p className="text-gray-400 text-sm leading-relaxed mb-6">Perawatan sistem plumbing, tangki septik komersial, dan saluran air kotor gedung bertingkat dengan jaminan kedap bau dan operasional tanpa gangguan.</p>
-              <ul className="space-y-2 text-gray-300 text-sm">
-                <li className="flex items-center"><span className="text-yellow-500 mr-2">▸</span> Kuras septic tank komersial</li>
-                <li className="flex items-center"><span className="text-yellow-500 mr-2">▸</span> Pengerjaan malam / off-peak hours</li>
-                <li className="flex items-center"><span className="text-yellow-500 mr-2">▸</span> Kontrak SLA perawatan gedung</li>
-              </ul>
+              <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between">
+                <span className="text-[11px] text-gray-400">Property & High-Rise</span>
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, kami membutuhkan penawaran SLA perawatan tangki & plumbing gedung.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-yellow-500 hover:text-yellow-400 flex items-center gap-1 transition"
+                >
+                  Konsultasi →
+                </a>
+              </div>
+            </div>
+
+            {/* Card 4: Pembuatan Septic Tank Biofilter (Modern & Ramah Lingkungan) */}
+            <div className="bg-navy-light/40 backdrop-blur-sm p-6 sm:p-7 rounded-3xl border border-white/10 hover:border-emerald-400/50 transition duration-300 flex flex-col justify-between group relative overflow-hidden">
+              <div className="absolute -top-12 -right-12 w-28 h-28 bg-emerald-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-emerald-500/20 transition duration-500" />
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="w-13 h-13 bg-emerald-500/20 rounded-2xl flex items-center justify-center group-hover:scale-105 transition duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 tracking-wider uppercase">
+                    🌱 Eco Biofilter
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold mb-2.5 text-white flex items-center gap-1.5">
+                  <span>Pembuatan Septic Tank Biofilter</span>
+                </h3>
+                <p className="text-gray-400 text-xs sm:text-sm leading-relaxed mb-4">
+                  Pembuatan & pemasangan tangki septik bioteknologi modern dengan media filtrasi bertingkat (<span className="text-emerald-300">honeycomb & bio-ball</span>). Mengurai limbah secara biologis menjadi air ramah lingkungan tanpa mencemari air tanah dan bebas kuras rutin.
+                </p>
+                <div className="space-y-2 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block">
+                    Keunggulan Sistem Biofilter:
+                  </span>
+                  <ul className="space-y-1.5 text-gray-300 text-xs sm:text-sm">
+                    <li className="flex items-start">
+                      <span className="text-emerald-400 mr-2 shrink-0">▸</span>
+                      <span><strong>Bebas Kuras & Anti Penuh:</strong> Bakteri anaerob mengurai feses secara kontinu.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-emerald-400 mr-2 shrink-0">▸</span>
+                      <span><strong>Ramah Lingkungan & Higienis:</strong> Air olahan bening, aman ke saluran drainase kota.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-emerald-400 mr-2 shrink-0">▸</span>
+                      <span><strong>Fiberglass (FRP) Anti-Bocor:</strong> Tangki kuat tahan tekanan tanah & anti rembes puluhan tahun.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-emerald-400 mr-2 shrink-0">▸</span>
+                      <span><strong>Zero-Odour:</strong> Sistem ventilasi khusus bebas bau di lingkungan hunian.</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between">
+                <span className="text-[11px] text-emerald-300 font-semibold">Rumah, Ruko & Proyek</span>
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, saya ingin konsultasi mengenai pembuatan/pemasangan Septic Tank Biofilter modern dan ramah lingkungan.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-navy font-bold text-xs transition duration-200 flex items-center gap-1 shadow-sm cursor-pointer"
+                >
+                  <span>Konsultasi</span>
+                  <span>→</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
