@@ -12,6 +12,12 @@ import { MapPrintPreviewModal } from './components/MapPrintPreviewModal';
 import { CorporateClientsSection } from './components/CorporateClientsSection';
 import { CORPORATE_CLIENTS } from './data/corporateClients';
 import { highlightKeyword, getFaqMatchStats } from './utils/faqHighlighter';
+import {
+  ProjectCommentsModal,
+  ProjectComment,
+  initialProjectComments,
+} from './components/ProjectCommentsModal';
+import { QuickQuoteCalculatorModal } from './components/QuickQuoteCalculatorModal';
 import teknisiSedotWcImg from './assets/images/teknisi_lapangan_sedot_wc_1791530702926.jpg';
 import teknisiPipaImg from './assets/images/teknisi_pelancaran_pipa_1791530724142.jpg';
 import logoBekasiImg from './assets/images/logo_bekasi.jpeg';
@@ -580,7 +586,84 @@ export default function App() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [currentSection, setCurrentSection] = useState('hero');
   const [selectedGalleryCategory, setSelectedGalleryCategory] = useState('Semua');
+  const [selectedGalleryPriceRange, setSelectedGalleryPriceRange] = useState<string>('all');
+  const [gallerySearchQuery, setGallerySearchQuery] = useState('');
+  const [gallerySortOrder, setGallerySortOrder] = useState<'newest' | 'oldest'>('newest');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [activeCommentProject, setActiveCommentProject] = useState<{
+    id: number;
+    image: string;
+    title: string;
+    category: string;
+    location: string;
+    tag: string;
+    description: string;
+    estimatedCost?: string;
+    dateAdded?: string;
+    timestamp?: number;
+  } | null>(null);
+  const [activeQuickQuoteProject, setActiveQuickQuoteProject] = useState<{
+    id: number;
+    image: string;
+    title: string;
+    category: string;
+    location: string;
+    tag: string;
+    description: string;
+    estimatedCost: string;
+    priceRangeId?: string;
+    priceValue?: number;
+    dateAdded?: string;
+    timestamp?: number;
+  } | null>(null);
+
+  const [projectComments, setProjectComments] = useState<ProjectComment[]>(() => {
+    try {
+      const saved = localStorage.getItem('sedot_wc_project_comments');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Gagal membaca project comments dari localStorage', e);
+    }
+    return initialProjectComments;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sedot_wc_project_comments', JSON.stringify(projectComments));
+    } catch (e) {
+      console.warn('Gagal menyimpan project comments ke localStorage', e);
+    }
+  }, [projectComments]);
+
+  const handleAddProjectComment = (newComment: Omit<ProjectComment, 'id' | 'createdAt' | 'likes'>) => {
+    const commentObj: ProjectComment = {
+      ...newComment,
+      id: `c-${newComment.projectId}-${Date.now()}`,
+      createdAt: 'Baru saja',
+      likes: 0,
+      isLiked: false,
+    };
+    setProjectComments((prev) => [commentObj, ...prev]);
+  };
+
+  const handleToggleCommentLike = (commentId: string) => {
+    setProjectComments((prev) =>
+      prev.map((c) => {
+        if (c.id === commentId) {
+          const isLiked = !c.isLiked;
+          return {
+            ...c,
+            isLiked,
+            likes: isLiked ? c.likes + 1 : Math.max(0, c.likes - 1),
+          };
+        }
+        return c;
+      })
+    );
+  };
   const [activeMapHubIndex, setActiveMapHubIndex] = useState(0);
   const [hoveredMapHubIndex, setHoveredMapHubIndex] = useState<number | null>(null);
   const [mapZoom, setMapZoom] = useState(13);
@@ -673,7 +756,7 @@ export default function App() {
       interest: 'komersial',
       date: '2026-10-09T07:30:00Z',
       formattedDate: 'Hari ini, 07:30',
-      status: 'Aktif',
+      status: 'Terkonfirmasi',
       source: 'Formulir Web B2B',
     },
     {
@@ -695,7 +778,7 @@ export default function App() {
       interest: 'komersial',
       date: '2026-10-08T14:12:00Z',
       formattedDate: 'Kemarin, 14:12',
-      status: 'Aktif',
+      status: 'Terkonfirmasi',
       source: 'Portal Quotation RFP',
     },
     {
@@ -717,7 +800,7 @@ export default function App() {
       interest: 'residensial',
       date: '2026-10-07T09:15:00Z',
       formattedDate: '2 hari lalu',
-      status: 'Aktif',
+      status: 'Terkonfirmasi',
       source: 'Kalkulator Biaya',
     },
     {
@@ -739,7 +822,7 @@ export default function App() {
       interest: 'komersial',
       date: '2026-10-05T10:05:00Z',
       formattedDate: '4 hari lalu',
-      status: 'Aktif',
+      status: 'Terkonfirmasi',
       source: 'Formulir Web B2B',
     },
     {
@@ -761,7 +844,7 @@ export default function App() {
       interest: 'komersial',
       date: '2026-10-03T15:30:00Z',
       formattedDate: '6 hari lalu',
-      status: 'Aktif',
+      status: 'Terkonfirmasi',
       source: 'Formulir Web B2B',
     },
   ];
@@ -806,6 +889,7 @@ export default function App() {
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [subscriberCategoryFilter, setSubscriberCategoryFilter] = useState<'Semua' | 'komersial' | 'residensial'>('Semua');
   const [subscriberSourceFilter, setSubscriberSourceFilter] = useState<string>('Semua');
+  const [subscriberStatusFilter, setSubscriberStatusFilter] = useState<'Semua' | 'Aktif' | 'Terkonfirmasi'>('Semua');
   const [subscriberTimeRange, setSubscriberTimeRange] = useState<'Semua Waktu' | '30 Hari' | 'Bulan Ini' | 'Kuartal Ini'>('Semua Waktu');
   const [isMaskEmail, setIsMaskEmail] = useState(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
@@ -1465,6 +1549,11 @@ export default function App() {
       location: 'Perumahan Grand Galaxy, Bekasi Selatan',
       tag: 'Residensial',
       description: 'Teknisi profesional mengenakan APD lengkap (helm safety, rompi hi-vis, sepatu bot, dan sarung tangan) mengoperasikan selang vakum berdaya hisap tinggi langsung ke unit armada tangki resmi.',
+      estimatedCost: 'Rp 350.000 – Rp 450.000',
+      priceRangeId: 'under-500k',
+      priceValue: 400000,
+      dateAdded: '30 Okt 2026',
+      timestamp: 1793354400000,
     },
     {
       id: 2,
@@ -1474,6 +1563,11 @@ export default function App() {
       location: 'Gedung Komersial Cikarang Barat',
       tag: 'Komersial & Kantor',
       description: 'Dua orang teknisi ahli menggunakan mesin hydro jetting spiral modern bertekanan tinggi untuk mengurai sumbatan lemak dan kerak pipa tanpa perlu membongkar keramik lantai.',
+      estimatedCost: 'Rp 500.000 – Rp 750.000',
+      priceRangeId: '500k-1m',
+      priceValue: 625000,
+      dateAdded: '28 Okt 2026',
+      timestamp: 1793181600000,
     },
     {
       id: 3,
@@ -1483,6 +1577,11 @@ export default function App() {
       location: 'Kawasan Bisnis Medan Satria, Bekasi',
       tag: 'Komersial',
       description: 'Penyedotan septic tank komersial berkapasitas besar dengan sistem kedap udara sehingga bebas dari aroma menyengat di sekitar area publik.',
+      estimatedCost: 'Rp 1.100.000 – Rp 1.500.000',
+      priceRangeId: '1m-2m',
+      priceValue: 1300000,
+      dateAdded: '25 Okt 2026',
+      timestamp: 1792922400000,
     },
     {
       id: 4,
@@ -1492,6 +1591,11 @@ export default function App() {
       location: 'Kawasan Industri GIIC Cikarang',
       tag: 'Industri / Pabrik',
       description: 'Armada truk tangki berizin resmi memasuki area pabrik manufaktur untuk pengurasan rutin bak pengolahan limbah STP sesuai SOP K3 dan regulasi lingkungan hidup.',
+      estimatedCost: 'Rp 2.500.000 – Rp 4.500.000',
+      priceRangeId: 'above-2m',
+      priceValue: 3500000,
+      dateAdded: '22 Okt 2026',
+      timestamp: 1792663200000,
     },
     {
       id: 5,
@@ -1501,6 +1605,11 @@ export default function App() {
       location: 'Sentra Kuliner Summarecon Bekasi',
       tag: 'Restoran & F&B',
       description: 'Pembersihan menyeluruh perangkap lemak (grease trap) restoran komersial guna mencegah luapan limbah minyak dan bau tidak sedap ke ruang makan tamu.',
+      estimatedCost: 'Rp 550.000 – Rp 850.000',
+      priceRangeId: '500k-1m',
+      priceValue: 700000,
+      dateAdded: '18 Okt 2026',
+      timestamp: 1792317600000,
     },
     {
       id: 6,
@@ -1510,6 +1619,11 @@ export default function App() {
       location: 'Kompleks Perumahan Tambun Selatan',
       tag: 'Rumah Tinggal',
       description: 'Layanan cepat teknisi ke area perumahan padat dengan selang spiral panjang hingga puluhan meter yang tetap menjaga kebersihan pekarangan rumah klien.',
+      estimatedCost: 'Rp 350.000 – Rp 450.000',
+      priceRangeId: 'under-500k',
+      priceValue: 400000,
+      dateAdded: '15 Okt 2026',
+      timestamp: 1792058400000,
     },
     {
       id: 7,
@@ -1519,6 +1633,11 @@ export default function App() {
       location: 'Ruko Niaga Harapan Indah, Bekasi',
       tag: 'Komersial',
       description: 'Proses pengenceran lumpur tinja yang mengendap bertahun-tahun menggunakan tekanan air tinggi sebelum disedot total sampai dasar septic tank bersih kembali.',
+      estimatedCost: 'Rp 1.200.000 – Rp 1.800.000',
+      priceRangeId: '1m-2m',
+      priceValue: 1500000,
+      dateAdded: '10 Okt 2026',
+      timestamp: 1791626400000,
     },
     {
       id: 8,
@@ -1528,6 +1647,11 @@ export default function App() {
       location: 'Zona Pergudangan & Logistik Cibitung',
       tag: 'Manifest Resmi',
       description: 'Seluruh limbah yang telah disedot dibawa langsung ke Instalasi Pengolahan Lumpur Tinja (IPLT) resmi pemerintah dengan bukti manifest sah dan transparan.',
+      estimatedCost: 'Rp 2.800.000 – Rp 4.200.000',
+      priceRangeId: 'above-2m',
+      priceValue: 3500000,
+      dateAdded: '05 Okt 2026',
+      timestamp: 1791194400000,
     },
     {
       id: 9,
@@ -1537,21 +1661,225 @@ export default function App() {
       location: 'Cluster Hunian Jatiasih, Bekasi',
       tag: 'Higienis & Steril',
       description: 'Setelah proses penyedotan tuntas, teknisi menyemprotkan larutan disinfektan anti kuman serta membersihkan area tutup septic tank sehingga bersih dan higienis.',
+      estimatedCost: 'Rp 350.000 – Rp 450.000',
+      priceRangeId: 'under-500k',
+      priceValue: 400000,
+      dateAdded: '28 Sep 2026',
+      timestamp: 1790589600000,
+    },
+  ];
+
+  const galleryPriceRanges = [
+    {
+      id: 'all',
+      label: 'Semua Tarif',
+      shortLabel: 'Semua Harga',
+      sublabel: 'Seluruh estimasi biaya',
+      icon: '💰',
+      min: 0,
+      max: Infinity,
+    },
+    {
+      id: 'under-500k',
+      label: '< Rp 500.000',
+      shortLabel: '< 500 Rb',
+      sublabel: 'Residensial / Rumah',
+      icon: '🏷️',
+      min: 0,
+      max: 499999,
+    },
+    {
+      id: '500k-1m',
+      label: 'Rp 500 Rb – 1 Jt',
+      shortLabel: '500 Rb – 1 Jt',
+      sublabel: 'Pipa & Grease Trap',
+      icon: '💵',
+      min: 500000,
+      max: 1000000,
+    },
+    {
+      id: '1m-2m',
+      label: 'Rp 1 Jt – 2 Jt',
+      shortLabel: '1 Jt – 2 Jt',
+      sublabel: 'Komersial & Lumpur',
+      icon: '💳',
+      min: 1000001,
+      max: 2000000,
+    },
+    {
+      id: 'above-2m',
+      label: '> Rp 2.000.000',
+      shortLabel: '> 2 Jt',
+      sublabel: 'STP Pabrik & B2B',
+      icon: '🏭',
+      min: 2000001,
+      max: Infinity,
     },
   ];
 
   const galleryCategories = [
-    'Semua',
-    'Sedot WC & Septic Tank',
-    'Pelancaran Pipa Mampet',
-    'Limbah Industri & STP',
-    'Grease Trap Restoran',
+    {
+      id: 'Semua',
+      label: 'Semua Proyek',
+      shortLabel: 'Semua Proyek',
+      icon: '📸',
+      description: 'Seluruh dokumentasi',
+      matchKeys: [] as string[],
+    },
+    {
+      id: 'Sedot WC',
+      label: 'Sedot WC & Septic Tank',
+      shortLabel: 'Sedot WC',
+      icon: '🚽',
+      description: 'Septic Tank & Vakum',
+      matchKeys: ['Sedot WC', 'Septic Tank', 'Vakum', 'Penyedotan'],
+    },
+    {
+      id: 'Limbah Industri',
+      label: 'Limbah Industri & STP',
+      shortLabel: 'Limbah Industri',
+      icon: '🏭',
+      description: 'STP, IPAL & Pabrik',
+      matchKeys: ['Limbah Industri', 'STP', 'IPAL', 'Lumpur', 'IPLT'],
+    },
+    {
+      id: 'Pelancaran Pipa',
+      label: 'Pelancaran Pipa Mampet',
+      shortLabel: 'Pelancaran Pipa',
+      icon: '🔧',
+      description: 'Hydro Jetting & Saluran',
+      matchKeys: ['Pelancaran Pipa', 'Pipa Mampet', 'Hydro Jetting', 'Pipa'],
+    },
+    {
+      id: 'Grease Trap',
+      label: 'Grease Trap Restoran',
+      shortLabel: 'Grease Trap',
+      icon: '🍳',
+      description: 'Perangkap Lemak Dapur',
+      matchKeys: ['Grease Trap', 'Restoran', 'Lemak'],
+    },
   ];
 
-  const filteredProjects =
-    selectedGalleryCategory === 'Semua'
-      ? galleryProjects
-      : galleryProjects.filter((p) => p.category === selectedGalleryCategory);
+  const filteredProjects = galleryProjects.filter((project) => {
+    // 1. Filter Kategori Layanan
+    let matchesCategory = false;
+    if (selectedGalleryCategory === 'Semua') {
+      matchesCategory = true;
+    } else {
+      const activeCat = galleryCategories.find(
+        (c) =>
+          c.id === selectedGalleryCategory ||
+          c.shortLabel === selectedGalleryCategory ||
+          c.label === selectedGalleryCategory
+      );
+      if (activeCat && activeCat.matchKeys.length > 0) {
+        matchesCategory =
+          project.category === activeCat.label ||
+          activeCat.matchKeys.some(
+            (key) =>
+              project.category.toLowerCase().includes(key.toLowerCase()) ||
+              project.title.toLowerCase().includes(key.toLowerCase())
+          );
+      } else {
+        matchesCategory =
+          project.category === selectedGalleryCategory ||
+          project.category.toLowerCase().includes(selectedGalleryCategory.toLowerCase());
+      }
+    }
+    if (!matchesCategory) return false;
+
+    // 2. Filter Rentang Harga Estimasi
+    if (selectedGalleryPriceRange !== 'all') {
+      const activePrice = galleryPriceRanges.find((r) => r.id === selectedGalleryPriceRange);
+      if (activePrice) {
+        const inNumericRange =
+          project.priceValue >= activePrice.min && project.priceValue <= activePrice.max;
+        const matchesRangeId = project.priceRangeId === selectedGalleryPriceRange;
+        if (!inNumericRange && !matchesRangeId) return false;
+      }
+    }
+
+    // 3. Filter Kata Kunci Pencarian
+    if (!gallerySearchQuery.trim()) return true;
+
+    const query = gallerySearchQuery.trim().toLowerCase();
+    const matchesLocation = project.location.toLowerCase().includes(query);
+    const matchesTitle = project.title.toLowerCase().includes(query);
+    const matchesCategoryName = project.category.toLowerCase().includes(query);
+    const matchesTag = project.tag.toLowerCase().includes(query);
+    const matchesDescription = project.description.toLowerCase().includes(query);
+    const matchesCost = project.estimatedCost.toLowerCase().includes(query);
+
+    return (
+      matchesLocation ||
+      matchesTitle ||
+      matchesCategoryName ||
+      matchesTag ||
+      matchesDescription ||
+      matchesCost
+    );
+  }).sort((a, b) => {
+    if (gallerySortOrder === 'oldest') {
+      return a.timestamp - b.timestamp;
+    }
+    return b.timestamp - a.timestamp;
+  });
+
+  // Kalkulasi Ringkasan Galeri Proyek (Total Proyek, Rata-rata Biaya, & Jumlah per Kategori)
+  const galleryAverageCost = useMemo(() => {
+    if (filteredProjects.length === 0) return 0;
+    const total = filteredProjects.reduce((sum, p) => sum + (p.priceValue || 0), 0);
+    return Math.round(total / filteredProjects.length);
+  }, [filteredProjects]);
+
+  const galleryCategoryCounts = useMemo(() => {
+    const counts = {
+      sedotWc: 0,
+      industri: 0,
+      pelancaranPipa: 0,
+      greaseTrap: 0,
+    };
+    // Hitung berdasarkan filter pencarian dan rentang harga agar jumlah kategori tetap informatif dan konsisten
+    const baseList =
+      gallerySearchQuery.trim() || selectedGalleryPriceRange !== 'all'
+        ? galleryProjects.filter((project) => {
+            if (selectedGalleryPriceRange !== 'all') {
+              const activePrice = galleryPriceRanges.find((r) => r.id === selectedGalleryPriceRange);
+              if (activePrice) {
+                const inNumericRange =
+                  project.priceValue >= activePrice.min && project.priceValue <= activePrice.max;
+                const matchesRangeId = project.priceRangeId === selectedGalleryPriceRange;
+                if (!inNumericRange && !matchesRangeId) return false;
+              }
+            }
+            if (gallerySearchQuery.trim()) {
+              const q = gallerySearchQuery.trim().toLowerCase();
+              return (
+                project.location.toLowerCase().includes(q) ||
+                project.title.toLowerCase().includes(q) ||
+                project.category.toLowerCase().includes(q) ||
+                project.tag.toLowerCase().includes(q)
+              );
+            }
+            return true;
+          })
+        : galleryProjects;
+
+    baseList.forEach((p) => {
+      const cat = p.category.toLowerCase();
+      const title = p.title.toLowerCase();
+      if (cat.includes('sedot wc') || cat.includes('septic tank')) {
+        counts.sedotWc++;
+      } else if (cat.includes('industri') || cat.includes('stp') || title.includes('lumpur') || cat.includes('lumpur')) {
+        counts.industri++;
+      } else if (cat.includes('pelancaran pipa') || cat.includes('pipa') || title.includes('jetting')) {
+        counts.pelancaranPipa++;
+      } else if (cat.includes('grease trap') || cat.includes('restoran')) {
+        counts.greaseTrap++;
+      }
+    });
+    return counts;
+  }, [galleryProjects, gallerySearchQuery, selectedGalleryPriceRange, galleryPriceRanges]);
 
   // Responsive Items Per View for Dokumentasi Carousel
   useEffect(() => {
@@ -3217,6 +3545,8 @@ export default function App() {
       subscriberCategoryFilter === 'Semua' || s.interest === subscriberCategoryFilter;
     const matchSource =
       subscriberSourceFilter === 'Semua' || s.source === subscriberSourceFilter;
+    const matchStatus =
+      subscriberStatusFilter === 'Semua' || s.status === subscriberStatusFilter;
     const query = subscriberSearch.toLowerCase().trim();
     const matchQuery =
       !query ||
@@ -3224,7 +3554,7 @@ export default function App() {
       s.name.toLowerCase().includes(query) ||
       s.company.toLowerCase().includes(query) ||
       (s.source && s.source.toLowerCase().includes(query));
-    return matchCategory && matchSource && matchQuery;
+    return matchCategory && matchSource && matchStatus && matchQuery;
   });
 
   const scrollToTop = () => {
@@ -6643,78 +6973,645 @@ export default function App() {
               Dokumentasi visual nyata para teknisi profesional PT Kusuma Gemilang Raya saat menangani berbagai proyek sanitasi, pengurasan septic tank, pelancaran saluran pipa, dan penyedotan limbah di Bekasi.
             </p>
 
-            {/* Filter Tabs */}
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-8">
-              {galleryCategories.map((category) => (
+            {/* Search Bar for Galeri Foto Proyek */}
+            <div className="mt-8 max-w-2xl mx-auto">
+              <div className="relative flex items-center">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={gallerySearchQuery}
+                  onChange={(e) => setGallerySearchQuery(e.target.value)}
+                  placeholder="Cari lokasi (e.g. Galaxy, Cikarang, Tambun) atau jenis layanan (STP, Grease Trap, Pipa)..."
+                  className="w-full pl-11 pr-10 py-3.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-navy placeholder-gray-400 text-xs sm:text-sm rounded-2xl border border-gray-200 focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20 transition-all shadow-xs"
+                />
+                {gallerySearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setGallerySearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-navy cursor-pointer transition"
+                    title="Hapus kata kunci pencarian"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold">
+                      ✕
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {/* Quick Search Suggestion Chips */}
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-3 text-xs">
+                <span className="text-[11px] text-gray-400 font-semibold mr-1">Rekomendasi Pencarian:</span>
+                {[
+                  { label: '📍 Galaxy', query: 'Galaxy' },
+                  { label: '📍 Cikarang', query: 'Cikarang' },
+                  { label: '📍 Tambun', query: 'Tambun' },
+                  { label: '📍 Summarecon', query: 'Summarecon' },
+                  { label: '🛠️ Septic Tank', query: 'Septic Tank' },
+                  { label: '🏭 Limbah STP', query: 'STP' },
+                  { label: '🍳 Grease Trap', query: 'Grease Trap' },
+                  { label: '⚡ Hydro Jetting', query: 'Hydro Jetting' },
+                ].map((chip) => (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => {
+                      setGallerySearchQuery(chip.query);
+                    }}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition cursor-pointer ${
+                      gallerySearchQuery.toLowerCase() === chip.query.toLowerCase()
+                        ? 'bg-cyan text-navy font-bold shadow-xs'
+                        : 'bg-slate-100 text-gray-600 hover:bg-slate-200 hover:text-navy'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Category Filter Section with Segmented Cards / Interactive Pills */}
+            <div className="mt-8 max-w-4xl mx-auto">
+              <div className="flex items-center justify-between gap-2 mb-3 px-1 text-left">
+                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="text-orange">🏷️</span>
+                  <span>Filter Kategori Proyek</span>
+                </span>
+                <span className="text-[11px] text-gray-500 font-medium">
+                  Pilih kategori untuk memfilter visual pengerjaan
+                </span>
+              </div>
+
+              {/* Responsive Category Grid / Pill Track */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+                {galleryCategories.map((cat) => {
+                  const isSelected =
+                    selectedGalleryCategory === cat.id ||
+                    selectedGalleryCategory === cat.shortLabel ||
+                    selectedGalleryCategory === cat.label;
+
+                  const count =
+                    cat.id === 'Semua'
+                      ? galleryProjects.length
+                      : galleryProjects.filter((p) => {
+                          if (!cat.matchKeys || cat.matchKeys.length === 0) return p.category === cat.label;
+                          return (
+                            p.category === cat.label ||
+                            cat.matchKeys.some(
+                              (k) =>
+                                p.category.toLowerCase().includes(k.toLowerCase()) ||
+                                p.title.toLowerCase().includes(k.toLowerCase())
+                            )
+                          );
+                        }).length;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedGalleryCategory(cat.id)}
+                      className={`relative p-3 sm:p-3.5 rounded-2xl text-left transition-all duration-300 border flex flex-col justify-between cursor-pointer group ${
+                        isSelected
+                          ? 'bg-navy text-white border-cyan ring-2 ring-cyan/40 shadow-lg -translate-y-0.5'
+                          : 'bg-white hover:bg-slate-50 text-navy border-gray-200 hover:border-cyan/50 shadow-xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1.5">
+                        <span className="text-xl sm:text-2xl transition-transform group-hover:scale-110">
+                          {cat.icon}
+                        </span>
+                        <span
+                          className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full transition ${
+                            isSelected
+                              ? 'bg-cyan text-navy'
+                              : 'bg-slate-100 text-gray-600 group-hover:bg-cyan/15 group-hover:text-navy'
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </div>
+                      <div>
+                        <div
+                          className={`font-bold text-xs sm:text-sm leading-tight transition ${
+                            isSelected ? 'text-white' : 'text-navy group-hover:text-cyan-dark'
+                          }`}
+                        >
+                          {cat.shortLabel}
+                        </div>
+                        <div
+                          className={`text-[10px] mt-0.5 line-clamp-1 ${
+                            isSelected ? 'text-gray-300' : 'text-gray-400'
+                          }`}
+                        >
+                          {cat.description}
+                        </div>
+                      </div>
+
+                      {/* Active Indicator Dot */}
+                      {isSelected && (
+                        <div className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-cyan animate-pulse" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Price Range Filter Section (Filter Rentang Harga & Estimasi Biaya) */}
+            <div className="mt-5 max-w-4xl mx-auto">
+              <div className="flex items-center justify-between gap-2 mb-2.5 px-1 text-left">
+                <span className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="text-emerald-600">💰</span>
+                  <span>Filter Rentang Estimasi Biaya Layanan</span>
+                </span>
+                <span className="text-[11px] text-gray-500 font-medium hidden sm:inline">
+                  Tarif transparan tanpa biaya siluman
+                </span>
+              </div>
+
+              {/* Price Range Segmented Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-2.5">
+                {galleryPriceRanges.map((range) => {
+                  const isSelected = selectedGalleryPriceRange === range.id;
+                  const count =
+                    range.id === 'all'
+                      ? galleryProjects.length
+                      : galleryProjects.filter((p) => {
+                          const inNumeric = p.priceValue >= range.min && p.priceValue <= range.max;
+                          return inNumeric || p.priceRangeId === range.id;
+                        }).length;
+
+                  return (
+                    <button
+                      key={range.id}
+                      type="button"
+                      onClick={() => setSelectedGalleryPriceRange(range.id)}
+                      className={`relative py-2.5 px-3 rounded-2xl text-left transition-all duration-200 border cursor-pointer flex items-center justify-between gap-2 shadow-xs ${
+                        isSelected
+                          ? 'bg-emerald-700 text-white border-emerald-500 ring-2 ring-emerald-400/50 shadow-md font-bold'
+                          : 'bg-white hover:bg-emerald-50/50 text-navy border-gray-200 hover:border-emerald-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base shrink-0">{range.icon}</span>
+                        <div className="min-w-0">
+                          <div className={`text-xs font-bold truncate leading-tight ${isSelected ? 'text-white' : 'text-navy'}`}>
+                            {range.shortLabel}
+                          </div>
+                          <div className={`text-[10px] truncate ${isSelected ? 'text-emerald-100' : 'text-gray-400'}`}>
+                            {range.sublabel}
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
+                          isSelected
+                            ? 'bg-white text-emerald-800'
+                            : 'bg-slate-100 text-gray-600'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Active Search & Result Summary Bar */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 max-w-4xl mx-auto px-2">
+              <span className="font-medium flex items-center flex-wrap gap-1.5">
+                {selectedGalleryCategory !== 'Semua' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-navy text-cyan text-[11px] font-bold">
+                    <span>Kategori:</span>
+                    <span>{galleryCategories.find((c) => c.id === selectedGalleryCategory)?.label || selectedGalleryCategory}</span>
+                  </span>
+                )}
+                {selectedGalleryPriceRange !== 'all' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-700 text-white text-[11px] font-bold">
+                    <span>Tarif:</span>
+                    <span>{galleryPriceRanges.find((r) => r.id === selectedGalleryPriceRange)?.label || selectedGalleryPriceRange}</span>
+                  </span>
+                )}
+                {gallerySearchQuery ? (
+                  <span>
+                    Ditemukan <strong className="text-navy">{filteredProjects.length}</strong> proyek untuk pencarian &ldquo;<span className="text-orange font-semibold">{gallerySearchQuery}</span>&rdquo;
+                  </span>
+                ) : (
+                  <span>
+                    Menampilkan <strong className="text-navy">{filteredProjects.length}</strong> dari {galleryProjects.length} foto dokumentasi proyek
+                  </span>
+                )}
+              </span>
+
+              {(gallerySearchQuery || selectedGalleryCategory !== 'Semua' || selectedGalleryPriceRange !== 'all') && (
                 <button
-                  key={category}
-                  onClick={() => setSelectedGalleryCategory(category)}
-                  className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 ${
-                    selectedGalleryCategory === category
-                      ? 'bg-navy text-white shadow-md'
-                      : 'bg-slate-100 text-gray-600 hover:bg-slate-200'
-                  }`}
+                  type="button"
+                  onClick={() => {
+                    setGallerySearchQuery('');
+                    setSelectedGalleryCategory('Semua');
+                    setSelectedGalleryPriceRange('all');
+                  }}
+                  className="text-xs font-semibold text-orange hover:text-orange-dark underline cursor-pointer flex items-center gap-1"
                 >
-                  {category}
+                  <span>✕</span>
+                  <span>Reset Semua Filter & Pencarian</span>
                 </button>
-              ))}
+              )}
             </div>
           </div>
 
-          {/* Responsive Gallery Grid with Hover Zoom Effect */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {filteredProjects.map((project, index) => (
-              <div
-                key={project.id}
-                onClick={() => setLightboxIndex(index)}
-                className="group relative overflow-hidden rounded-3xl bg-slate-900 shadow-md hover:shadow-2xl transition-all duration-500 cursor-pointer aspect-[4/3] border border-gray-100"
-              >
-                {/* Image with Hover Zoom */}
-                <img
-                  src={project.image}
-                  alt={project.title}
-                  className="w-full h-full object-cover transform transition-transform duration-700 ease-out group-hover:scale-115 group-hover:rotate-0.5"
-                  loading="lazy"
-                />
+          {/* Executive Gallery Projects Summary Row */}
+          <div className="mt-8 mb-8 p-4 sm:p-6 bg-gradient-to-r from-navy-dark via-navy to-slate-900 text-white rounded-3xl border border-white/10 shadow-xl relative overflow-hidden">
+            {/* Subtle background glow effects */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-cyan/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-                {/* Dark Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/40 to-transparent opacity-80 group-hover:opacity-95 transition-opacity duration-300" />
+            {/* Summary Row Header: Title & Sort Toggle Button */}
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pb-3.5 mb-4 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-cyan tracking-wider uppercase flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan animate-pulse"></span>
+                  <span>Ringkasan Eksekutif & Statistik Proyek</span>
+                </span>
+                <span className="text-[11px] text-gray-400 hidden lg:inline">
+                  • PT Kusuma Gemilang Raya
+                </span>
+              </div>
 
-                {/* Top Floating Badge & Zoom Icon */}
-                <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-navy/80 backdrop-blur-md text-cyan border border-cyan/30">
-                    {project.tag}
-                  </span>
-                  <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md text-white flex items-center justify-center transform transition-transform duration-300 group-hover:scale-110 group-hover:bg-orange shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-                    </svg>
-                  </div>
+              {/* Toggle Button: Sort by 'Most Recent' or 'Oldest' */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-300 font-medium hidden sm:inline">
+                  Urutan Proyek:
+                </span>
+                <div className="inline-flex p-1 bg-white/10 rounded-2xl border border-white/15 backdrop-blur-sm shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setGallerySortOrder('newest')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer ${
+                      gallerySortOrder === 'newest'
+                        ? 'bg-cyan text-navy shadow-md ring-1 ring-white/30'
+                        : 'text-gray-300 hover:text-white'
+                    }`}
+                    title="Urutkan proyek dari yang paling baru ditambahkan (Most Recent)"
+                  >
+                    <span>🕒</span>
+                    <span>Terkini (Most Recent)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGallerySortOrder('oldest')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 cursor-pointer ${
+                      gallerySortOrder === 'oldest'
+                        ? 'bg-amber-400 text-navy shadow-md ring-1 ring-white/30'
+                        : 'text-gray-300 hover:text-white'
+                    }`}
+                    title="Urutkan proyek dari yang paling awal ditambahkan (Oldest)"
+                  >
+                    <span>⏳</span>
+                    <span>Terlama (Oldest)</span>
+                  </button>
                 </div>
+              </div>
+            </div>
 
-                {/* Bottom Content info */}
-                <div className="absolute bottom-0 inset-x-0 p-6 z-10 transform transition-transform duration-300">
-                  <div className="flex items-center text-xs text-orange font-semibold mb-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>{project.location}</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-white group-hover:text-cyan-light transition leading-snug mb-2">
-                    {project.title}
-                  </h3>
-                  <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed opacity-90 group-hover:opacity-100 transition">
-                    {project.description}
-                  </p>
-                  <div className="mt-3 flex items-center text-xs font-semibold text-cyan-light opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <span>Lihat Ukuran Penuh</span>
-                    <span className="ml-1">🔍</span>
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 items-center">
+              {/* Stat 1: Total Projects */}
+              <div className="md:col-span-3 flex items-center gap-3.5 bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10">
+                <div className="w-12 h-12 rounded-2xl bg-cyan/20 text-cyan flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                  📸
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
+                    Total Proyek
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-white">
+                    {filteredProjects.length}{' '}
+                    <span className="text-xs font-semibold text-cyan-light">
+                      {filteredProjects.length === galleryProjects.length
+                        ? 'Dokumentasi'
+                        : `dari ${galleryProjects.length}`}
+                    </span>
                   </div>
                 </div>
               </div>
-            ))}
+
+              {/* Stat 2: Average Estimated Cost */}
+              <div className="md:col-span-4 flex items-center gap-3.5 bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                  💰
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
+                    Rata-Rata Estimasi Biaya
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-300">
+                    {galleryAverageCost > 0 ? formatRupiah(galleryAverageCost) : 'Rp 0'}
+                  </div>
+                  <span className="text-[10px] text-gray-400 block mt-0.5">
+                    Tarif transparan per layanan di Bekasi
+                  </span>
+                </div>
+              </div>
+
+              {/* Stat 3: Breakdown Counts by Category */}
+              <div className="md:col-span-5 bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
+                    Komposisi Kategori Proyek:
+                  </span>
+                  <span className="text-[10px] text-cyan-light font-medium">
+                    (Pilih untuk filter)
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedGalleryCategory(
+                        selectedGalleryCategory === 'Sedot WC' ? 'Semua' : 'Sedot WC'
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${
+                      selectedGalleryCategory === 'Sedot WC'
+                        ? 'bg-cyan text-navy shadow-md ring-2 ring-cyan/40 scale-105'
+                        : 'bg-white/10 hover:bg-white/20 text-cyan-light border border-white/10'
+                    }`}
+                    title="Filter proyek Sedot WC & Septic Tank (klik lagi untuk reset)"
+                  >
+                    <span>🚽</span>
+                    <span>{galleryCategoryCounts.sedotWc} Sedot WC</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedGalleryCategory(
+                        selectedGalleryCategory === 'Limbah Industri' ? 'Semua' : 'Limbah Industri'
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${
+                      selectedGalleryCategory === 'Limbah Industri'
+                        ? 'bg-indigo-400 text-navy shadow-md ring-2 ring-indigo-300/40 scale-105'
+                        : 'bg-white/10 hover:bg-white/20 text-indigo-200 border border-white/10'
+                    }`}
+                    title="Filter proyek Industri & STP (klik lagi untuk reset)"
+                  >
+                    <span>🏭</span>
+                    <span>{galleryCategoryCounts.industri} Industri</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedGalleryCategory(
+                        selectedGalleryCategory === 'Pelancaran Pipa' ? 'Semua' : 'Pelancaran Pipa'
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${
+                      selectedGalleryCategory === 'Pelancaran Pipa'
+                        ? 'bg-amber-400 text-navy shadow-md ring-2 ring-amber-300/40 scale-105'
+                        : 'bg-white/10 hover:bg-white/20 text-amber-200 border border-white/10'
+                    }`}
+                    title="Filter proyek Pelancaran Pipa Mampet (klik lagi untuk reset)"
+                  >
+                    <span>🔧</span>
+                    <span>{galleryCategoryCounts.pelancaranPipa} Pelancaran Pipa</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedGalleryCategory(
+                        selectedGalleryCategory === 'Grease Trap' ? 'Semua' : 'Grease Trap'
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition cursor-pointer ${
+                      selectedGalleryCategory === 'Grease Trap'
+                        ? 'bg-emerald-400 text-navy shadow-md ring-2 ring-emerald-300/40 scale-105'
+                        : 'bg-white/10 hover:bg-white/20 text-emerald-200 border border-white/10'
+                    }`}
+                    title="Filter proyek Grease Trap Restoran (klik lagi untuk reset)"
+                  >
+                    <span>🍳</span>
+                    <span>{galleryCategoryCounts.greaseTrap} Grease Trap</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* Responsive Gallery Grid with Hover Zoom Effect or Empty Search State */}
+          {filteredProjects.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {filteredProjects.map((project, index) => {
+                const pComments = projectComments.filter((c) => c.projectId === project.id);
+                const reviewsWithRating = pComments.filter((c) => c.type === 'review' && c.rating);
+                const avgRating =
+                  reviewsWithRating.length > 0
+                    ? (
+                        reviewsWithRating.reduce((acc, curr) => acc + (curr.rating || 5), 0) /
+                        reviewsWithRating.length
+                      ).toFixed(1)
+                    : null;
+
+                return (
+                  <div
+                    key={project.id}
+                    onClick={() => setLightboxIndex(index)}
+                    className="group relative overflow-hidden rounded-3xl bg-slate-900 shadow-md hover:shadow-2xl transition-all duration-500 cursor-pointer aspect-[4/3] border border-gray-100 flex flex-col justify-end"
+                  >
+                    {/* Image with Hover Zoom */}
+                    <img
+                      src={project.image}
+                      alt={project.title}
+                      className="absolute inset-0 w-full h-full object-cover transform transition-transform duration-700 ease-out group-hover:scale-115 group-hover:rotate-0.5"
+                      loading="lazy"
+                    />
+
+                    {/* Dark Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/50 to-transparent opacity-85 group-hover:opacity-95 transition-opacity duration-300" />
+
+                    {/* Top Floating Badge & Action Buttons */}
+                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const matched =
+                            project.category.includes('Sedot WC') ? 'Sedot WC' :
+                            project.category.includes('Limbah Industri') ? 'Limbah Industri' :
+                            project.category.includes('Pelancaran Pipa') ? 'Pelancaran Pipa' :
+                            project.category.includes('Grease Trap') ? 'Grease Trap' : project.category;
+                          setSelectedGalleryCategory(matched);
+                        }}
+                        title={`Filter hanya kategori: ${project.category}`}
+                        className="px-3 py-1 rounded-full text-xs font-bold bg-navy/80 hover:bg-cyan hover:text-navy backdrop-blur-md text-cyan border border-cyan/30 transition cursor-pointer shadow-xs"
+                      >
+                        {project.tag}
+                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {/* Quick Quote Top Trigger */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveQuickQuoteProject(project);
+                          }}
+                          className="px-2.5 py-1 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-navy transition shadow-sm flex items-center gap-1 cursor-pointer z-10"
+                          title="Buka Quick Quote & Kalkulator Estimasi Biaya"
+                        >
+                          <span>⚡</span>
+                          <span>Quote</span>
+                        </button>
+                        {/* Direct Comment Trigger Pill */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveCommentProject(project);
+                          }}
+                          className="px-2.5 py-1 rounded-full text-xs font-bold bg-navy/80 hover:bg-orange text-white backdrop-blur-md border border-white/20 transition shadow-sm flex items-center gap-1 cursor-pointer z-10"
+                          title="Buka komentar dan ulasan proyek ini"
+                        >
+                          <span>💬</span>
+                          <span>{pComments.length}</span>
+                        </button>
+                        <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md text-white flex items-center justify-center transform transition-transform duration-300 group-hover:scale-110 group-hover:bg-orange shadow-sm">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Content info */}
+                    <div className="relative p-5 sm:p-6 z-10 transform transition-transform duration-300">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <div className="flex items-center text-orange font-semibold">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span>{project.location}</span>
+                        </div>
+                        {avgRating && (
+                          <span className="text-amber-300 font-bold text-[11px] bg-black/40 px-2 py-0.5 rounded-full border border-amber-300/30">
+                            ⭐ {avgRating} ({reviewsWithRating.length})
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-cyan-light transition leading-snug mb-1 line-clamp-1">
+                        {project.title}
+                      </h3>
+                      {/* Price Estimate & Date Added Row */}
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-400/30 backdrop-blur-sm">
+                          <span>💰 Estimasi:</span>
+                          <span className="text-white font-bold">{project.estimatedCost}</span>
+                        </span>
+                        {project.dateAdded && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 hover:bg-white/20 text-cyan-light border border-white/15 backdrop-blur-sm shadow-xs transition"
+                            title={`Tanggal Ditambahkan: ${project.dateAdded}`}
+                          >
+                            <span>📅</span>
+                            <span>{project.dateAdded}</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed opacity-90 group-hover:opacity-100 transition">
+                        {project.description}
+                      </p>
+
+                      {/* Card Footer Actions: Quick Quote, Comments & Lightbox */}
+                      <div className="mt-3 pt-2.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Quick Quote Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveQuickQuoteProject(project);
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-black bg-amber-400 hover:bg-amber-300 text-navy transition cursor-pointer shadow-sm text-xs group/qq"
+                            title="Buka kalkulator estimasi biaya penawaran instan"
+                          >
+                            <span className="text-sm">⚡</span>
+                            <span>Quick Quote</span>
+                          </button>
+
+                          {/* Comments Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveCommentProject(project);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold bg-white/20 hover:bg-cyan hover:text-navy text-white backdrop-blur-md border border-white/20 transition cursor-pointer shadow-xs text-xs"
+                          >
+                            <span>💬</span>
+                            <span>{pComments.length} Tanya</span>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center font-semibold text-cyan-light opacity-90 group-hover:opacity-100 transition text-[11px]">
+                          <span>Zoom Foto 🔍</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-16 px-4 bg-slate-50 border border-dashed border-gray-200 rounded-3xl max-w-xl mx-auto my-6 animate-in fade-in">
+              <div className="w-16 h-16 rounded-full bg-orange/10 text-orange flex items-center justify-center text-3xl mx-auto mb-4">
+                🔍
+              </div>
+              <h3 className="text-lg font-bold text-navy mb-1">
+                Tidak Ada Proyek yang Cocok
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-500 mb-5 max-w-md mx-auto leading-relaxed">
+                Tidak ditemukan proyek yang cocok
+                {gallerySearchQuery && <span> dengan kata kunci &ldquo;<strong className="text-navy">{gallerySearchQuery}</strong>&rdquo;</span>}
+                {selectedGalleryCategory !== 'Semua' && <span> pada kategori &ldquo;<strong className="text-navy">{galleryCategories.find((c) => c.id === selectedGalleryCategory)?.label || selectedGalleryCategory}</strong>&rdquo;</span>}
+                {selectedGalleryPriceRange !== 'all' && <span> dengan rentang tarif &ldquo;<strong className="text-navy">{galleryPriceRanges.find((r) => r.id === selectedGalleryPriceRange)?.label}</strong>&rdquo;</span>}.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+                <span className="text-xs text-gray-500 font-semibold w-full block text-center mb-1">Coba pilih rentang harga lain:</span>
+                {galleryPriceRanges.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setSelectedGalleryPriceRange(r.id)}
+                    className={`px-2.5 py-1 rounded-xl border text-xs font-semibold shadow-xs transition cursor-pointer flex items-center gap-1 ${
+                      selectedGalleryPriceRange === r.id
+                        ? 'bg-emerald-700 text-white border-emerald-700'
+                        : 'bg-white border-gray-200 hover:border-emerald-500 text-navy hover:text-emerald-700'
+                    }`}
+                  >
+                    <span>{r.icon}</span>
+                    <span>{r.shortLabel}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setGallerySearchQuery('');
+                  setSelectedGalleryCategory('Semua');
+                  setSelectedGalleryPriceRange('all');
+                }}
+                className="px-5 py-2.5 bg-navy hover:bg-navy-light text-white font-bold text-xs rounded-xl shadow-sm transition cursor-pointer"
+              >
+                Tampilkan Semua Foto Proyek
+              </button>
+            </div>
+          )}
 
           {/* Quick CTA Bottom of Gallery */}
           <div className="mt-12 text-center bg-slate-50 p-6 md:p-8 rounded-3xl border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 max-w-4xl mx-auto">
@@ -6814,24 +7711,84 @@ export default function App() {
                   </svg>
                   <span>{filteredProjects[lightboxIndex].location}</span>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-1">
+                <h3 className="text-xl font-bold text-white mb-1.5">
                   {filteredProjects[lightboxIndex].title}
                 </h3>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
+                    <span>💰 Estimasi Biaya:</span>
+                    <span className="text-white font-bold">{filteredProjects[lightboxIndex].estimatedCost}</span>
+                  </span>
+                  {filteredProjects[lightboxIndex].dateAdded && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-cyan-light border border-white/20">
+                      <span>📅 Ditambahkan:</span>
+                      <span className="text-white font-bold">{filteredProjects[lightboxIndex].dateAdded}</span>
+                    </span>
+                  )}
+                  <span className="text-[11px] text-gray-300">
+                    (Tarif Transparan • Bebas Pungutan Liar)
+                  </span>
+                </div>
                 <p className="text-sm text-gray-300 leading-relaxed">
                   {filteredProjects[lightboxIndex].description}
                 </p>
               </div>
-              <a
-                href={`https://wa.me/6289675064916?text=${encodeURIComponent(`Halo PT Kusuma Gemilang Raya, saya melihat foto proyek "${filteredProjects[lightboxIndex].title}" di galeri dan ingin konsultasi kebutuhan sanitasi serupa di lokasi saya.`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-6 py-3 bg-orange text-white font-bold rounded-xl hover:bg-orange-dark transition shadow-lg whitespace-nowrap flex items-center"
-              >
-                Tanya Layanan Ini via WA
-              </a>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveQuickQuoteProject(filteredProjects[lightboxIndex])}
+                  className="px-5 py-3 bg-amber-400 hover:bg-amber-300 text-navy font-black rounded-xl transition whitespace-nowrap flex items-center gap-2 text-sm shadow-md cursor-pointer"
+                >
+                  <span>⚡</span>
+                  <span>Quick Quote Kalkulator</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveCommentProject(filteredProjects[lightboxIndex])}
+                  className="px-5 py-3 bg-white/15 hover:bg-white/25 text-white font-bold rounded-xl transition border border-white/20 whitespace-nowrap flex items-center gap-2 text-sm shadow-sm cursor-pointer"
+                >
+                  <span>💬</span>
+                  <span>
+                    Komentar & Tanya (
+                    {projectComments.filter((c) => c.projectId === filteredProjects[lightboxIndex]?.id).length}
+                    )
+                  </span>
+                </button>
+                <a
+                  href={`https://wa.me/6289675064916?text=${encodeURIComponent(`Halo PT Kusuma Gemilang Raya, saya melihat foto proyek "${filteredProjects[lightboxIndex].title}" (Estimasi Biaya: ${filteredProjects[lightboxIndex].estimatedCost}) di galeri dan ingin konsultasi kebutuhan sanitasi serupa di lokasi saya.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 bg-orange text-white font-bold rounded-xl hover:bg-orange-dark transition shadow-lg whitespace-nowrap flex items-center"
+                >
+                  Tanya Layanan Ini via WA
+                </a>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Quick Quote Kalkulator Biaya Proyek Galeri */}
+      {activeQuickQuoteProject && (
+        <QuickQuoteCalculatorModal
+          project={activeQuickQuoteProject}
+          isOpen={activeQuickQuoteProject !== null}
+          onClose={() => setActiveQuickQuoteProject(null)}
+          onToast={triggerToast}
+        />
+      )}
+
+      {/* Modal Komentar & Ulasan Proyek Galeri */}
+      {activeCommentProject && (
+        <ProjectCommentsModal
+          project={activeCommentProject}
+          comments={projectComments}
+          isOpen={activeCommentProject !== null}
+          onClose={() => setActiveCommentProject(null)}
+          onAddComment={handleAddProjectComment}
+          onToggleLike={handleToggleCommentLike}
+          onToast={triggerToast}
+        />
       )}
 
       {/* Testimoni Section dengan Sistem Rating Bintang & Nilai Kepuasan Kuantitatif */}
@@ -9188,6 +10145,36 @@ export default function App() {
                   </button>
                 </div>
 
+                {/* Status Filter Tab */}
+                <div className="flex items-center bg-gray-200/60 p-1 rounded-xl text-xs font-bold">
+                  <button
+                    onClick={() => setSubscriberStatusFilter('Semua')}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                      subscriberStatusFilter === 'Semua' ? 'bg-white text-navy shadow-sm' : 'text-gray-600 hover:text-navy'
+                    }`}
+                  >
+                    Semua Status
+                  </button>
+                  <button
+                    onClick={() => setSubscriberStatusFilter('Aktif')}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                      subscriberStatusFilter === 'Aktif' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-600 hover:text-navy'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${subscriberStatusFilter === 'Aktif' ? 'bg-white' : 'bg-emerald-500'}`}></span>
+                    <span>Aktif</span>
+                  </button>
+                  <button
+                    onClick={() => setSubscriberStatusFilter('Terkonfirmasi')}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                      subscriberStatusFilter === 'Terkonfirmasi' ? 'bg-cyan-dark text-white shadow-sm' : 'text-gray-600 hover:text-navy'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${subscriberStatusFilter === 'Terkonfirmasi' ? 'bg-white' : 'bg-cyan'}`}></span>
+                    <span>Terkonfirmasi</span>
+                  </button>
+                </div>
+
                 {/* Privacy Mask Toggle */}
                 <button
                   onClick={() => setIsMaskEmail(!isMaskEmail)}
@@ -10201,6 +11188,19 @@ export default function App() {
                       </button>
                     </div>
                   )}
+                  {subscriberStatusFilter !== 'Semua' && (
+                    <div className="flex items-center gap-1.5 text-xs text-navy bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                      <span>Status:</span>
+                      <strong className="text-emerald-700 font-extrabold">{subscriberStatusFilter}</strong>
+                      <button
+                        onClick={() => setSubscriberStatusFilter('Semua')}
+                        className="ml-1 text-gray-500 hover:text-navy cursor-pointer font-bold"
+                        title="Hapus filter status"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Toolbar & Filters */}
@@ -10242,6 +11242,42 @@ export default function App() {
                       >
                         Residensial
                       </button>
+                    </div>
+
+                    {/* Status Filter: Semua, Aktif, Terkonfirmasi */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-gray-500">Status:</span>
+                      <div className="flex items-center bg-gray-200 p-1 rounded-xl text-xs font-bold">
+                        <button
+                          type="button"
+                          onClick={() => setSubscriberStatusFilter('Semua')}
+                          className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                            subscriberStatusFilter === 'Semua' ? 'bg-white text-navy shadow-xs' : 'text-gray-600 hover:text-navy'
+                          }`}
+                        >
+                          Semua ({subscribersList.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSubscriberStatusFilter('Aktif')}
+                          className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                            subscriberStatusFilter === 'Aktif' ? 'bg-emerald-600 text-white shadow-xs' : 'text-gray-600 hover:text-navy'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${subscriberStatusFilter === 'Aktif' ? 'bg-white' : 'bg-emerald-500'}`}></span>
+                          <span>Aktif ({subscribersList.filter((s) => s.status === 'Aktif').length})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSubscriberStatusFilter('Terkonfirmasi')}
+                          className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                            subscriberStatusFilter === 'Terkonfirmasi' ? 'bg-cyan-dark text-white shadow-xs' : 'text-gray-600 hover:text-navy'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${subscriberStatusFilter === 'Terkonfirmasi' ? 'bg-white' : 'bg-cyan'}`}></span>
+                          <span>Terkonfirmasi ({subscribersList.filter((s) => s.status === 'Terkonfirmasi').length})</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -10298,12 +11334,13 @@ export default function App() {
                         <th className="py-3 px-4">Segmen</th>
                         <th className="py-3 px-4">Waktu</th>
                         <th className="py-3 px-4">Sumber Kanal</th>
+                        <th className="py-3 px-4">Status Validasi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {filteredSubscribers.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-gray-400">
+                          <td colSpan={7} className="py-8 text-center text-gray-400">
                             Tidak ada subscriber yang cocok dengan filter yang dipilih.
                           </td>
                         </tr>
@@ -10331,6 +11368,22 @@ export default function App() {
                                 <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200 inline-flex items-center gap-1.5">
                                   <span>{meta.icon}</span>
                                   <span>{item.source}</span>
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1.5 border shadow-xs ${
+                                    item.status === 'Aktif'
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                      : 'bg-cyan/15 text-cyan-dark border-cyan/30'
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      item.status === 'Aktif' ? 'bg-emerald-500' : 'bg-cyan-dark'
+                                    }`}
+                                  ></span>
+                                  <span>{item.status}</span>
                                 </span>
                               </td>
                             </tr>
