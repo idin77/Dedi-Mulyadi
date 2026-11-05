@@ -675,6 +675,20 @@ export default function App() {
   const [copiedHubAddress, setCopiedHubAddress] = useState<string | null>(null);
   const [isExportingMapPng, setIsExportingMapPng] = useState(false);
   const [isMapPrintPreviewOpen, setIsMapPrintPreviewOpen] = useState(false);
+  const [isWasteDensityLayerActive, setIsWasteDensityLayerActive] = useState(false);
+  const [selectedDensityZoneId, setSelectedDensityZoneId] = useState<string | null>(null);
+  const [wasteDensityFilter, setWasteDensityFilter] = useState<'Semua' | 'Kritis' | 'Waspada' | 'Normal'>('Semua');
+  const [isDensityLegendExpanded, setIsDensityLegendExpanded] = useState(true);
+  
+  // Real-Time Fleet Tracking States (Pelacakan Armada Real-Time Live GPS)
+  const [isFleetTrackingActive, setIsFleetTrackingActive] = useState(true);
+  const [selectedTruckId, setSelectedTruckId] = useState<string | null>(null);
+  const [truckSearchQuery, setTruckSearchQuery] = useState('');
+  const [truckStatusFilter, setTruckStatusFilter] = useState<'Semua' | 'Menuju Lokasi' | 'Proses Sedot' | 'Menuju IPLT' | 'Standby'>('Semua');
+  const [copiedTrackingOrder, setCopiedTrackingOrder] = useState<string | null>(null);
+  const [telemetryTick, setTelemetryTick] = useState(0);
+  const [isLiveFleetSearchOpen, setIsLiveFleetSearchOpen] = useState(false);
+
   const hubCardRef = useRef<HTMLDivElement>(null);
   const [selectedBlogCategory, setSelectedBlogCategory] = useState('Semua');
   const [activeArticleModal, setActiveArticleModal] = useState<number | null>(null);
@@ -743,7 +757,7 @@ export default function App() {
       name: 'Bambang Prasetyo',
       company: 'PT Astra Visteon Indonesia (Cikarang)',
       interest: 'komersial',
-      date: '2026-10-09T08:15:00Z',
+      date: '2026-11-04T08:15:00Z',
       formattedDate: 'Hari ini, 08:15',
       status: 'Aktif',
       source: 'Formulir Web B2B',
@@ -754,8 +768,8 @@ export default function App() {
       name: 'Hendra Wijaya',
       company: 'PT Mayora Indah Tbk (Kawasan MM2100)',
       interest: 'komersial',
-      date: '2026-10-09T07:30:00Z',
-      formattedDate: 'Hari ini, 07:30',
+      date: '2026-11-03T14:30:00Z',
+      formattedDate: 'Kemarin, 14:30',
       status: 'Terkonfirmasi',
       source: 'Formulir Web B2B',
     },
@@ -765,8 +779,8 @@ export default function App() {
       name: 'Ibu Ratna Kartika',
       company: 'Cluster Magenta, Summarecon Bekasi',
       interest: 'residensial',
-      date: '2026-10-08T19:40:00Z',
-      formattedDate: 'Kemarin, 19:40',
+      date: '2026-11-01T19:40:00Z',
+      formattedDate: '3 hari lalu',
       status: 'Aktif',
       source: 'Tips Sanitasi Blog',
     },
@@ -776,8 +790,8 @@ export default function App() {
       name: 'Dian Fitriani, S.T.',
       company: 'PT Mattel Indonesia (Jababeka I)',
       interest: 'komersial',
-      date: '2026-10-08T14:12:00Z',
-      formattedDate: 'Kemarin, 14:12',
+      date: '2026-10-29T10:12:00Z',
+      formattedDate: '6 hari lalu',
       status: 'Terkonfirmasi',
       source: 'Portal Quotation RFP',
     },
@@ -787,8 +801,8 @@ export default function App() {
       name: 'dr. Agus Setiawan / GA',
       company: 'RS Hermina Grand Wisata Tambun',
       interest: 'komersial',
-      date: '2026-10-07T11:20:00Z',
-      formattedDate: '2 hari lalu',
+      date: '2026-10-25T11:20:00Z',
+      formattedDate: '10 hari lalu',
       status: 'Aktif',
       source: 'Formulir Web B2B',
     },
@@ -798,8 +812,8 @@ export default function App() {
       name: 'Bpk. Faisal Ridwan',
       company: 'Grand Galaxy City Blok EB',
       interest: 'residensial',
-      date: '2026-10-07T09:15:00Z',
-      formattedDate: '2 hari lalu',
+      date: '2026-10-20T09:15:00Z',
+      formattedDate: '15 hari lalu',
       status: 'Terkonfirmasi',
       source: 'Kalkulator Biaya',
     },
@@ -809,8 +823,8 @@ export default function App() {
       name: 'Eko Suprayitno',
       company: 'PT Denso Indonesia (EJIP Cikarang)',
       interest: 'komersial',
-      date: '2026-10-06T16:45:00Z',
-      formattedDate: '3 hari lalu',
+      date: '2026-10-15T16:45:00Z',
+      formattedDate: '20 hari lalu',
       status: 'Aktif',
       source: 'Formulir Web B2B',
     },
@@ -820,8 +834,8 @@ export default function App() {
       name: 'Suryadi Wardhana',
       company: 'MM2100 Industrial Estate Management',
       interest: 'komersial',
-      date: '2026-10-05T10:05:00Z',
-      formattedDate: '4 hari lalu',
+      date: '2026-10-08T10:05:00Z',
+      formattedDate: '27 hari lalu',
       status: 'Terkonfirmasi',
       source: 'Formulir Web B2B',
     },
@@ -831,8 +845,8 @@ export default function App() {
       name: 'Ibu Nurul Hidayati',
       company: 'Kota Harapan Indah Cluster Samata',
       interest: 'residensial',
-      date: '2026-10-04T13:20:00Z',
-      formattedDate: '5 hari lalu',
+      date: '2026-09-28T13:20:00Z',
+      formattedDate: '37 hari lalu',
       status: 'Aktif',
       source: 'Tips Sanitasi Blog',
     },
@@ -842,8 +856,8 @@ export default function App() {
       name: 'Denny Kusuma',
       company: 'Marunda Center Logistics Hub',
       interest: 'komersial',
-      date: '2026-10-03T15:30:00Z',
-      formattedDate: '6 hari lalu',
+      date: '2026-09-15T15:30:00Z',
+      formattedDate: '50 hari lalu',
       status: 'Terkonfirmasi',
       source: 'Formulir Web B2B',
     },
@@ -890,7 +904,9 @@ export default function App() {
   const [subscriberCategoryFilter, setSubscriberCategoryFilter] = useState<'Semua' | 'komersial' | 'residensial'>('Semua');
   const [subscriberSourceFilter, setSubscriberSourceFilter] = useState<string>('Semua');
   const [subscriberStatusFilter, setSubscriberStatusFilter] = useState<'Semua' | 'Aktif' | 'Terkonfirmasi'>('Semua');
-  const [subscriberTimeRange, setSubscriberTimeRange] = useState<'Semua Waktu' | '30 Hari' | 'Bulan Ini' | 'Kuartal Ini'>('Semua Waktu');
+  const [subscriberTimeRange, setSubscriberTimeRange] = useState<'Semua Waktu' | 'Mingguan' | 'Bulanan' | 'Kuartal' | 'Kustom'>('Semua Waktu');
+  const [subscriberCustomStartDate, setSubscriberCustomStartDate] = useState('');
+  const [subscriberCustomEndDate, setSubscriberCustomEndDate] = useState('');
   const [isMaskEmail, setIsMaskEmail] = useState(false);
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
   const [adminNotificationToast, setAdminNotificationToast] = useState<string | null>(null);
@@ -1041,13 +1057,22 @@ export default function App() {
     }
   };
 
-  // Chatbot FAQ State
+  // Chatbot FAQ State & Tender B2B Legality Verification
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [chatInputText, setChatInputText] = useState('');
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [isTenderLegalityModalOpen, setIsTenderLegalityModalOpen] = useState(false);
+  const [tenderChecklistDocs, setTenderChecklistDocs] = useState({
+    nib: false,
+    npwp: false,
+    akta: false,
+    sppkp: false,
+    kak: false,
+  });
+  const [tenderCompanyName, setTenderCompanyName] = useState('');
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
-  const initialChatMessages: {
+  interface ChatMessageItem {
     id: string;
     sender: 'bot' | 'user';
     text: string;
@@ -1055,24 +1080,30 @@ export default function App() {
     options?: string[];
     actionUrl?: string;
     actionLabel?: string;
-  }[] = [
+    isLegalityWarning?: boolean;
+    warningCategory?: 'tender_b2b_missing_docs' | 'tender_b2b_verified';
+    missingDocsList?: string[];
+    hasChecklistCta?: boolean;
+  }
+
+  const initialChatMessages: ChatMessageItem[] = [
     {
       id: 'welcome',
       sender: 'bot',
       text: 'Halo! Selamat datang di Portal Layanan B2B & Korporat PT Kusuma Gemilang Raya 👋\n\nKami melayani pengolahan limbah STP/IPAL, sedot WC komersial, grease trap, dan kontrak berkala untuk PT, Pabrik, Kawasan Industri, Gedung Perkantoran, dan Rumah Sakit di Bekasi.\n\nPilih topik di bawah atau ketik kebutuhan perusahaan Anda:',
       time: 'Baru saja',
       options: [
+        'Pengadaan / Tender B2B (Cek Syarat Dokumen Legalitas)',
         'Prosedur penawaran resmi (Quotation) untuk PT?',
         'Apakah tersedia Faktur Pajak PPN & Manifest IPLT?',
         'Layanan sedot limbah STP & IPAL Pabrik?',
         'Kontrak rutin (SLA) kawasan industri Bekasi?',
         'Berapa estimasi tarif sedot limbah / WC?',
-        'Minta penawaran harga resmi (RFP B2B)',
       ],
     },
   ];
 
-  const [chatMessages, setChatMessages] = useState(initialChatMessages);
+  const [chatMessages, setChatMessages] = useState<ChatMessageItem[]>(initialChatMessages);
 
   // Map Hubs Data
   const mapHubs = [
@@ -1143,6 +1174,359 @@ export default function App() {
       highlightArea: 'Koridor Tambun, Cibitung & Babelan',
     },
   ];
+
+  // Data Historis Layer Kepadatan Limbah (Waste Density & Urgency Heatmap)
+  const wasteDensityZones = [
+    {
+      id: 'zona-cikarang',
+      name: 'Kawasan Industri Cikarang (MM2100, Jababeka, GIIC, EJIP)',
+      shortName: 'Kawasan Industri Cikarang',
+      category: 'Industri & B2B' as const,
+      subdistricts: 'Cikarang Barat, Cikarang Selatan, Cikarang Pusat, Pasirgombong',
+      urgencyLevel: 'Kritis' as const,
+      urgencyScore: 94,
+      color: 'red' as const,
+      monthlyVolume: '3.420 m³ / bulan',
+      historicalOrders: 418,
+      avgFullDays: 14,
+      recommendedCycle: '14 – 30 Hari (Kontrak SLA Rutin)',
+      riskFactor: 'Tinggi (Risiko Bak STP Meluap & Audit DLH KLHK)',
+      coords: { left: '76%', top: '62%' },
+      pulseSize: 'w-48 h-48',
+      hubIndex: 1, // Pos Cikarang
+      hubName: 'Pos Cikarang & Kawasan Industri',
+      slaResponse: '15 - 25 Menit',
+      historicalTrend: '+16.5% Akumulasi',
+      description: 'Konsentrasi limbah cair domestik dan STP industri pabrik manufaktur otomotif, makanan, dan kimia dengan volume ritase tertinggi.',
+    },
+    {
+      id: 'zona-summarecon',
+      name: 'Sentra Kuliner Summarecon & Harapan Indah',
+      shortName: 'Sentra F&B Summarecon & HI',
+      category: 'Komersial & Resto' as const,
+      subdistricts: 'Bekasi Utara, Medan Satria, Boulevard Summarecon, Harapan Indah',
+      urgencyLevel: 'Kritis' as const,
+      urgencyScore: 88,
+      color: 'red' as const,
+      monthlyVolume: '1.820 m³ / bulan',
+      historicalOrders: 236,
+      avgFullDays: 28,
+      recommendedCycle: '30 – 45 Hari (Kuras Lemak Grease Trap)',
+      riskFactor: 'Tinggi (Penyumbatan Lemak Dapur & Bau Menyengat)',
+      coords: { left: '26%', top: '34%' },
+      pulseSize: 'w-40 h-40',
+      hubIndex: 0, // Pool Pusat
+      hubName: 'Pool Pusat & Kota Bekasi',
+      slaResponse: '15 - 20 Menit',
+      historicalTrend: '+12.1% Akumulasi',
+      description: 'Kepadatan tinggi limbah lemak jenuh minyak goreng pada ratusan tenant restoran, kafe, dan sentra kuliner modern.',
+    },
+    {
+      id: 'zona-tambun',
+      name: 'Koridor Padat Tambun Selatan & Cibitung',
+      shortName: 'Koridor Tambun & Cibitung',
+      category: 'Residensial' as const,
+      subdistricts: 'Tambun Selatan, Cibitung, Wanasari, Mangunjaya',
+      urgencyLevel: 'Waspada' as const,
+      urgencyScore: 74,
+      color: 'amber' as const,
+      monthlyVolume: '2.140 m³ / bulan',
+      historicalOrders: 284,
+      avgFullDays: 90,
+      recommendedCycle: '3 – 6 Bulan',
+      riskFactor: 'Sedang (Akses Gang Sempit & Rembesan Air Tanah)',
+      coords: { left: '50%', top: '48%' },
+      pulseSize: 'w-44 h-44',
+      hubIndex: 2, // Pos Tambun
+      hubName: 'Pos Tambun, Cibitung & Pantura',
+      slaResponse: '20 - 30 Menit',
+      historicalTrend: '+8.4% Akumulasi',
+      description: 'Zona pemukiman terpadat di Kabupaten Bekasi dengan frekuensi keluhan kloset mampet dan septic tank meluap saat musim hujan.',
+    },
+    {
+      id: 'zona-galaxy',
+      name: 'Pusat Bisnis Grand Galaxy & Ruko Ahmad Yani',
+      shortName: 'Pusat Ruko Galaxy & Yani',
+      category: 'Komersial & Resto' as const,
+      subdistricts: 'Bekasi Selatan, Pekayon Jaya, Jaka Setia, Ahmad Yani',
+      urgencyLevel: 'Waspada' as const,
+      urgencyScore: 68,
+      color: 'amber' as const,
+      monthlyVolume: '1.450 m³ / bulan',
+      historicalOrders: 172,
+      avgFullDays: 90,
+      recommendedCycle: '6 Bulan',
+      riskFactor: 'Sedang (Grease Trap Ruko & Septic Tank Kantor)',
+      coords: { left: '22%', top: '48%' },
+      pulseSize: 'w-36 h-36',
+      hubIndex: 0, // Pool Pusat
+      hubName: 'Pool Pusat & Kota Bekasi',
+      slaResponse: '15 - 20 Menit',
+      historicalTrend: '+5.7% Akumulasi',
+      description: 'Ratusan unit ruko komersial, perbankan, dan klinik medis dengan kapasitas bak penampung sedang yang memerlukan kuras berkala.',
+    },
+    {
+      id: 'zona-jatiasih',
+      name: 'Cluster Residensial Jatiasih, Pondok Gede & Mustika Jaya',
+      shortName: 'Cluster Jatiasih & P. Gede',
+      category: 'Residensial' as const,
+      subdistricts: 'Jatiasih, Pondok Gede, Mustika Jaya, Rawalumbu',
+      urgencyLevel: 'Normal' as const,
+      urgencyScore: 42,
+      color: 'emerald' as const,
+      monthlyVolume: '960 m³ / bulan',
+      historicalOrders: 138,
+      avgFullDays: 365,
+      recommendedCycle: '1 – 2 Tahun (Preventif Berkala)',
+      riskFactor: 'Rendah (Pemeliharaan Berkala Terjadwal)',
+      coords: { left: '32%', top: '68%' },
+      pulseSize: 'w-36 h-36',
+      hubIndex: 0, // Pool Pusat
+      hubName: 'Pool Pusat & Kota Bekasi',
+      slaResponse: '15 - 25 Menit',
+      historicalTrend: '+3.2% Stabil',
+      description: 'Kawasan perumahan cluster modern dengan septic tank biofilter dan volume limbah stabil yang mematuhi jadwal kuras teratur.',
+    },
+  ];
+
+  const filteredWasteDensityZones = useMemo(() => {
+    if (wasteDensityFilter === 'Semua') return wasteDensityZones;
+    return wasteDensityZones.filter((z) => z.urgencyLevel === wasteDensityFilter);
+  }, [wasteDensityZones, wasteDensityFilter]);
+
+  const activeDensityZone = useMemo(() => {
+    if (!selectedDensityZoneId) return null;
+    return wasteDensityZones.find((z) => z.id === selectedDensityZoneId) || null;
+  }, [wasteDensityZones, selectedDensityZoneId]);
+
+  // Real-Time Fleet Tracking Telemetry Interval (Update tiap 3 dtk)
+  useEffect(() => {
+    if (!isFleetTrackingActive) return;
+    const interval = setInterval(() => {
+      setTelemetryTick((prev) => (prev + 1) % 1000);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isFleetTrackingActive]);
+
+  interface FleetTruck {
+    id: string;
+    code: string;
+    plate: string;
+    truckModel: string;
+    driverName: string;
+    driverPhone: string;
+    driverPhoneRaw: string;
+    status: 'Menuju Lokasi' | 'Proses Sedot' | 'Menuju IPLT' | 'Standby';
+    statusColor: 'emerald' | 'amber' | 'cyan' | 'slate';
+    currentLocation: string;
+    destination: string;
+    clientName: string;
+    orderNumber: string;
+    tankCapacity: string;
+    tankLevelPercent: number;
+    eta: string;
+    speedKmH: number;
+    baseCoords: { left: number; top: number };
+    heading: number;
+    nearestHubName: string;
+    hubIndex: number;
+    serviceType: string;
+    lastGpsPing: string;
+    waterJetPressure: string;
+    vacuumHoseLength: string;
+  }
+
+  const initialFleetTrucks: FleetTruck[] = [
+    {
+      id: 'TRK-01',
+      code: 'Armada #01 - Heavy Vacuum',
+      plate: 'B 9482 FBA',
+      truckModel: 'Isuzu Giga 6 Wheeler (6.000 L)',
+      driverName: 'Bpk. Mulyadi & Tim 1',
+      driverPhone: '+62 896-7506-4916',
+      driverPhoneRaw: '6289675064916',
+      status: 'Menuju Lokasi',
+      statusColor: 'emerald',
+      currentLocation: 'Jl. Raya Lemahabang KM 3.5, Cikarang',
+      destination: 'Kawasan Industri MM2100 (Blok C)',
+      clientName: 'PT Denso Indonesia',
+      orderNumber: 'KGR-MM2100-881',
+      tankCapacity: '6.000 Liter',
+      tankLevelPercent: 20,
+      eta: '12 Menit lagi',
+      speedKmH: 42,
+      baseCoords: { left: 74, top: 58 },
+      heading: 85,
+      nearestHubName: 'Pos Cikarang & Kawasan Industri',
+      hubIndex: 1,
+      serviceType: 'Sedot STP & Sludge Pabrik B2B',
+      lastGpsPing: 'Baru saja (4G LTE)',
+      waterJetPressure: '250 Bar Super Jetter',
+      vacuumHoseLength: '100 Meter Selang Spiral',
+    },
+    {
+      id: 'TRK-02',
+      code: 'Armada #02 - Resto & Grease Trap',
+      plate: 'B 9120 KGR',
+      truckModel: 'Hino Dutro Suction & Jetting (4.000 L)',
+      driverName: 'Bpk. Hendra & Tim 2',
+      driverPhone: '+62 896-7506-4916',
+      driverPhoneRaw: '6289675064916',
+      status: 'Proses Sedot',
+      statusColor: 'amber',
+      currentLocation: 'Ruko Boulevard Sentra Kuliner Summarecon',
+      destination: 'Restoran Bebek Kaleyo Summarecon',
+      clientName: 'Restoran Bebek Kaleyo',
+      orderNumber: 'KGR-SMR-402',
+      tankCapacity: '4.000 Liter',
+      tankLevelPercent: 75,
+      eta: 'Sedang Bekerja (Sisa ±20 mnt)',
+      speedKmH: 0,
+      baseCoords: { left: 27, top: 35 },
+      heading: 0,
+      nearestHubName: 'Pool Pusat & Kota Bekasi',
+      hubIndex: 0,
+      serviceType: 'Sedot Lemak Minyak Jenuh Grease Trap',
+      lastGpsPing: '5 dtk lalu (PTO Vacuum ON)',
+      waterJetPressure: '200 Bar Rotary Nozzle',
+      vacuumHoseLength: '70 Meter Selang Spiral',
+    },
+    {
+      id: 'TRK-03',
+      code: 'Armada #03 - Tangki Residensial',
+      plate: 'B 9201 WCK',
+      truckModel: 'Isuzu Elf Engkel Spesialis Gang Sempit (3.000 L)',
+      driverName: 'Bpk. Asep & Tim 3',
+      driverPhone: '+62 896-7506-4916',
+      driverPhoneRaw: '6289675064916',
+      status: 'Menuju Lokasi',
+      statusColor: 'emerald',
+      currentLocation: 'Jl. Sultan Hasanudin KM 28, Tambun',
+      destination: 'Perumahan Griya Asri 2 Blok C Tambun',
+      clientName: 'Ibu Nurhasanah (Perumahan)',
+      orderNumber: 'KGR-TMB-314',
+      tankCapacity: '3.000 Liter',
+      tankLevelPercent: 10,
+      eta: '8 Menit lagi',
+      speedKmH: 34,
+      baseCoords: { left: 52, top: 46 },
+      heading: 120,
+      nearestHubName: 'Pos Tambun, Cibitung & Pantura',
+      hubIndex: 2,
+      serviceType: 'Sedot WC Mampet & Kuras Septic Tank',
+      lastGpsPing: 'Baru saja (4G LTE)',
+      waterJetPressure: '180 Bar High Pressure',
+      vacuumHoseLength: '80 Meter Selang Fleksibel',
+    },
+    {
+      id: 'TRK-04',
+      code: 'Armada #04 - Disposal Transporter',
+      plate: 'B 9753 TYU',
+      truckModel: 'Mitsubishi Canter Super Vacuum (5.000 L)',
+      driverName: 'Bpk. Bambang & Tim 4',
+      driverPhone: '+62 896-7506-4916',
+      driverPhoneRaw: '6289675064916',
+      status: 'Menuju IPLT',
+      statusColor: 'cyan',
+      currentLocation: 'Tol JORR Lingkar Luar Jatiasih KM 42',
+      destination: 'Instalasi Pengolahan Limbah Tinja (IPLT) DLH',
+      clientName: 'Manifest Resmi IPLT DLH Kota Bekasi',
+      orderNumber: 'KGR-DSP-109',
+      tankCapacity: '5.000 Liter',
+      tankLevelPercent: 95,
+      eta: '14 Menit ke IPLT',
+      speedKmH: 54,
+      baseCoords: { left: 34, top: 70 },
+      heading: 205,
+      nearestHubName: 'Pool Pusat & Kota Bekasi',
+      hubIndex: 0,
+      serviceType: 'Pembuangan Resmi Manifest KLHK / DLH',
+      lastGpsPing: '2 dtk lalu (Kecepatan Tinggi)',
+      waterJetPressure: 'Standard Vacuum Tank',
+      vacuumHoseLength: '60 Meter Selang',
+    },
+    {
+      id: 'TRK-05',
+      code: 'Armada #05 - Tangki Jumbo B2B Siaga',
+      plate: 'B 9904 BKS',
+      truckModel: 'Hino Ranger 10 Wheeler Tangki Jumbo (10.000 L)',
+      driverName: 'Bpk. Rudi & Tim 5',
+      driverPhone: '+62 896-7506-4916',
+      driverPhoneRaw: '6289675064916',
+      status: 'Standby',
+      statusColor: 'slate',
+      currentLocation: 'Pool Pusat & Kantor Operasional Rawalumbu',
+      destination: 'Standby Siaga Darurat 24 Jam',
+      clientName: 'Siaga Panggilan Darurat Pabrik & Mall',
+      orderNumber: 'KGR-SBY-005',
+      tankCapacity: '10.000 Liter',
+      tankLevelPercent: 0,
+      eta: 'Siaga di Pool (Siap 15 mnt)',
+      speedKmH: 0,
+      baseCoords: { left: 22, top: 50 },
+      heading: 0,
+      nearestHubName: 'Pool Pusat & Kota Bekasi',
+      hubIndex: 0,
+      serviceType: 'Kapasitas Ekstra Besar Proyek & B2B',
+      lastGpsPing: 'Online • Standby Siap Jalan',
+      waterJetPressure: '300 Bar Ultra High Pressure',
+      vacuumHoseLength: '150 Meter Selang Jarak Jauh',
+    },
+  ];
+
+  const liveFleetTrucks = useMemo(() => {
+    return initialFleetTrucks.map((truck, idx) => {
+      const isMoving = truck.status === 'Menuju Lokasi' || truck.status === 'Menuju IPLT';
+      const moveOffsetX = isMoving ? Math.sin((telemetryTick + idx * 2.5) * 0.4) * 1.5 : 0;
+      const moveOffsetY = isMoving ? Math.cos((telemetryTick + idx * 2.5) * 0.4) * 1.2 : 0;
+      const dynamicSpeed = isMoving
+        ? Math.max(20, truck.speedKmH + ((telemetryTick + idx) % 5 - 2) * 2)
+        : truck.speedKmH;
+
+      return {
+        ...truck,
+        coords: {
+          left: `${truck.baseCoords.left + moveOffsetX}%`,
+          top: `${truck.baseCoords.top + moveOffsetY}%`,
+        },
+        currentSpeed: dynamicSpeed,
+        livePingFormatted: isMoving ? 'Live (Sinyal 4G LTE Prima)' : truck.lastGpsPing,
+      };
+    });
+  }, [telemetryTick]);
+
+  const filteredFleetTrucks = useMemo(() => {
+    return liveFleetTrucks.filter((truck) => {
+      if (truckStatusFilter !== 'Semua' && truck.status !== truckStatusFilter) {
+        return false;
+      }
+      if (truckSearchQuery.trim()) {
+        const q = truckSearchQuery.toLowerCase().trim();
+        const matchesPlate = truck.plate.toLowerCase().includes(q);
+        const matchesOrder = truck.orderNumber.toLowerCase().includes(q);
+        const matchesClient = truck.clientName.toLowerCase().includes(q);
+        const matchesDest = truck.destination.toLowerCase().includes(q);
+        const matchesCode = truck.code.toLowerCase().includes(q);
+        const matchesDriver = truck.driverName.toLowerCase().includes(q);
+        return matchesPlate || matchesOrder || matchesClient || matchesDest || matchesCode || matchesDriver;
+      }
+      return true;
+    });
+  }, [liveFleetTrucks, truckStatusFilter, truckSearchQuery]);
+
+  const activeTruck = useMemo(() => {
+    if (!selectedTruckId) return null;
+    return liveFleetTrucks.find((t) => t.id === selectedTruckId) || null;
+  }, [liveFleetTrucks, selectedTruckId]);
+
+  const handleCopyTrackingLink = (truck: FleetTruck) => {
+    const textToCopy = `https://ptkusumagemilangraya.com/#peta?order=${truck.orderNumber}&plate=${encodeURIComponent(truck.plate)}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(textToCopy);
+      setCopiedTrackingOrder(truck.orderNumber);
+      setTimeout(() => setCopiedTrackingOrder(null), 3000);
+    }
+  };
 
   // Calculator State
   const [calcPricePerCubic, setCalcPricePerCubic] = useState(700000);
@@ -3006,12 +3390,99 @@ export default function App() {
       };
     }
 
-    if (q.includes('pt') || q.includes('perusahaan') || q.includes('quotation') || q.includes('penawaran') || q.includes('rfp') || q.includes('kontrak') || q.includes('sla') || q.includes('tender')) {
+    // B2B FAQ: Sanksi / Risiko Hukum Tender Limbah Tanpa Legalitas
+    if (q.includes('sanksi') || (q.includes('tanpa legalitas') && (q.includes('limbah') || q.includes('tender')))) {
+      return {
+        text: '⚖️ Risiko & Sanksi Hukum Tender Limbah Tanpa Dokumen Legalitas:\n1. Strict Liability (UU No. 32/2009 PPLH): Perusahaan penghasil limbah bertanggung jawab mutlak atas limbahnya hingga titik akhir pembuangan berizin IPLT.\n2. Sanksi Pidana & Denda: Mempekerjakan vendor tanpa NIB KBLI 37011 & tanpa Manifest IPLT resmi berisiko pidana 1-3 tahun penjara dan denda s/d Rp 3 Miliar (Pasal 104 UU PPLH).\n3. Pembatalan Tender & Blacklist: Perusahaan terancam gagal audit kepatuhan lingkungan DLH/KLHK jika manifes limbah tidak valid.\n\nOleh karena itu, seluruh tender B2B PT Kusuma Gemilang Raya wajib diverifikasi legalitasnya sebelum penawaran teknis diterbitkan.',
+        actionLabel: 'Verifikasi Dokumen Tender Anda',
+        actionUrl: '#tender-legality-modal',
+        isLegalityWarning: false,
+        warningCategory: undefined,
+        options: [
+          'Saya sudah punya NIB & NPWP PT (Verifikasi Sekarang)',
+          'Lihat profil legalitas resmi PT Kusuma (Vendor)',
+          'Hubungi Legal Officer via WhatsApp',
+        ],
+      };
+    }
+
+    // B2B Tender / Procurement / Pengadaan Detection
+    const isTenderQuery =
+      q.includes('tender') ||
+      q.includes('lelang') ||
+      q.includes('procurement') ||
+      q.includes('eproc') ||
+      q.includes('e-proc') ||
+      q.includes('pengadaan') ||
+      q.includes('seleksi vendor') ||
+      q.includes('rekanan tender') ||
+      q.includes('b2b tender') ||
+      q.includes('kak') ||
+      q.includes('tor tender');
+
+    const hasLegalityDocsMentioned =
+      q.includes('nib') ||
+      q.includes('npwp') ||
+      q.includes('akta') ||
+      q.includes('sppkp') ||
+      q.includes('kemenkumham') ||
+      q.includes('legalitas lengkap') ||
+      q.includes('lampiran legalitas') ||
+      q.includes('siup') ||
+      q.includes('tdp') ||
+      q.includes('dokumen lengkap') ||
+      q.includes('izin lengkap') ||
+      q.includes('berkas lengkap') ||
+      q.includes('dokumen terlampir') ||
+      q.includes('sudah ada legalitas');
+
+    // Skenario 1: Klien menanyakan tender B2B tetapi TIDAK menyertakan/menyebutkan dokumen legalitas
+    if (isTenderQuery && !hasLegalityDocsMentioned) {
+      return {
+        text: '⚠️ PERINGATAN KEPATUHAN: Dokumen Legalitas Tender B2B Belum Disertakan\n\nKami mendeteksi Anda mengajukan pertanyaan atau permintaan pengadaan terkait TENDER / PROYEK B2B.\n\nSesuai SOP Good Corporate Governance & Regulasi Kepatuhan Lingkungan (KLHK RI & Dinas Lingkungan Hidup), setiap proses tender resmi pengolahan limbah STP/IPAL/Sedot WC komersial MEWAJIBKAN kelengkapan dokumen legalitas perusahaan sebelum penawaran teknis, BAST, dan kontrak SLA dapat diterbitkan.\n\n📋 Dokumen Wajib yang Belum Terverifikasi:\n1. NIB (Nomor Induk Berusaha) OSS RBA KBLI 37011 / 37022\n2. NPWP PT & SPPKP (Status Pengusaha Kena Pajak untuk e-Faktur PPN)\n3. Akta Pendirian PT & SK Pengesahan Kemenkumham RI\n4. KAK / TOR Spesifikasi Estimasi Volume Limbah (m³)\n5. Surat Minat Pengadaan Resmi (Letter of Intent)',
+        actionLabel: 'Buka Checklist & Verifikasi Dokumen Tender',
+        actionUrl: '#tender-legality-modal',
+        isLegalityWarning: true,
+        warningCategory: 'tender_b2b_missing_docs' as const,
+        missingDocsList: [
+          'NIB KBLI 37011 / 37022 (OSS RBA Berbasis Risiko)',
+          'NPWP PT & Status PKP (e-Faktur PPN 11%)',
+          'Akta Pendirian PT & SK Kemenkumham RI',
+          'KAK / TOR Spesifikasi Volume Limbah (m³)',
+        ],
+        hasChecklistCta: true,
+        options: [
+          'Saya sudah punya NIB & NPWP PT (Verifikasi Sekarang)',
+          'Apa saja sanksi jika tender limbah tanpa legalitas?',
+          'Lihat profil legalitas resmi PT Kusuma (Vendor)',
+          'Hubungi Tim Tender B2B via WhatsApp',
+        ],
+      };
+    }
+
+    // Skenario 2: Klien menyebutkan tender B2B DAN menyertakan/mengonfirmasi dokumen legalitas lengkap
+    if (isTenderQuery && hasLegalityDocsMentioned) {
+      return {
+        text: '✅ VERIFIKASI LEGALITAS TENDER DITERIMA: Dokumen Terkonfirmasi!\n\nTerima kasih telah menyertakan / mengonfirmasi kelengkapan dokumen legalitas perusahaan Anda (NIB, NPWP PT, SPPKP, Akta Kemenkumham).\n\nTim Tender & Corporate Procurement PT Kusuma Gemilang Raya siap memproses penawaran resmi:\n• Draft Surat Penawaran Resmi (Quotation ber-kop surat PT Kusuma)\n• Pakta Integritas & Pernyataan Kepatuhan K3 (SMK3 PP No. 50/2012)\n• Salinan Kerjasama Resmi IPLT DLH Kota & Kab. Bekasi\n• Dukungan registrasi e-Procurement (SAP, Ariba, Vendor Portal)',
+        actionLabel: 'Isi Formulir Penawaran B2B (RFP)',
+        actionUrl: '#quotation',
+        isLegalityWarning: false,
+        warningCategory: 'tender_b2b_verified' as const,
+        options: [
+          'Berapa lama survei lokasi gratis (Free Survey)?',
+          'Apakah tersedia Manifest IPLT & Faktur Pajak?',
+          'Hubungi Tim Tender B2B via WhatsApp',
+        ],
+      };
+    }
+
+    if (q.includes('pt') || q.includes('perusahaan') || q.includes('quotation') || q.includes('penawaran') || q.includes('rfp') || q.includes('kontrak') || q.includes('sla')) {
       return {
         text: '🏢 Layanan & Penawaran Resmi B2B (PT / Perusahaan):\n1. Tim kami siap melakukan survei lokasi (Free Survey) di kawasan industri Anda.\n2. Menerbitkan Surat Penawaran Resmi (Quotation ber-kop surat PT Kusuma Gemilang Raya).\n3. Mendukung sistem Purchase Order (PO), Invoice Termin, Faktur Pajak PPN e-Faktur, Berita Acara (BAST), dan Manifest IPLT sah.\n4. Tersedia kontrak SLA berkala bulanan/triwulan untuk pabrik & gedung.',
         actionLabel: 'Isi Formulir Penawaran B2B (RFP)',
         actionUrl: '#quotation',
         options: [
+          'Pengadaan / Tender B2B (Cek Syarat Dokumen Legalitas)',
           'Apakah tersedia Faktur Pajak PPN & Manifest IPLT?',
           'Layanan sedot limbah STP & IPAL Pabrik?',
           'Kontrak rutin (SLA) kawasan industri Bekasi?',
@@ -3108,7 +3579,7 @@ export default function App() {
 
     setTimeout(() => {
       const responseData = getFaqBotResponse(textToSend);
-      const botMsg = {
+      const botMsg: ChatMessageItem = {
         id: 'b_' + Date.now(),
         sender: 'bot' as const,
         text: responseData.text,
@@ -3116,6 +3587,10 @@ export default function App() {
         actionLabel: responseData.actionLabel,
         actionUrl: responseData.actionUrl,
         options: responseData.options,
+        isLegalityWarning: responseData.isLegalityWarning,
+        warningCategory: responseData.warningCategory,
+        missingDocsList: responseData.missingDocsList,
+        hasChecklistCta: responseData.hasChecklistCta,
       };
       setChatMessages((prev) => [...prev, botMsg]);
       setIsBotTyping(false);
@@ -3547,6 +4022,33 @@ export default function App() {
       subscriberSourceFilter === 'Semua' || s.source === subscriberSourceFilter;
     const matchStatus =
       subscriberStatusFilter === 'Semua' || s.status === subscriberStatusFilter;
+
+    // Filter Rentang Tanggal (Mingguan, Bulanan, Kuartal, Kustom)
+    let matchTimeRange = true;
+    if (subscriberTimeRange !== 'Semua Waktu') {
+      const subTime = new Date(s.date).getTime();
+      const referenceNow = Math.max(Date.now(), new Date('2026-11-04T12:00:00Z').getTime());
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const diffDays = (referenceNow - subTime) / oneDayMs;
+
+      if (subscriberTimeRange === 'Mingguan') {
+        matchTimeRange = diffDays >= 0 && diffDays <= 7;
+      } else if (subscriberTimeRange === 'Bulanan') {
+        matchTimeRange = diffDays >= 0 && diffDays <= 30;
+      } else if (subscriberTimeRange === 'Kuartal') {
+        matchTimeRange = diffDays >= 0 && diffDays <= 90;
+      } else if (subscriberTimeRange === 'Kustom') {
+        if (subscriberCustomStartDate) {
+          const startMs = new Date(subscriberCustomStartDate).getTime();
+          if (subTime < startMs) matchTimeRange = false;
+        }
+        if (subscriberCustomEndDate) {
+          const endMs = new Date(subscriberCustomEndDate + 'T23:59:59').getTime();
+          if (subTime > endMs) matchTimeRange = false;
+        }
+      }
+    }
+
     const query = subscriberSearch.toLowerCase().trim();
     const matchQuery =
       !query ||
@@ -3554,7 +4056,7 @@ export default function App() {
       s.name.toLowerCase().includes(query) ||
       s.company.toLowerCase().includes(query) ||
       (s.source && s.source.toLowerCase().includes(query));
-    return matchCategory && matchSource && matchStatus && matchQuery;
+    return matchCategory && matchSource && matchStatus && matchTimeRange && matchQuery;
   });
 
   const scrollToTop = () => {
@@ -3657,31 +4159,81 @@ export default function App() {
                 className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`max-w-[85%] p-3.5 rounded-2xl whitespace-pre-line leading-relaxed shadow-sm ${
+                  className={`max-w-[88%] p-3.5 rounded-2xl whitespace-pre-line leading-relaxed shadow-sm transition-all ${
                     msg.sender === 'user'
                       ? 'bg-orange text-white rounded-br-xs'
+                      : msg.isLegalityWarning
+                      ? 'bg-amber-50/95 text-navy border-2 border-amber-400 rounded-bl-xs shadow-md'
+                      : msg.warningCategory === 'tender_b2b_verified'
+                      ? 'bg-emerald-50/95 text-navy border-2 border-emerald-400 rounded-bl-xs shadow-md'
                       : 'bg-white text-navy border border-gray-100 rounded-bl-xs'
                   }`}
                 >
-                  <p>{msg.text}</p>
+                  {/* Warning Header Banner for Tender Legality Warning */}
+                  {msg.isLegalityWarning && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 mb-2 rounded-xl bg-amber-500 text-white font-extrabold text-[11px] shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                      <span>⚠️ PERINGATAN KEPATUHAN TENDER B2B</span>
+                    </div>
+                  )}
 
-                  {/* Optional Action CTA Link inside message */}
-                  {msg.actionLabel && msg.actionUrl && (
-                    <div className="mt-3 pt-2.5 border-t border-gray-100">
-                      <a
-                        href={msg.actionUrl}
-                        target={msg.actionUrl.startsWith('http') ? '_blank' : '_self'}
-                        rel="noopener noreferrer"
-                        onClick={() => {
-                          if (msg.actionUrl?.startsWith('#')) {
-                            setIsChatbotOpen(false);
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-navy hover:bg-navy-light text-cyan-light font-bold text-xs rounded-xl shadow-xs transition"
-                      >
-                        <span>{msg.actionLabel}</span>
-                        <span>→</span>
-                      </a>
+                  {/* Verified Header Banner */}
+                  {msg.warningCategory === 'tender_b2b_verified' && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 mb-2 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px] shadow-xs">
+                      <span>✓</span>
+                      <span>LEGALITAS TENDER TERKONFIRMASI</span>
+                    </div>
+                  )}
+
+                  <p className="text-xs sm:text-sm">{msg.text}</p>
+
+                  {/* Missing Documents List Checklist Box */}
+                  {msg.isLegalityWarning && msg.missingDocsList && (
+                    <div className="mt-2.5 p-2 rounded-xl bg-white/90 border border-amber-300 text-[11px] space-y-1">
+                      <span className="font-extrabold text-amber-900 block text-[11px] flex items-center gap-1">
+                        <span>📋</span>
+                        <span>Dokumen Wajib yang Belum Terverifikasi:</span>
+                      </span>
+                      {msg.missingDocsList.map((doc, docIdx) => (
+                        <div key={docIdx} className="flex items-center gap-1.5 text-gray-700 font-medium">
+                          <span className="w-4 h-4 rounded-full bg-rose-100 text-rose-600 text-[10px] font-bold flex items-center justify-center shrink-0">✕</span>
+                          <span>{doc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Action CTA Buttons inside message */}
+                  {(msg.actionLabel || msg.hasChecklistCta) && (
+                    <div className="mt-3 pt-2.5 border-t border-gray-100 flex flex-wrap gap-1.5">
+                      {msg.hasChecklistCta && (
+                        <button
+                          type="button"
+                          onClick={() => setIsTenderLegalityModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-navy font-black text-xs rounded-xl shadow-xs transition cursor-pointer active:scale-95"
+                          title="Buka Lembar Verifikasi Dokumen Tender"
+                        >
+                          <span>📋</span>
+                          <span>Verifikasi Dokumen Sekarang</span>
+                        </button>
+                      )}
+
+                      {msg.actionLabel && msg.actionUrl && msg.actionUrl !== '#tender-legality-modal' && (
+                        <a
+                          href={msg.actionUrl}
+                          target={msg.actionUrl.startsWith('http') ? '_blank' : '_self'}
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            if (msg.actionUrl?.startsWith('#')) {
+                              setIsChatbotOpen(false);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-navy hover:bg-navy-light text-cyan-light font-bold text-xs rounded-xl shadow-xs transition"
+                        >
+                          <span>{msg.actionLabel}</span>
+                          <span>→</span>
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
@@ -3697,7 +4249,11 @@ export default function App() {
                       <button
                         key={optIdx}
                         onClick={() => handleSendChatMessage(opt)}
-                        className="text-left px-3 py-1.5 bg-white hover:bg-cyan/10 hover:border-cyan hover:text-cyan-dark text-navy font-medium text-xs rounded-xl border border-gray-200 shadow-xs transition cursor-pointer"
+                        className={`text-left px-3 py-1.5 font-medium text-xs rounded-xl border shadow-xs transition cursor-pointer ${
+                          opt.includes('Tender') || opt.includes('Legalitas')
+                            ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 font-bold'
+                            : 'bg-white hover:bg-cyan/10 hover:border-cyan hover:text-cyan-dark text-navy border-gray-200'
+                        }`}
                       >
                         {opt}
                       </button>
@@ -3717,6 +4273,21 @@ export default function App() {
             )}
 
             <div ref={chatMessagesEndRef} />
+          </div>
+
+          {/* Tender Compliance Quick Bar */}
+          <div className="bg-amber-50 px-3.5 py-1.5 border-t border-amber-200/80 flex items-center justify-between text-xs">
+            <span className="text-amber-900 text-[11px] font-semibold flex items-center gap-1 truncate">
+              <span>🛡️</span>
+              <span className="truncate">Tender B2B wajib sertakan dokumen legalitas</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsTenderLegalityModalOpen(true)}
+              className="text-amber-700 hover:text-amber-900 font-black text-[11px] underline whitespace-nowrap ml-2 cursor-pointer"
+            >
+              Cek Syarat
+            </button>
           </div>
 
           {/* Quick WA Handoff Top Bar */}
@@ -3745,7 +4316,7 @@ export default function App() {
               type="text"
               value={chatInputText}
               onChange={(e) => setChatInputText(e.target.value)}
-              placeholder="Ketik pertanyaan (cth: tarif, cikarang)..."
+              placeholder="Ketik pertanyaan (cth: syarat tender, tarif, stp)..."
               className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 focus:border-cyan focus:ring-1 focus:ring-cyan outline-none text-xs sm:text-sm text-gray-700 bg-slate-50"
             />
             <button
@@ -3759,6 +4330,143 @@ export default function App() {
               </svg>
             </button>
           </form>
+
+          {/* Interactive Tender B2B Legality Checklist Modal (In-Chat Modal) */}
+          {isTenderLegalityModalOpen && (
+            <div className="absolute inset-0 bg-navy/90 backdrop-blur-md z-50 p-4 flex flex-col justify-between overflow-y-auto animate-fadeIn text-white">
+              <div>
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+                    <h4 className="font-extrabold text-sm text-white">
+                      Checklist Dokumen Tender B2B
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsTenderLegalityModalOpen(false)}
+                    className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition"
+                    title="Tutup"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-gray-300 mt-2 leading-relaxed">
+                  Berdasarkan SOP Pengadaan Vendor Resmi & Regulasi KLHK/DLH Bekasi, tandai dokumen yang telah dimiliki perusahaan Anda:
+                </p>
+
+                {/* Company Name Input */}
+                <div className="mt-3">
+                  <label className="block text-[10px] text-cyan-200 font-bold uppercase tracking-wider mb-1">
+                    Nama Perusahaan / PT Calon Rekanan:
+                  </label>
+                  <input
+                    type="text"
+                    value={tenderCompanyName}
+                    onChange={(e) => setTenderCompanyName(e.target.value)}
+                    placeholder="Contoh: PT Astra Visteon / PT Denso Indonesia..."
+                    className="w-full px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 text-xs outline-none focus:ring-1 focus:ring-cyan"
+                  />
+                </div>
+
+                {/* Document Checkboxes */}
+                <div className="mt-3 space-y-2 text-xs">
+                  {[
+                    { key: 'nib', label: '1. NIB KBLI 37011 / 37022 OSS RBA Berbasis Risiko', desc: 'Izin usaha resmi pengangkutan limbah & sanitasi' },
+                    { key: 'npwp', label: '2. NPWP Perusahaan & SPPKP (Status PKP Aktif)', desc: 'Kewajiban penerbitan e-Faktur PPN 11% sah dari DJP' },
+                    { key: 'akta', label: '3. Akta Pendirian PT & SK Pengesahan Kemenkumham', desc: 'Legalitas pendirian badan hukum perseroan terbatas' },
+                    { key: 'sppkp', label: '4. Kerangka Acuan Kerja (KAK / TOR) Spesifikasi', desc: 'Estimasi volume lumpur (m³) & jadwal ritase pabrik' },
+                    { key: 'kak', label: '5. Rekening Giro PT a.n Perusahaan Resmi', desc: 'Transparansi transaksi perbankan non-perorangan' },
+                  ].map((item) => {
+                    const isChecked = tenderChecklistDocs[item.key as keyof typeof tenderChecklistDocs];
+                    return (
+                      <label
+                        key={item.key}
+                        className={`flex items-start gap-2.5 p-2 rounded-xl border transition cursor-pointer ${
+                          isChecked
+                            ? 'bg-amber-500/20 border-amber-400/80 text-white'
+                            : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) =>
+                            setTenderChecklistDocs((prev) => ({
+                              ...prev,
+                              [item.key]: e.target.checked,
+                            }))
+                          }
+                          className="mt-0.5 rounded text-amber-500 focus:ring-amber-400 h-4 w-4 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="font-bold text-[11px] block text-white leading-tight">
+                            {item.label}
+                          </span>
+                          <span className="text-[10px] text-gray-400 block leading-tight mt-0.5">
+                            {item.desc}
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {/* Readiness Gauge */}
+                {(() => {
+                  const checkedCount = Object.values(tenderChecklistDocs).filter(Boolean).length;
+                  return (
+                    <div className="mt-3 p-2 rounded-xl bg-white/5 border border-white/10">
+                      <div className="flex items-center justify-between text-[10px] mb-1">
+                        <span className="text-gray-300">Kesiapan Dokumen Tender:</span>
+                        <span className="font-mono font-black text-amber-300">
+                          {checkedCount} / 5 Dokumen Terpenuhi ({checkedCount * 20}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="h-full bg-amber-400 transition-all duration-300 rounded-full"
+                          style={{ width: `${checkedCount * 20}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-white/10 space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const checkedCount = Object.values(tenderChecklistDocs).filter(Boolean).length;
+                    setIsTenderLegalityModalOpen(false);
+                    if (checkedCount >= 3) {
+                      handleSendChatMessage(
+                        `Saya mengonfirmasi bahwa perusahaan kami (${tenderCompanyName || 'PT Rekanan'}) memiliki dokumen legalitas tender lengkap (NIB KBLI 37011, NPWP PT, SPPKP, Akta Kemenkumham, dan KAK proyek). Mohon diproses penawaran resmi B2B.`
+                      );
+                    } else {
+                      handleSendChatMessage(
+                        `Kami sedang menyiapkan kelengkapan dokumen legalitas tender B2B untuk ${tenderCompanyName || 'perusahaan kami'}. Mohon panduan asistensi persyaratan vendor PT Kusuma Gemilang Raya.`
+                      );
+                    }
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-navy font-black text-xs transition shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>✓</span>
+                  <span>Kirim Konfirmasi Dokumen ke Chatbot</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsTenderLegalityModalOpen(false)}
+                  className="w-full py-1.5 text-center text-[10px] text-gray-400 hover:text-white transition"
+                >
+                  Kembali ke Chat
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -4699,12 +5407,58 @@ export default function App() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1.5 pointer-events-auto">
+                  <div className="flex items-center gap-1.5 pointer-events-auto flex-wrap sm:flex-nowrap">
+                    {/* Mode Toggle: Real-Time Fleet Tracking (Pelacakan Truk GPS Real-Time) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextState = !isFleetTrackingActive;
+                        setIsFleetTrackingActive(nextState);
+                        if (!nextState) {
+                          setSelectedTruckId(null);
+                        } else if (!selectedTruckId && liveFleetTrucks.length > 0) {
+                          setSelectedTruckId(liveFleetTrucks[0].id);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md transition flex items-center gap-1.5 border cursor-pointer ${
+                        isFleetTrackingActive
+                          ? 'bg-emerald-600 text-white border-emerald-400 shadow-emerald-500/50 ring-2 ring-emerald-300'
+                          : 'bg-white/95 text-emerald-800 hover:bg-emerald-50 border-emerald-200'
+                      }`}
+                      title="Klik untuk mengaktifkan/menonaktifkan Pelacakan Armada Real-Time (Live GPS 4G LTE)"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
+                      <span>{isFleetTrackingActive ? '🛰️ Live GPS: ON' : '🛰️ Live GPS'}</span>
+                    </button>
+
+                    {/* Mode Toggle: Layer Kepadatan Limbah (Waste Density & Urgency Heatmap) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextState = !isWasteDensityLayerActive;
+                        setIsWasteDensityLayerActive(nextState);
+                        if (!nextState) {
+                          setSelectedDensityZoneId(null);
+                        } else if (!selectedDensityZoneId && wasteDensityZones.length > 0) {
+                          setSelectedDensityZoneId(wasteDensityZones[0].id);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md transition flex items-center gap-1.5 border cursor-pointer ${
+                        isWasteDensityLayerActive
+                          ? 'bg-rose-600 text-white border-rose-400 shadow-rose-500/50 ring-2 ring-rose-300'
+                          : 'bg-white/95 text-rose-700 hover:bg-rose-50 border-rose-200'
+                      }`}
+                      title="Klik untuk mengaktifkan Layer Kepadatan Limbah & Urgensi Penyedotan Historis di Seluruh Bekasi"
+                    >
+                      <span className="text-sm">🔥</span>
+                      <span>{isWasteDensityLayerActive ? 'Layer Kepadatan: ON' : 'Layer Kepadatan'}</span>
+                    </button>
+
                     {/* Mode Toggle: Interactive Pin Overlay vs Free Google Maps Pan */}
                     <button
                       type="button"
                       onClick={() => setIsPinInteractiveMode(!isPinInteractiveMode)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md transition flex items-center gap-1.5 border ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-md transition flex items-center gap-1.5 border cursor-pointer ${
                         isPinInteractiveMode
                           ? 'bg-cyan text-navy border-cyan-light'
                           : 'bg-white/95 text-gray-700 hover:bg-white border-gray-200'
@@ -4783,6 +5537,162 @@ export default function App() {
                     </a>
                   </div>
                 </div>
+
+                {/* Real-Time Fleet Tracking Sub-Header Bar (Transparansi Posisi Truk Real-Time) */}
+                {isFleetTrackingActive && (
+                  <div className="absolute top-16 sm:top-14 left-3.5 right-3.5 z-30 pointer-events-none animate-fadeIn">
+                    <div className="bg-navy/95 backdrop-blur-md border border-emerald-500/50 rounded-2xl p-2 sm:p-2.5 shadow-2xl flex flex-wrap items-center justify-between gap-2 pointer-events-auto">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-300">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                          <span>Live GPS Armada:</span>
+                        </div>
+
+                        {/* Status Filter Buttons */}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {(['Semua', 'Menuju Lokasi', 'Proses Sedot', 'Menuju IPLT', 'Standby'] as const).map((filterKey) => {
+                            const isSelected = truckStatusFilter === filterKey;
+                            const filterCount =
+                              filterKey === 'Semua'
+                                ? liveFleetTrucks.length
+                                : liveFleetTrucks.filter((t) => t.status === filterKey).length;
+
+                            return (
+                              <button
+                                key={filterKey}
+                                type="button"
+                                onClick={() => setTruckStatusFilter(filterKey)}
+                                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                                  isSelected
+                                    ? filterKey === 'Menuju Lokasi'
+                                      ? 'bg-emerald-500 text-white shadow-md ring-2 ring-emerald-300'
+                                      : filterKey === 'Proses Sedot'
+                                      ? 'bg-amber-500 text-navy font-black shadow-md ring-2 ring-amber-300'
+                                      : filterKey === 'Menuju IPLT'
+                                      ? 'bg-cyan text-navy font-black shadow-md ring-2 ring-cyan-light'
+                                      : filterKey === 'Standby'
+                                      ? 'bg-slate-600 text-white shadow-md ring-2 ring-slate-400'
+                                      : 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300'
+                                    : 'bg-white/10 text-gray-200 hover:bg-white/20'
+                                }`}
+                              >
+                                {filterKey === 'Menuju Lokasi' && '🟢'}
+                                {filterKey === 'Proses Sedot' && '🟡'}
+                                {filterKey === 'Menuju IPLT' && '🔵'}
+                                {filterKey === 'Standby' && '⚪'}
+                                <span>{filterKey}</span>
+                                <span className="text-[10px] opacity-80">({filterCount})</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Client Search / Order Tracking Box */}
+                      <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                        <div className="relative flex-1 sm:w-56">
+                          <input
+                            type="text"
+                            value={truckSearchQuery}
+                            onChange={(e) => setTruckSearchQuery(e.target.value)}
+                            placeholder="Cari No. Order / Plat Truk..."
+                            className="w-full pl-7 pr-6 py-1 text-xs bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                          />
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">🔍</span>
+                          {truckSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setTruckSearchQuery('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        <span className="text-[10px] text-emerald-300 font-mono hidden md:inline-block shrink-0">
+                          ● 4G LTE Active
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsFleetTrackingActive(false);
+                            setSelectedTruckId(null);
+                          }}
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition cursor-pointer shrink-0"
+                          title="Tutup Layer Pelacakan Armada"
+                        >
+                          ✕ Tutup
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Waste Density Urgency Filter Sub-Header Bar */}
+                {isWasteDensityLayerActive && (
+                  <div className={`absolute ${isFleetTrackingActive ? 'top-28 sm:top-24' : 'top-16 sm:top-14'} left-3.5 right-3.5 z-30 pointer-events-none animate-fadeIn transition-all`}>
+                    <div className="bg-navy/95 backdrop-blur-md border border-rose-500/50 rounded-2xl p-2 sm:p-2.5 shadow-2xl flex flex-wrap items-center justify-between gap-2 pointer-events-auto">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-rose-300">
+                          <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                          <span>Filter Tingkat Urgensi:</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {(['Semua', 'Kritis', 'Waspada', 'Normal'] as const).map((filterKey) => {
+                            const isSelected = wasteDensityFilter === filterKey;
+                            const filterCount =
+                              filterKey === 'Semua'
+                                ? wasteDensityZones.length
+                                : wasteDensityZones.filter((z) => z.urgencyLevel === filterKey).length;
+                            return (
+                              <button
+                                key={filterKey}
+                                type="button"
+                                onClick={() => setWasteDensityFilter(filterKey)}
+                                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                                  isSelected
+                                    ? filterKey === 'Kritis'
+                                      ? 'bg-red-500 text-white shadow-md ring-2 ring-red-300'
+                                      : filterKey === 'Waspada'
+                                      ? 'bg-amber-500 text-navy font-black shadow-md ring-2 ring-amber-300'
+                                      : filterKey === 'Normal'
+                                      ? 'bg-emerald-500 text-white shadow-md ring-2 ring-emerald-300'
+                                      : 'bg-rose-500 text-white shadow-md ring-2 ring-rose-300'
+                                    : 'bg-white/10 text-gray-200 hover:bg-white/20'
+                                }`}
+                              >
+                                {filterKey === 'Kritis' && '🔴'}
+                                {filterKey === 'Waspada' && '🟡'}
+                                {filterKey === 'Normal' && '🟢'}
+                                <span>{filterKey}</span>
+                                <span className="text-[10px] opacity-80">({filterCount})</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-300 hidden md:inline">
+                          📊 Berdasarkan ritase sedot bulanan & kepenuhan tangki
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsWasteDensityLayerActive(false);
+                            setSelectedDensityZoneId(null);
+                          }}
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition cursor-pointer"
+                          title="Tutup Layer Kepadatan"
+                        >
+                          ✕ Tutup
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Google Maps Iframe */}
                 <iframe
@@ -5021,38 +5931,679 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Floating Quick Pin Dock inside Map Viewport */}
-                <div className="absolute bottom-16 left-3.5 right-3.5 z-20 pointer-events-none">
-                  <div className="bg-navy/85 backdrop-blur-md border border-white/10 rounded-2xl p-2 sm:p-2.5 shadow-xl flex flex-wrap items-center justify-between gap-2 pointer-events-auto">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] sm:text-xs font-bold text-cyan flex items-center gap-1">
-                        <span>📍</span>
-                        <span className="hidden xs:inline">Pusatkan Peta:</span>
-                      </span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {mapHubs.map((hub, idx) => (
-                          <button
-                            key={hub.id}
-                            type="button"
-                            onClick={() => handleSelectMapHub(idx, true)}
-                            onMouseEnter={() => setHoveredMapHubIndex(idx)}
-                            onMouseLeave={() => setHoveredMapHubIndex(null)}
-                            className={`px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition flex items-center gap-1 ${
-                              activeMapHubIndex === idx
-                                ? 'bg-cyan text-navy shadow-md font-black scale-105'
-                                : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                {/* Layer Kepadatan Limbah (Waste Density & Urgency Heatmap Overlay) */}
+                {isWasteDensityLayerActive && (
+                  <div className="absolute inset-0 pointer-events-none z-25 overflow-hidden">
+                    {/* SVG Flow / Pressure vector lines connecting critical zones */}
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none">
+                      <path
+                        d="M 26 34 Q 38 41, 50 48 T 76 62"
+                        fill="none"
+                        stroke="#f43f5e"
+                        strokeWidth="0.8"
+                        strokeDasharray="3,3"
+                        className="animate-pulse"
+                      />
+                      <circle cx="76" cy="62" r="1.5" fill="#ef4444" className="animate-ping" />
+                      <circle cx="26" cy="34" r="1.2" fill="#ef4444" className="animate-ping" />
+                    </svg>
+
+                    {/* Heatmap Radial Gradients & Interactive Urgency Pins */}
+                    {filteredWasteDensityZones.map((zone) => {
+                      const isSelected = selectedDensityZoneId === zone.id;
+                      const isKritis = zone.urgencyLevel === 'Kritis';
+                      const isWaspada = zone.urgencyLevel === 'Waspada';
+
+                      return (
+                        <div
+                          key={zone.id}
+                          style={{
+                            left: zone.coords.left,
+                            top: zone.coords.top,
+                          }}
+                          className={`absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-transform ${
+                            isSelected ? 'z-40 scale-105' : 'z-30 hover:scale-105'
+                          }`}
+                        >
+                          {/* Radial Heatmap Gradient Halo */}
+                          <div
+                            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none rounded-full blur-sm transition-all duration-500 ${
+                              isKritis
+                                ? 'w-44 h-44 sm:w-56 sm:h-56 bg-[radial-gradient(circle,_rgba(239,68,68,0.55)_0%,_rgba(239,68,68,0.22)_45%,_transparent_70%)]'
+                                : isWaspada
+                                ? 'w-36 h-36 sm:w-44 sm:h-44 bg-[radial-gradient(circle,_rgba(245,158,11,0.5)_0%,_rgba(245,158,11,0.18)_45%,_transparent_70%)]'
+                                : 'w-32 h-32 sm:w-36 sm:h-36 bg-[radial-gradient(circle,_rgba(16,185,129,0.45)_0%,_rgba(16,185,129,0.14)_45%,_transparent_70%)]'
                             }`}
-                            title={`Pusatkan ke ${hub.name} • Kontak: ${hub.phone}`}
+                          />
+
+                          {/* Pulsing Concentric Warning Rings */}
+                          {isKritis && (
+                            <>
+                              <span className="absolute -inset-4 rounded-full bg-red-500/30 animate-ping pointer-events-none" />
+                              <span className="absolute -inset-8 rounded-full border-2 border-red-500/50 animate-pulse pointer-events-none" />
+                            </>
+                          )}
+                          {isWaspada && (
+                            <span className="absolute -inset-5 rounded-full border border-amber-400/40 animate-pulse pointer-events-none" />
+                          )}
+
+                          {/* Interactive Zone Pin Badge */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDensityZoneId(zone.id);
+                              handleSelectMapHub(zone.hubIndex, true);
+                            }}
+                            className={`group relative flex flex-col items-center p-1.5 sm:p-2 rounded-2xl shadow-2xl transition-all duration-300 transform active:scale-95 cursor-pointer backdrop-blur-md ${
+                              isSelected
+                                ? isKritis
+                                  ? 'bg-red-950/95 text-white ring-4 ring-red-500 shadow-red-500/60 -translate-y-1'
+                                  : isWaspada
+                                  ? 'bg-amber-950/95 text-white ring-4 ring-amber-400 shadow-amber-400/60 -translate-y-1'
+                                  : 'bg-emerald-950/95 text-white ring-4 ring-emerald-400 shadow-emerald-400/60 -translate-y-1'
+                                : isKritis
+                                ? 'bg-navy/95 text-white hover:bg-red-950/90 border-2 border-red-500/70 shadow-lg'
+                                : isWaspada
+                                ? 'bg-navy/95 text-white hover:bg-amber-950/90 border-2 border-amber-500/70 shadow-lg'
+                                : 'bg-navy/95 text-white hover:bg-emerald-950/90 border-2 border-emerald-500/70 shadow-lg'
+                            }`}
+                            aria-label={`Lihat detail kepadatan limbah: ${zone.name}`}
+                            title={`Klik untuk inspeksi: ${zone.name} (${zone.urgencyLevel} - Skor ${zone.urgencyScore}%)`}
                           >
-                            <span>{hub.pinIcon}</span>
-                            <span>{hub.shortName?.split(' ')[0] || hub.name.split(' ')[0]} {hub.shortName?.split(' ')[1] || ''}</span>
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase flex items-center gap-1 ${
+                                  isKritis
+                                    ? 'bg-red-500 text-white shadow-sm'
+                                    : isWaspada
+                                    ? 'bg-amber-500 text-navy font-black shadow-sm'
+                                    : 'bg-emerald-500 text-white shadow-sm'
+                                }`}
+                              >
+                                <span>{isKritis ? '🔴' : isWaspada ? '🟡' : '🟢'}</span>
+                                <span>{zone.urgencyScore}% {zone.urgencyLevel}</span>
+                              </span>
+                            </div>
+
+                            <span className="text-[10px] sm:text-xs font-black tracking-tight text-white group-hover:text-cyan-200 transition">
+                              {zone.shortName}
+                            </span>
+
+                            <div className="flex items-center gap-1 text-[9px] text-gray-300 mt-0.5">
+                              <span className="font-semibold text-rose-300">📦 {zone.monthlyVolume.split(' ')[0]} m³</span>
+                              <span>•</span>
+                              <span className="text-gray-400">{zone.historicalOrders} ritase</span>
+                            </div>
+
+                            {/* Downward pin triangle point */}
+                            <div
+                              className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] transition-colors ${
+                                isKritis ? 'border-t-red-600' : isWaspada ? 'border-t-amber-500' : 'border-t-emerald-600'
+                              }`}
+                            />
                           </button>
-                        ))}
+                        </div>
+                      );
+                    })}
+
+                    {/* Floating Inspection Card for activeDensityZone */}
+                    {activeDensityZone && (
+                      <div className="absolute top-28 sm:top-24 right-3.5 max-w-sm sm:max-w-md w-[calc(100%-1.75rem)] sm:w-88 z-40 bg-navy/95 backdrop-blur-md text-white rounded-2xl border-2 border-rose-500/60 shadow-2xl p-3.5 sm:p-4 animate-fadeIn pointer-events-auto max-h-[62vh] overflow-y-auto">
+                        {/* Inspection Header */}
+                        <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-white/10">
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                  activeDensityZone.urgencyLevel === 'Kritis'
+                                    ? 'bg-red-500 text-white'
+                                    : activeDensityZone.urgencyLevel === 'Waspada'
+                                    ? 'bg-amber-500 text-navy font-black'
+                                    : 'bg-emerald-500 text-white'
+                                }`}
+                              >
+                                {activeDensityZone.urgencyLevel === 'Kritis' ? '🔴' : activeDensityZone.urgencyLevel === 'Waspada' ? '🟡' : '🟢'} Urgensi: {activeDensityZone.urgencyLevel} ({activeDensityZone.urgencyScore}%)
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-white/10 text-cyan text-[9px] font-bold">
+                                {activeDensityZone.category}
+                              </span>
+                            </div>
+                            <h4 className="text-xs sm:text-sm font-black text-white leading-tight">
+                              {activeDensityZone.name}
+                            </h4>
+                            <p className="text-[10px] text-gray-300 mt-0.5">
+                              📍 {activeDensityZone.subdistricts}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDensityZoneId(null)}
+                            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition shrink-0 cursor-pointer"
+                            title="Tutup Panel Inspeksi"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        {/* Urgency Meter Bar */}
+                        <div className="py-2.5 border-b border-white/10">
+                          <div className="flex items-center justify-between text-[10px] mb-1">
+                            <span className="text-gray-300 font-medium">Tingkat Akumulasi Beban Limbah:</span>
+                            <span className="font-mono font-black text-rose-300">
+                              {activeDensityZone.urgencyScore}% ({activeDensityZone.historicalTrend})
+                            </span>
+                          </div>
+                          <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                activeDensityZone.urgencyLevel === 'Kritis'
+                                  ? 'bg-gradient-to-r from-orange to-red-500'
+                                  : activeDensityZone.urgencyLevel === 'Waspada'
+                                  ? 'bg-gradient-to-r from-yellow-400 to-amber-500'
+                                  : 'bg-gradient-to-r from-teal-400 to-emerald-500'
+                              }`}
+                              style={{ width: `${activeDensityZone.urgencyScore}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Historical Metrics Grid */}
+                        <div className="grid grid-cols-2 gap-2 py-2.5 border-b border-white/10 text-[10px]">
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-gray-400 block text-[9px]">Volume Historis / Bln:</span>
+                            <span className="font-bold text-white text-xs">{activeDensityZone.monthlyVolume}</span>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-gray-400 block text-[9px]">Total Ritase Terekam:</span>
+                            <span className="font-bold text-cyan text-xs">{activeDensityZone.historicalOrders} Order Sedot</span>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-gray-400 block text-[9px]">Rata-rata Waktu Penuh:</span>
+                            <span className="font-bold text-orange text-xs">{activeDensityZone.avgFullDays} Hari Sekali</span>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-gray-400 block text-[9px]">Siklus Kuras Disarankan:</span>
+                            <span className="font-bold text-emerald-300 text-xs truncate block">{activeDensityZone.recommendedCycle}</span>
+                          </div>
+                        </div>
+
+                        {/* Environmental Risk & Context */}
+                        <div className="py-2 text-[10px]">
+                          <div className="flex items-start gap-1.5 mb-1.5">
+                            <span className="text-rose-400 font-bold shrink-0">⚠️ Risiko:</span>
+                            <span className="text-gray-200">{activeDensityZone.riskFactor}</span>
+                          </div>
+                          <p className="text-[9px] text-gray-400 leading-relaxed italic bg-white/5 p-2 rounded-xl border border-white/10">
+                            "{activeDensityZone.description}"
+                          </p>
+                        </div>
+
+                        {/* Nearest Standby Hub Notice */}
+                        <div className="bg-cyan/15 rounded-xl p-2 border border-cyan/30 flex items-center justify-between text-[10px] mb-2.5">
+                          <div className="min-w-0 pr-1">
+                            <span className="block text-[8px] uppercase tracking-wider text-cyan-200 font-bold">
+                              Pos Armada Standby Terdekat
+                            </span>
+                            <span className="font-black text-white truncate block">
+                              🚛 {activeDensityZone.hubName}
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-lg bg-cyan text-navy font-black text-[9px] shrink-0">
+                            SLA: {activeDensityZone.slaResponse}
+                          </span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectMapHub(activeDensityZone.hubIndex, true)}
+                            className="px-2 py-2 rounded-xl text-[10px] font-bold bg-white/20 hover:bg-white/30 text-white transition flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+                            title="Pusatkan Peta ke Pos Armada Terdekat"
+                          >
+                            <span>📍</span>
+                            <span>Pusatkan Pos</span>
+                          </button>
+                          <a
+                            href={`https://wa.me/${waNumber}?text=${encodeURIComponent(
+                              `Halo PT Kusuma Gemilang Raya, saya melihat Layer Kepadatan Limbah di area "${activeDensityZone.name}" (Tingkat Urgensi: ${activeDensityZone.urgencyLevel} ${activeDensityZone.urgencyScore}%, Siklus: ${activeDensityZone.recommendedCycle}). Mohon koordinasi pengiriman armada dari ${activeDensityZone.hubName}.`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-2 rounded-xl text-[10px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition flex items-center justify-center gap-1 shadow-md active:scale-95"
+                            title="Kirim Dispatch Cepat via WhatsApp"
+                          >
+                            <span>💬</span>
+                            <span>Dispatch Armada</span>
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Collapsible Floating Density Legend Widget */}
+                    <div className="absolute bottom-28 left-3.5 z-30 pointer-events-auto">
+                      <div className="bg-navy/95 backdrop-blur-md text-white rounded-2xl border border-rose-500/40 shadow-xl overflow-hidden text-[10px] max-w-xs transition-all">
+                        <div
+                          className="flex items-center justify-between gap-2 px-3 py-1.5 bg-rose-950/40 cursor-pointer hover:bg-rose-950/60"
+                          onClick={() => setIsDensityLegendExpanded(!isDensityLegendExpanded)}
+                          title="Klik untuk buka/tutup Legenda Urgensi"
+                        >
+                          <span className="font-extrabold text-rose-300 flex items-center gap-1.5">
+                            <span>📊</span>
+                            <span>Legenda Kepadatan Limbah</span>
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            {isDensityLegendExpanded ? '▲' : '▼'}
+                          </span>
+                        </div>
+
+                        {isDensityLegendExpanded && (
+                          <div className="p-2.5 space-y-1.5 animate-fadeIn">
+                            <div className="flex items-start gap-1.5">
+                              <span className="text-red-400 font-bold shrink-0">🔴 Kritis (≥80%):</span>
+                              <span className="text-gray-300 text-[9px] leading-tight">
+                                Kawasan industri & resto padat lemak. Bak STP penuh &lt;30 hari, risiko meluap & audit DLH KLHK.
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-1.5">
+                              <span className="text-amber-400 font-bold shrink-0">🟡 Waspada (50–79%):</span>
+                              <span className="text-gray-300 text-[9px] leading-tight">
+                                Pemukiman padat & ruko kantor. Bak penuh 3–6 bulan, rawan mampet musim hujan.
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-1.5">
+                              <span className="text-emerald-400 font-bold shrink-0">🟢 Normal (&lt;50%):</span>
+                              <span className="text-gray-300 text-[9px] leading-tight">
+                                Cluster residensial teratur. Siklus 1–2 tahun, jadwal pemeliharaan preventif.
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Real-Time Fleet Tracking Overlay (Pelacakan Truk GPS Real-Time) */}
+                {isFleetTrackingActive && (
+                  <div className="absolute inset-0 pointer-events-none z-26 overflow-hidden">
+                    {/* Live Movement Radar Sweeper Effect in Top Corner */}
+                    <div className="absolute top-28 sm:top-24 left-4 pointer-events-none opacity-60 hidden md:block">
+                      <div className="flex items-center gap-2 bg-navy/80 backdrop-blur-md px-2.5 py-1 rounded-full border border-emerald-500/40 text-[9px] font-mono text-emerald-300">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                        <span>Satelit GPS Live Telemetry</span>
                       </div>
                     </div>
 
+                    {/* Dynamic Moving Fleet Truck Markers */}
+                    {filteredFleetTrucks.map((truck) => {
+                      const isSelected = selectedTruckId === truck.id;
+                      const isMoving = truck.status === 'Menuju Lokasi' || truck.status === 'Menuju IPLT';
+                      const isWorking = truck.status === 'Proses Sedot';
+
+                      return (
+                        <div
+                          key={truck.id}
+                          style={{
+                            left: truck.coords.left,
+                            top: truck.coords.top,
+                            transition: 'left 1.2s ease-in-out, top 1.2s ease-in-out',
+                          }}
+                          className={`absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto transition-transform ${
+                            isSelected ? 'z-40 scale-110' : 'z-30 hover:scale-105'
+                          }`}
+                        >
+                          {/* Pulsing Beacon Ring for Selected or Moving Truck */}
+                          {isSelected && (
+                            <>
+                              <span className="absolute -inset-3.5 rounded-full bg-emerald-400/30 animate-ping pointer-events-none" />
+                              <span className="absolute -inset-7 rounded-full border-2 border-emerald-400/50 animate-pulse pointer-events-none" />
+                            </>
+                          )}
+                          {!isSelected && isWorking && (
+                            <span className="absolute -inset-3 rounded-full border-2 border-amber-400/60 animate-ping pointer-events-none" />
+                          )}
+                          {!isSelected && isMoving && (
+                            <span className="absolute -inset-2.5 rounded-full border border-emerald-400/40 animate-pulse pointer-events-none" />
+                          )}
+
+                          {/* Truck Marker Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedTruckId(truck.id);
+                              handleSelectMapHub(truck.hubIndex, true);
+                            }}
+                            className={`group relative flex items-center gap-1.5 p-1.5 sm:p-2 rounded-2xl shadow-2xl transition-all duration-300 transform active:scale-95 cursor-pointer backdrop-blur-md ${
+                              isSelected
+                                ? 'bg-navy text-white ring-4 ring-emerald-400 shadow-emerald-500/60 -translate-y-1'
+                                : truck.status === 'Menuju Lokasi'
+                                ? 'bg-navy/95 text-white hover:bg-slate-900 border-2 border-emerald-500/80 shadow-emerald-900/40'
+                                : truck.status === 'Proses Sedot'
+                                ? 'bg-navy/95 text-white hover:bg-slate-900 border-2 border-amber-500/80 shadow-amber-900/40'
+                                : truck.status === 'Menuju IPLT'
+                                ? 'bg-navy/95 text-white hover:bg-slate-900 border-2 border-cyan/80 shadow-cyan-900/40'
+                                : 'bg-navy/95 text-white hover:bg-slate-900 border-2 border-slate-500/60'
+                            }`}
+                            aria-label={`Lacak ${truck.code} - ${truck.plate}`}
+                            title={`Lacak: ${truck.code} (${truck.plate}) • Status: ${truck.status} • ETA: ${truck.eta}`}
+                          >
+                            {/* Animated Truck Icon with Status Ring */}
+                            <div
+                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center font-bold text-sm sm:text-base shadow-sm shrink-0 ${
+                                truck.status === 'Menuju Lokasi'
+                                  ? 'bg-emerald-500 text-white'
+                                  : truck.status === 'Proses Sedot'
+                                  ? 'bg-amber-500 text-navy'
+                                  : truck.status === 'Menuju IPLT'
+                                  ? 'bg-cyan text-navy'
+                                  : 'bg-slate-700 text-gray-200'
+                              }`}
+                            >
+                              <span className="text-sm sm:text-base">🚛</span>
+                            </div>
+
+                            <div className="text-left pr-1 min-w-[70px]">
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] sm:text-xs font-black tracking-tight leading-tight text-white">
+                                  {truck.plate}
+                                </span>
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    isWorking
+                                      ? 'bg-amber-400 animate-ping'
+                                      : isMoving
+                                      ? 'bg-emerald-400 animate-ping'
+                                      : 'bg-gray-400'
+                                  }`}
+                                />
+                              </div>
+                              <p className="text-[9px] text-emerald-300 font-semibold leading-tight">
+                                {truck.status === 'Proses Sedot'
+                                  ? 'Sedang Sedot'
+                                  : `${truck.currentSpeed} km/j • ${truck.eta.split(' ')[0]} mnt`}
+                              </p>
+                            </div>
+
+                            {/* Downward indicator triangle */}
+                            <div
+                              className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] transition-colors ${
+                                isSelected
+                                  ? 'border-t-emerald-400'
+                                  : truck.status === 'Menuju Lokasi'
+                                  ? 'border-t-emerald-500'
+                                  : truck.status === 'Proses Sedot'
+                                  ? 'border-t-amber-500'
+                                  : 'border-t-cyan'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {/* Floating Detailed Live Telemetry & Client Tracking Drawer */}
+                    {activeTruck && (
+                      <div className={`absolute ${isWasteDensityLayerActive ? 'top-32 sm:top-28' : 'top-28 sm:top-24'} right-3.5 max-w-sm sm:max-w-md w-[calc(100%-1.75rem)] sm:w-92 z-40 bg-navy/95 backdrop-blur-md text-white rounded-2xl border-2 border-emerald-500/70 shadow-2xl p-3.5 sm:p-4 animate-fadeIn pointer-events-auto max-h-[64vh] overflow-y-auto`}>
+                        {/* Header with Live Status & Order Badge */}
+                        <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-white/10">
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
+                                  activeTruck.status === 'Menuju Lokasi'
+                                    ? 'bg-emerald-500 text-white'
+                                    : activeTruck.status === 'Proses Sedot'
+                                    ? 'bg-amber-500 text-navy font-black'
+                                    : activeTruck.status === 'Menuju IPLT'
+                                    ? 'bg-cyan text-navy font-black'
+                                    : 'bg-slate-600 text-white'
+                                }`}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                {activeTruck.status}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-mono font-bold">
+                                {activeTruck.orderNumber}
+                              </span>
+                            </div>
+                            <h4 className="text-xs sm:text-sm font-black text-white leading-tight">
+                              {activeTruck.code} ({activeTruck.plate})
+                            </h4>
+                            <p className="text-[10px] text-gray-300 mt-0.5">
+                              {activeTruck.truckModel}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTruckId(null)}
+                            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition shrink-0 cursor-pointer"
+                            title="Tutup Panel Pelacakan"
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        {/* Real-Time Telemetry Gauges (Speed, Tank Capacity, GPS Signal) */}
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-white/10 text-[10px] text-center">
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-gray-400 block text-[8px] uppercase tracking-wider">Speedometer</span>
+                            <span className="font-mono font-black text-white text-xs block mt-0.5">
+                              {activeTruck.currentSpeed} km/j
+                            </span>
+                            <span className="text-[8px] text-emerald-400 font-semibold">
+                              {activeTruck.currentSpeed > 0 ? 'Bergerak Lancar' : 'Sedang Berhenti'}
+                            </span>
+                          </div>
+
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-gray-400 block text-[8px] uppercase tracking-wider">Isi Tangki</span>
+                            <span className="font-mono font-black text-cyan text-xs block mt-0.5">
+                              {activeTruck.tankLevelPercent}%
+                            </span>
+                            <span className="text-[8px] text-gray-300 truncate block">
+                              {activeTruck.tankCapacity}
+                            </span>
+                          </div>
+
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-gray-400 block text-[8px] uppercase tracking-wider">Estimasi Tiba</span>
+                            <span className="font-mono font-black text-orange text-xs block mt-0.5 truncate">
+                              {activeTruck.eta.split(' ')[0]} {activeTruck.eta.split(' ')[1] || ''}
+                            </span>
+                            <span className="text-[8px] text-emerald-400 font-semibold truncate block">
+                              4G LTE Satelit
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Tank Filling Progress Bar */}
+                        <div className="py-2 border-b border-white/10">
+                          <div className="flex items-center justify-between text-[10px] mb-1">
+                            <span className="text-gray-300 font-medium">Kapasitas Bak Tangki Vakum:</span>
+                            <span className="font-mono font-bold text-cyan">
+                              {Math.round((parseInt(activeTruck.tankCapacity.replace(/[^0-9]/g, '')) * activeTruck.tankLevelPercent) / 100).toLocaleString('id-ID')} / {activeTruck.tankCapacity}
+                            </span>
+                          </div>
+                          <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-700 ${
+                                activeTruck.tankLevelPercent > 80
+                                  ? 'bg-rose-500'
+                                  : activeTruck.tankLevelPercent > 50
+                                  ? 'bg-amber-400'
+                                  : 'bg-emerald-400'
+                              }`}
+                              style={{ width: `${activeTruck.tankLevelPercent}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Journey & Destination Details for Client Transparency */}
+                        <div className="py-2.5 border-b border-white/10 text-[10px] space-y-1.5">
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-emerald-400 font-bold shrink-0">📍 Posisi Terkini:</span>
+                            <span className="text-gray-200">{activeTruck.currentLocation}</span>
+                          </div>
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-orange font-bold shrink-0">🎯 Tujuan Klien:</span>
+                            <span className="text-white font-semibold">{activeTruck.destination}</span>
+                          </div>
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-cyan font-bold shrink-0">👤 Klien / Pemesan:</span>
+                            <span className="text-gray-300">{activeTruck.clientName}</span>
+                          </div>
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-gray-400 font-bold shrink-0">🛠️ Layanan:</span>
+                            <span className="text-gray-200">{activeTruck.serviceType}</span>
+                          </div>
+                          <div className="flex items-start gap-1.5">
+                            <span className="text-gray-400 font-bold shrink-0">🔧 Peralatan:</span>
+                            <span className="text-emerald-300 font-mono text-[9px]">{activeTruck.waterJetPressure} • {activeTruck.vacuumHoseLength}</span>
+                          </div>
+                        </div>
+
+                        {/* Driver & Hub Info */}
+                        <div className="bg-white/5 rounded-xl p-2.5 border border-white/10 flex items-center justify-between text-[10px] my-2">
+                          <div className="min-w-0 pr-1">
+                            <span className="block text-[8px] uppercase tracking-wider text-cyan-200 font-bold">
+                              Petugas & Pos Armada
+                            </span>
+                            <span className="font-bold text-white truncate block">
+                              👷 {activeTruck.driverName}
+                            </span>
+                            <span className="text-[9px] text-gray-400 truncate block">
+                              Pos: {activeTruck.nearestHubName}
+                            </span>
+                          </div>
+                          <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 font-mono text-[9px] font-bold shrink-0">
+                            {activeTruck.livePingFormatted}
+                          </span>
+                        </div>
+
+                        {/* Action Buttons for Transparency & Direct Contact */}
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyTrackingLink(activeTruck)}
+                            className="px-2 py-2 rounded-xl text-[10px] font-bold bg-white/20 hover:bg-white/30 text-white transition flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+                            title="Salin Tautan Tracking untuk Dibagikan ke Klien / Manajemen"
+                          >
+                            <span>🔗</span>
+                            <span>{copiedTrackingOrder === activeTruck.orderNumber ? '✓ Link Tersalin' : 'Bagikan Link'}</span>
+                          </button>
+                          <a
+                            href={`https://wa.me/${activeTruck.driverPhoneRaw}?text=${encodeURIComponent(
+                              `Halo PT Kusuma Gemilang Raya, saya sedang melacak Armada ${activeTruck.code} (${activeTruck.plate}, No. Order: ${activeTruck.orderNumber}) dengan tujuan "${activeTruck.destination}". Mohon update estimasi kedatangan tim ${activeTruck.driverName}.`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-2 rounded-xl text-[10px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition flex items-center justify-center gap-1 shadow-md active:scale-95"
+                            title="Hubungi Driver / Dispatcher via WhatsApp"
+                          >
+                            <span>💬</span>
+                            <span>Hubungi Driver</span>
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Floating Quick Pin Dock inside Map Viewport */}
+                <div className="absolute bottom-16 left-3.5 right-3.5 z-20 pointer-events-none">
+                  <div className="bg-navy/85 backdrop-blur-md border border-white/10 rounded-2xl p-2 sm:p-2.5 shadow-xl flex flex-wrap items-center justify-between gap-2 pointer-events-auto">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] sm:text-xs font-bold text-cyan flex items-center gap-1">
+                        <span>{isFleetTrackingActive ? '🛰️' : isWasteDensityLayerActive ? '🔥' : '📍'}</span>
+                        <span className="hidden xs:inline">
+                          {isFleetTrackingActive ? 'Lacak Truk:' : isWasteDensityLayerActive ? 'Pilih Zona:' : 'Pusatkan Peta:'}
+                        </span>
+                      </span>
+                      {isFleetTrackingActive ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {liveFleetTrucks.map((truck) => (
+                            <button
+                              key={truck.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedTruckId(truck.id);
+                                handleSelectMapHub(truck.hubIndex, true);
+                              }}
+                              className={`px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                                selectedTruckId === truck.id
+                                  ? 'bg-emerald-500 text-white shadow-md font-black scale-105 ring-2 ring-emerald-300'
+                                  : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                              }`}
+                              title={`${truck.code} (${truck.plate}) • ${truck.status}`}
+                            >
+                              <span>
+                                {truck.status === 'Menuju Lokasi'
+                                  ? '🟢'
+                                  : truck.status === 'Proses Sedot'
+                                  ? '🟡'
+                                  : truck.status === 'Menuju IPLT'
+                                  ? '🔵'
+                                  : '⚪'}
+                              </span>
+                              <span>{truck.plate}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : isWasteDensityLayerActive ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {wasteDensityZones.map((zone) => (
+                            <button
+                              key={zone.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDensityZoneId(zone.id);
+                                handleSelectMapHub(zone.hubIndex, true);
+                              }}
+                              className={`px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                                selectedDensityZoneId === zone.id
+                                  ? 'bg-rose-500 text-white shadow-md font-black scale-105 ring-2 ring-rose-300'
+                                  : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                              }`}
+                              title={`${zone.name} (${zone.urgencyLevel} ${zone.urgencyScore}%)`}
+                            >
+                              <span>{zone.urgencyLevel === 'Kritis' ? '🔴' : zone.urgencyLevel === 'Waspada' ? '🟡' : '🟢'}</span>
+                              <span>{zone.shortName.split(' ')[0]} {zone.shortName.split(' ')[1] || ''}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {mapHubs.map((hub, idx) => (
+                            <button
+                              key={hub.id}
+                              type="button"
+                              onClick={() => handleSelectMapHub(idx, true)}
+                              onMouseEnter={() => setHoveredMapHubIndex(idx)}
+                              onMouseLeave={() => setHoveredMapHubIndex(null)}
+                              className={`px-2.5 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition flex items-center gap-1 ${
+                                activeMapHubIndex === idx
+                                  ? 'bg-cyan text-navy shadow-md font-black scale-105'
+                                  : 'bg-white/10 hover:bg-white/20 text-gray-200'
+                              }`}
+                              title={`Pusatkan ke ${hub.name} • Kontak: ${hub.phone}`}
+                            >
+                              <span>{hub.pinIcon}</span>
+                              <span>{hub.shortName?.split(' ')[0] || hub.name.split(' ')[0]} {hub.shortName?.split(' ')[1] || ''}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <span className="text-[10px] text-gray-300 hidden md:inline-block">
-                      {isPinInteractiveMode ? '🎯 Klik pin di peta untuk pusatkan' : '⚠️ Mode peta bebas aktif'}
+                      {isFleetTrackingActive
+                        ? '🛰️ Klik truk untuk pantau posisi GPS & rute'
+                        : isWasteDensityLayerActive
+                        ? '🔥 Klik zona untuk inspeksi beban limbah'
+                        : isPinInteractiveMode
+                        ? '🎯 Klik pin di peta untuk pusatkan'
+                        : '⚠️ Mode peta bebas aktif'}
                     </span>
                   </div>
                 </div>
@@ -10175,6 +11726,36 @@ export default function App() {
                   </button>
                 </div>
 
+                {/* Time Range Filter Tab */}
+                <div className="flex items-center bg-gray-200/60 p-1 rounded-xl text-xs font-bold">
+                  <button
+                    onClick={() => setSubscriberTimeRange('Semua Waktu')}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                      subscriberTimeRange === 'Semua Waktu' ? 'bg-white text-navy shadow-sm' : 'text-gray-600 hover:text-navy'
+                    }`}
+                  >
+                    Semua Waktu
+                  </button>
+                  <button
+                    onClick={() => setSubscriberTimeRange('Mingguan')}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                      subscriberTimeRange === 'Mingguan' ? 'bg-amber-500 text-navy shadow-sm' : 'text-gray-600 hover:text-navy'
+                    }`}
+                  >
+                    <span>📅</span>
+                    <span>Mingguan</span>
+                  </button>
+                  <button
+                    onClick={() => setSubscriberTimeRange('Bulanan')}
+                    className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                      subscriberTimeRange === 'Bulanan' ? 'bg-amber-500 text-navy shadow-sm' : 'text-gray-600 hover:text-navy'
+                    }`}
+                  >
+                    <span>🗓️</span>
+                    <span>Bulanan</span>
+                  </button>
+                </div>
+
                 {/* Privacy Mask Toggle */}
                 <button
                   onClick={() => setIsMaskEmail(!isMaskEmail)}
@@ -11201,6 +12782,19 @@ export default function App() {
                       </button>
                     </div>
                   )}
+                  {subscriberTimeRange !== 'Semua Waktu' && (
+                    <div className="flex items-center gap-1.5 text-xs text-navy bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                      <span>Rentang Waktu:</span>
+                      <strong className="text-amber-800 font-extrabold">{subscriberTimeRange}</strong>
+                      <button
+                        onClick={() => setSubscriberTimeRange('Semua Waktu')}
+                        className="ml-1 text-gray-500 hover:text-navy cursor-pointer font-bold"
+                        title="Hapus filter rentang waktu"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Toolbar & Filters */}
@@ -11276,6 +12870,63 @@ export default function App() {
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${subscriberStatusFilter === 'Terkonfirmasi' ? 'bg-white' : 'bg-cyan'}`}></span>
                           <span>Terkonfirmasi ({subscribersList.filter((s) => s.status === 'Terkonfirmasi').length})</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filter Rentang Tanggal: Mingguan, Bulanan, Kuartal */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-gray-500">Rentang Tanggal:</span>
+                      <div className="flex items-center bg-gray-200 p-1 rounded-xl text-xs font-bold">
+                        <button
+                          type="button"
+                          onClick={() => setSubscriberTimeRange('Semua Waktu')}
+                          className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                            subscriberTimeRange === 'Semua Waktu'
+                              ? 'bg-white text-navy shadow-xs'
+                              : 'text-gray-600 hover:text-navy'
+                          }`}
+                        >
+                          Semua Waktu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSubscriberTimeRange('Mingguan')}
+                          className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                            subscriberTimeRange === 'Mingguan'
+                              ? 'bg-amber-500 text-navy shadow-xs font-black'
+                              : 'text-gray-600 hover:text-navy'
+                          }`}
+                          title="Tampilkan data pendaftaran 7 hari terakhir (Mingguan)"
+                        >
+                          <span>📅</span>
+                          <span>Mingguan</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSubscriberTimeRange('Bulanan')}
+                          className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                            subscriberTimeRange === 'Bulanan'
+                              ? 'bg-amber-500 text-navy shadow-xs font-black'
+                              : 'text-gray-600 hover:text-navy'
+                          }`}
+                          title="Tampilkan data pendaftaran 30 hari terakhir (Bulanan)"
+                        >
+                          <span>🗓️</span>
+                          <span>Bulanan</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSubscriberTimeRange('Kuartal')}
+                          className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                            subscriberTimeRange === 'Kuartal'
+                              ? 'bg-amber-500 text-navy shadow-xs font-black'
+                              : 'text-gray-600 hover:text-navy'
+                          }`}
+                          title="Tampilkan data pendaftaran 90 hari terakhir (Kuartal)"
+                        >
+                          <span>📊</span>
+                          <span>Kuartal</span>
                         </button>
                       </div>
                     </div>

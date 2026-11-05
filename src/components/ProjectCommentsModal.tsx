@@ -6,7 +6,11 @@ export interface ProjectComment {
   author: string;
   location?: string;
   type: 'question' | 'review';
-  rating?: number; // 1-5
+  rating?: number; // 1-5 overall
+  ratingCleanliness?: number; // 1-5 Kebersihan & Kerapihan
+  ratingSpeed?: number; // 1-5 Kecepatan Layanan & Ketepatan Waktu
+  ratingPrice?: number; // 1-5 Transparansi Biaya
+  highlightTags?: string[]; // Tag keunggulan kualitas
   comment: string;
   createdAt: string;
   likes: number;
@@ -44,6 +48,10 @@ export const initialProjectComments: ProjectComment[] = [
     location: 'Galaxy Cluster Pulo Ribung',
     type: 'review',
     rating: 5,
+    ratingCleanliness: 5,
+    ratingSpeed: 5,
+    ratingPrice: 5,
+    highlightTags: ['✨ Bersih & Higienis', '🌸 Disemprot Disinfektan Wangi', '🛡️ Petugas Ber-APD Lengkap'],
     comment: 'Pengerjaan sangat rapi dan higienis. Teknisi memakai seragam APD lengkap dan setelah selesai area lubang septic tank disemprot disinfektan wangi. Sangat memuaskan!',
     createdAt: '3 hari lalu',
     likes: 12,
@@ -73,6 +81,10 @@ export const initialProjectComments: ProjectComment[] = [
     location: 'Kawasan Komersial Cikarang',
     type: 'review',
     rating: 5,
+    ratingCleanliness: 5,
+    ratingSpeed: 5,
+    ratingPrice: 5,
+    highlightTags: ['🔧 Mesin Modern Tanpa Bongkar', '💨 Respon Cepat <45 Menit', '📑 BAST & Manifest Sah'],
     comment: 'Saluran pembuangan dapur gedung kami yang mampet total kembali lancar dalam tempo 40 menit tanpa perlu bongkar keramik lantai. Hasil kerja sangat profesional!',
     createdAt: '5 hari lalu',
     likes: 9,
@@ -122,6 +134,10 @@ export const initialProjectComments: ProjectComment[] = [
     location: 'Bistro & Cafe Summarecon',
     type: 'review',
     rating: 5,
+    ratingCleanliness: 5,
+    ratingSpeed: 4,
+    ratingPrice: 5,
+    highlightTags: ['✨ Bersih & Higienis', '💰 Tarif Transparan Sesuai Estimasi', '🌸 Disemprot Disinfektan Wangi'],
     comment: 'Pembersihan grease trap restoran sangat bersih tuntas. Bau lemak minyak dapur yang menyengat langsung lenyap seketika. Rekomendasi terbaik untuk pengusaha resto di Bekasi!',
     createdAt: '1 minggu lalu',
     likes: 11,
@@ -159,6 +175,10 @@ export const initialProjectComments: ProjectComment[] = [
     location: 'Kavling Harapan Indah',
     type: 'review',
     rating: 5,
+    ratingCleanliness: 5,
+    ratingSpeed: 5,
+    ratingPrice: 5,
+    highlightTags: ['🔧 Mesin Modern Tanpa Bongkar', '💰 Tarif Transparan Sesuai Estimasi', '🛡️ Petugas Ber-APD Lengkap'],
     comment: 'Lumpur septic tank di rumah kami sudah mengeras seperti semen karena 10 tahun tidak disedot. Teknisi dengan sabar melakukan pengenceran bertekanan tinggi sampai dasar bak bersih total. Sangat puas!',
     createdAt: '4 hari lalu',
     likes: 14,
@@ -190,6 +210,10 @@ export const initialProjectComments: ProjectComment[] = [
     location: 'Kompleks Sakura Jatiasih',
     type: 'review',
     rating: 5,
+    ratingCleanliness: 5,
+    ratingSpeed: 5,
+    ratingPrice: 5,
+    highlightTags: ['✨ Bersih & Higienis', '🌸 Disemprot Disinfektan Wangi', '💨 Respon Cepat <45 Menit'],
     comment: 'Pelayanan sangat higienis. Setelah sedot selesai tutup septic tank diplester kembali rapi dan tidak ada tumpahan air kotor sama sekali di carport.',
     createdAt: '3 hari lalu',
     likes: 8,
@@ -217,6 +241,16 @@ interface ProjectCommentsModalProps {
   onToast?: (message: string) => void;
 }
 
+const AVAILABLE_HIGHLIGHT_TAGS = [
+  '✨ Bersih & Higienis',
+  '💨 Respon Cepat <45 Menit',
+  '💰 Tarif Transparan Sesuai Estimasi',
+  '🔧 Mesin Modern Tanpa Bongkar',
+  '🛡️ Petugas Ber-APD Lengkap',
+  '🌸 Disemprot Disinfektan Wangi',
+  '📑 BAST & Manifest Sah',
+];
+
 export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
   project,
   comments,
@@ -231,6 +265,12 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
   const [locationName, setLocationName] = useState('');
   const [commentType, setCommentType] = useState<'question' | 'review'>('question');
   const [reviewRating, setReviewRating] = useState<number>(5);
+  const [ratingCleanliness, setRatingCleanliness] = useState<number>(5);
+  const [ratingSpeed, setRatingSpeed] = useState<number>(5);
+  const [ratingPrice, setRatingPrice] = useState<number>(5);
+  const [selectedHighlightTags, setSelectedHighlightTags] = useState<string[]>([
+    '✨ Bersih & Higienis',
+  ]);
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -249,11 +289,35 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
         ).toFixed(1)
       : null;
 
+  const cleanlinessReviews = reviewsWithRating.filter((c) => c.ratingCleanliness);
+  const avgCleanliness =
+    cleanlinessReviews.length > 0
+      ? (cleanlinessReviews.reduce((acc, c) => acc + (c.ratingCleanliness || 5), 0) / cleanlinessReviews.length).toFixed(1)
+      : null;
+
+  const speedReviews = reviewsWithRating.filter((c) => c.ratingSpeed);
+  const avgSpeed =
+    speedReviews.length > 0
+      ? (speedReviews.reduce((acc, c) => acc + (c.ratingSpeed || 5), 0) / speedReviews.length).toFixed(1)
+      : null;
+
+  const priceReviews = reviewsWithRating.filter((c) => c.ratingPrice);
+  const avgPrice =
+    priceReviews.length > 0
+      ? (priceReviews.reduce((acc, c) => acc + (c.ratingPrice || 5), 0) / priceReviews.length).toFixed(1)
+      : null;
+
   const filteredComments = projectComments.filter((c) => {
     if (filterType === 'question') return c.type === 'question';
     if (filterType === 'review') return c.type === 'review';
     return true;
   });
+
+  const handleToggleHighlightTag = (tag: string) => {
+    setSelectedHighlightTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,17 +338,24 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
         location: locationName.trim() || undefined,
         type: commentType,
         rating: commentType === 'review' ? reviewRating : undefined,
+        ratingCleanliness: commentType === 'review' ? ratingCleanliness : undefined,
+        ratingSpeed: commentType === 'review' ? ratingSpeed : undefined,
+        ratingPrice: commentType === 'review' ? ratingPrice : undefined,
+        highlightTags: commentType === 'review' && selectedHighlightTags.length > 0 ? selectedHighlightTags : undefined,
         comment: commentText.trim(),
       });
 
       setCommentText('');
       setAuthorName('');
       setLocationName('');
+      if (commentType === 'review') {
+        setSelectedHighlightTags(['✨ Bersih & Higienis']);
+      }
       if (onToast) {
         onToast(
           commentType === 'question'
             ? '❓ Pertanyaan Anda berhasil dikirim! Tim kami akan segera menanggapi.'
-            : '⭐ Terima kasih! Ulasan kepuasan Anda berhasil dipublikasikan.'
+            : '⭐ Terima kasih! Penilaian ulasan detail Anda berhasil dipublikasikan.'
         );
       }
     } finally {
@@ -297,6 +368,43 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
       context ? `\nPertanyaan: "${context}"` : ''
     }`;
     return `https://wa.me/6289675064916?text=${encodeURIComponent(text)}`;
+  };
+
+  // Helper renderer for interactive 1-5 star buttons
+  const renderInteractiveStars = (
+    currentValue: number,
+    onChange: (val: number) => void,
+    criteriaLabel: string,
+    descriptionMap: Record<number, string>
+  ) => {
+    return (
+      <div className="bg-slate-50 p-2.5 rounded-xl border border-gray-200">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-bold text-navy">{criteriaLabel}</span>
+          <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+            ★ {currentValue}.0 / 5.0
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => onChange(star)}
+                className="text-2xl text-amber-400 hover:scale-125 transition-transform p-0.5 cursor-pointer"
+                title={`${star} Bintang`}
+              >
+                {star <= currentValue ? '★' : '☆'}
+              </button>
+            ))}
+          </div>
+          <span className="text-[11px] text-gray-600 font-medium ml-1 truncate">
+            {descriptionMap[currentValue] || ''}
+          </span>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -339,7 +447,7 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
                   {project.title}
                 </h3>
                 <p className="text-xs text-gray-300">
-                  Diskusi interaktif, tanya spesifikasi pengerjaan, dan ulasan pelanggan
+                  Ulasan detail kualitas pengerjaan (kebersihan, kecepatan, transparansi biaya) & diskusi proyek
                 </p>
               </div>
             </div>
@@ -359,11 +467,11 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
           <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">
               <span className="inline-flex items-center gap-1.5 font-bold text-white bg-white/10 px-3 py-1 rounded-full">
-                💬 {projectComments.length} Total Komentar
+                💬 {projectComments.length} Total Tanggapan
               </span>
               {averageRating && (
                 <span className="inline-flex items-center gap-1 font-bold text-amber-300 bg-amber-400/20 px-3 py-1 rounded-full border border-amber-300/30">
-                  ⭐ {averageRating} / 5.0
+                  ⭐ {averageRating} / 5.0 ({reviewCount} Ulasan)
                 </span>
               )}
             </div>
@@ -408,6 +516,96 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+          {/* Detailed Quality Assessment Summary (Shows when reviews exist) */}
+          {reviewsWithRating.length > 0 && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-orange/10 to-amber-500/10 border border-amber-200/80 rounded-2xl p-4 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🏆</span>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-extrabold text-navy">
+                      Indeks Rating Kualitas Pengerjaan Proyek Ini
+                    </h4>
+                    <p className="text-[11px] text-gray-500">
+                      Berdasarkan {reviewsWithRating.length} ulasan terverifikasi pelanggan
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-1 bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-xs">
+                  <span className="text-amber-500 text-lg">★</span>
+                  <span className="text-base font-black text-navy">{averageRating}</span>
+                  <span className="text-[11px] text-gray-400 font-bold">/ 5.0</span>
+                </div>
+              </div>
+
+              {/* 3 Detailed Quality Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-bold text-gray-700 flex items-center gap-1">
+                      <span>🧹</span>
+                      <span>Kebersihan & Kerapihan</span>
+                    </span>
+                    <span className="font-extrabold text-amber-700">
+                      ★ {avgCleanliness || '5.0'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-full rounded-full"
+                      style={{ width: `${(Number(avgCleanliness || 5) / 5) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-1 block">
+                    Disinfektan & steril tanpa ceceran
+                  </span>
+                </div>
+
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-bold text-gray-700 flex items-center gap-1">
+                      <span>⚡</span>
+                      <span>Kecepatan Layanan</span>
+                    </span>
+                    <span className="font-extrabold text-amber-700">
+                      ★ {avgSpeed || '5.0'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-orange h-full rounded-full"
+                      style={{ width: `${(Number(avgSpeed || 5) / 5) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-1 block">
+                    Respon cepat & pengerjaan efisien
+                  </span>
+                </div>
+
+                <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-bold text-gray-700 flex items-center gap-1">
+                      <span>💰</span>
+                      <span>Transparansi Biaya</span>
+                    </span>
+                    <span className="font-extrabold text-amber-700">
+                      ★ {avgPrice || '5.0'}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full"
+                      style={{ width: `${(Number(avgPrice || 5) / 5) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-1 block">
+                    Sesuai estimasi awal & bebas pungli
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Comments List */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -458,7 +656,7 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
                       </div>
 
                       {item.type === 'review' && item.rating && (
-                        <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                        <div className="flex items-center gap-0.5 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs">
                           {Array.from({ length: 5 }).map((_, i) => (
                             <span
                               key={i}
@@ -475,6 +673,44 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
                         </div>
                       )}
                     </div>
+
+                    {/* Detailed Rating Breakdown Badges for Reviews */}
+                    {item.type === 'review' && (item.ratingCleanliness || item.ratingSpeed || item.ratingPrice) && (
+                      <div className="mb-2.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                        {item.ratingCleanliness && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-2xs">
+                            <span>🧹 Kebersihan:</span>
+                            <span className="font-bold text-amber-600">★ {item.ratingCleanliness}.0</span>
+                          </span>
+                        )}
+                        {item.ratingSpeed && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-2xs">
+                            <span>⚡ Kecepatan:</span>
+                            <span className="font-bold text-amber-600">★ {item.ratingSpeed}.0</span>
+                          </span>
+                        )}
+                        {item.ratingPrice && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-2xs">
+                            <span>💰 Biaya Transparan:</span>
+                            <span className="font-bold text-amber-600">★ {item.ratingPrice}.0</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Highlight Tags Badges */}
+                    {item.type === 'review' && item.highlightTags && item.highlightTags.length > 0 && (
+                      <div className="mb-2.5 flex flex-wrap gap-1.5">
+                        {item.highlightTags.map((tag, tIdx) => (
+                          <span
+                            key={tIdx}
+                            className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          >
+                            ✓ {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Comment text */}
                     <p className="text-sm text-gray-700 leading-relaxed mb-3">
@@ -583,37 +819,117 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
                     }`}
                   >
                     <span>⭐</span>
-                    <span>Beri Ulasan Hasil Proyek</span>
+                    <span>Beri Ulasan & Nilai Kualitas</span>
                   </button>
                 </div>
               </div>
 
-              {/* Rating Star selector if review */}
+              {/* Detailed 1-5 Star Rating Section if review */}
               {commentType === 'review' && (
-                <div className="bg-white p-3 rounded-xl border border-amber-200">
-                  <label className="block text-xs font-bold text-amber-900 mb-1">
-                    Beri Nilai Bintang Kepuasan:
-                  </label>
-                  <div className="flex items-center gap-2">
+                <div className="bg-white p-4 rounded-2xl border border-amber-200 space-y-3.5 shadow-xs">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                        <span>⭐</span>
+                        <span>Nilai Kepuasan Keseluruhan:</span>
+                      </label>
+                      <span className="text-xs font-extrabold text-navy">
+                        {reviewRating === 5 && 'Sangat Puas (5/5)'}
+                        {reviewRating === 4 && 'Puas (4/5)'}
+                        {reviewRating === 3 && 'Cukup Baik (3/5)'}
+                        {reviewRating === 2 && 'Kurang Puas (2/5)'}
+                        {reviewRating === 1 && 'Perlu Evaluasi (1/5)'}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
                           type="button"
                           onClick={() => setReviewRating(star)}
-                          className="text-2xl text-amber-400 hover:scale-125 transition cursor-pointer"
+                          className="text-3xl text-amber-400 hover:scale-125 transition-transform cursor-pointer p-0.5"
+                          title={`Nilai ${star} Bintang`}
                         >
                           {star <= reviewRating ? '★' : '☆'}
                         </button>
                       ))}
                     </div>
-                    <span className="text-xs font-bold text-navy">
-                      {reviewRating === 5 && 'Sangat Puas & Rekomendasi (5/5)'}
-                      {reviewRating === 4 && 'Puas & Profesional (4/5)'}
-                      {reviewRating === 3 && 'Cukup Baik (3/5)'}
-                      {reviewRating === 2 && 'Kurang Memuaskan (2/5)'}
-                      {reviewRating === 1 && 'Perlu Evaluasi (1/5)'}
-                    </span>
+                  </div>
+
+                  {/* Sub-Criteria 1-5 Stars Assessment */}
+                  <div className="pt-2 border-t border-amber-100 space-y-2">
+                    <p className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                      Penilaian Kualitas Pengerjaan Lebih Detail (1-5 Bintang):
+                    </p>
+
+                    {/* Criteria 1: Kebersihan */}
+                    {renderInteractiveStars(
+                      ratingCleanliness,
+                      setRatingCleanliness,
+                      '🧹 Kebersihan & Kerapihan Area Kerja',
+                      {
+                        5: 'Sangat Bersih & Steril Disinfektan',
+                        4: 'Rapi & Tanpa Ceceran Air Kotor',
+                        3: 'Cukup Rapi',
+                        2: 'Kurang Bersih',
+                        1: 'Perlu Ditingkatkan',
+                      }
+                    )}
+
+                    {/* Criteria 2: Kecepatan */}
+                    {renderInteractiveStars(
+                      ratingSpeed,
+                      setRatingSpeed,
+                      '⚡ Kecepatan Layanan & Ketepatan Waktu',
+                      {
+                        5: 'Respon Sangat Cepat <45 Menit',
+                        4: 'Tepat Waktu Sesuai Jadwal',
+                        3: 'Waktu Pengerjaan Standar',
+                        2: 'Agak Terlambat',
+                        1: 'Sangat Lambat',
+                      }
+                    )}
+
+                    {/* Criteria 3: Transparansi Biaya */}
+                    {renderInteractiveStars(
+                      ratingPrice,
+                      setRatingPrice,
+                      '💰 Transparansi Biaya & Kejujuran Tarif',
+                      {
+                        5: 'Sesuai Estimasi Awal, Bebas Pungli',
+                        4: 'Tarif Jelas & Wajar',
+                        3: 'Cukup Transparan',
+                        2: 'Ada Selisih Biaya',
+                        1: 'Tidak Transparan',
+                      }
+                    )}
+                  </div>
+
+                  {/* Highlight Tags Selector */}
+                  <div className="pt-2 border-t border-amber-100">
+                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                      Pilih Aspek Kualitas Unggulan (Bisa Pilih Lebih dari 1):
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {AVAILABLE_HIGHLIGHT_TAGS.map((tag) => {
+                        const isSelected = selectedHighlightTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => handleToggleHighlightTag(tag)}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition cursor-pointer border ${
+                              isSelected
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                                : 'bg-slate-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            <span>{isSelected ? '✓ ' : '+ '}</span>
+                            <span>{tag}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -660,7 +976,7 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
                   placeholder={
                     commentType === 'question'
                       ? 'Tanyakan mengenai ketersediaan selang panjang, waktu pengerjaan, estimasi biaya, atau persiapan teknis...'
-                      : 'Ceritakan pengalaman Anda, kecepatan penanganan, kerapian petugas, atau kondisi saluran setelah dikerjakan...'
+                      : 'Ceritakan pengalaman Anda, kebersihan hasil kerja, ketepatan estimasi biaya, keramahan teknisi...'
                   }
                   className="w-full px-3.5 py-2.5 bg-white rounded-xl border border-gray-200 text-xs sm:text-sm text-navy focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan resize-none"
                 />
@@ -675,7 +991,7 @@ export const ProjectCommentsModal: React.FC<ProjectCommentsModalProps> = ({
                   disabled={isSubmitting}
                   className="px-5 py-2.5 bg-gradient-to-r from-navy to-navy-light hover:from-orange hover:to-orange-dark text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer shrink-0 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'Mengirim...' : commentType === 'question' ? 'Kirim Pertanyaan' : 'Kirim Ulasan'}
+                  {isSubmitting ? 'Mengirim...' : commentType === 'question' ? 'Kirim Pertanyaan' : 'Kirim Ulasan & Penilaian'}
                 </button>
               </div>
             </form>
