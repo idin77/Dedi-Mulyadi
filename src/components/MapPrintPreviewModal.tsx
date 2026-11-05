@@ -564,11 +564,68 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
     }
   };
 
+  // Map Zoom Level state for print preview (range 10x - 18x, default 13x)
+  const [mapPrintZoom, setMapPrintZoom] = useState<number>(() => {
+    if (typeof window === 'undefined') return 13;
+    try {
+      const stored = localStorage.getItem('kgr_map_print_zoom_level');
+      if (stored) {
+        const parsed = parseInt(stored, 10);
+        if (!isNaN(parsed) && parsed >= 10 && parsed <= 18) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return 13;
+  });
+
+  const handleUpdateMapPrintZoom = (newZoom: number) => {
+    const clamped = Math.max(10, Math.min(18, newZoom));
+    setMapPrintZoom(clamped);
+    try {
+      localStorage.setItem('kgr_map_print_zoom_level', clamped.toString());
+    } catch {
+      // ignore
+    }
+  };
+
+  const getZoomScaleLabel = (z: number): string => {
+    switch (z) {
+      case 10: return '1 : 100.000 (Metropolitan)';
+      case 11: return '1 : 75.000 (Kota & Kab)';
+      case 12: return '1 : 60.000 (Kecamatan)';
+      case 13: return '1 : 50.000 (Standar Pos)';
+      case 14: return '1 : 35.000 (Radius 5 KM)';
+      case 15: return '1 : 25.000 (Kawasan / Blok)';
+      case 16: return '1 : 15.000 (Akses Truk)';
+      case 17: return '1 : 10.000 (Detail Gerbang)';
+      case 18: return '1 : 5.000 (Presisi Manhole)';
+      default: return `1 : ${Math.round(50000 / Math.pow(1.15, z - 13)).toLocaleString('id-ID')}`;
+    }
+  };
+
+  const zoomFactor = Math.pow(1.15, mapPrintZoom - 13);
+  const zoomOrigin = useMemo(() => {
+    if (hubDisplayMode === 'all') {
+      return { x: 50, y: 50 };
+    }
+    if (activeHubIndex === 0) return { x: 22, y: 38 };
+    if (activeHubIndex === 1) return { x: 78, y: 64 };
+    if (activeHubIndex === 2) return { x: 50, y: 48 };
+    return { x: 50, y: 50 };
+  }, [hubDisplayMode, activeHubIndex]);
+
   // Dynamic QR Code generation for Google Maps Navigation
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [isQrLoading, setIsQrLoading] = useState<boolean>(true);
   const [isQrModalZoomed, setIsQrModalZoomed] = useState<boolean>(false);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // 'Share via QR Code' Modal State (pointing to currently selected map view for on-site field technicians)
+  const [isShareQrModalOpen, setIsShareQrModalOpen] = useState<boolean>(false);
+  const [shareQrTargetType, setShareQrTargetType] = useState<'app_map' | 'google_maps'>('app_map');
+  const [isShareCopied, setIsShareCopied] = useState<boolean>(false);
+  const shareQrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const currentHub = hubs[activeHubIndex] || hubs[0];
   const googleMapsNavUrl = currentHub ? getGoogleMapsNavUrl(currentHub) : '';
@@ -576,6 +633,32 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
     ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(googleMapsNavUrl)}&color=0a192f`
     : '';
   const effectiveQrSrc = qrDataUrl || fallbackQrUrl;
+
+  // Dynamically compute the currently selected map view URL for field technicians on-site
+  const selectedMapViewUrl = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return `https://sedotlimbahbekasi.id/?hub=${currentHub.id}&zoom=${mapPrintZoom}#peta`;
+    }
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+
+    if (shareQrTargetType === 'google_maps') {
+      // Direct Google Maps GPS navigation URL with exact coordinates and zoom
+      return `https://www.google.com/maps/@${currentHub.lat},${currentHub.lng},${mapPrintZoom}z`;
+    }
+
+    // Default: currently selected map view URL pointing to web app interactive map with hub, coordinates, and zoom
+    const url = new URL(pathname, origin);
+    url.searchParams.set('hub', currentHub.id);
+    url.searchParams.set('lat', String(currentHub.lat));
+    url.searchParams.set('lng', String(currentHub.lng));
+    url.searchParams.set('zoom', String(mapPrintZoom));
+    if (hubDisplayMode === 'active') {
+      url.searchParams.set('mode', 'active');
+    }
+    url.hash = 'peta';
+    return url.toString();
+  }, [currentHub, mapPrintZoom, hubDisplayMode, shareQrTargetType]);
 
   // Dedicated Custom URL & Dynamic QR Generator state for on-site printing
   const [customQrUrl, setCustomQrUrl] = useState<string>('');
@@ -1057,8 +1140,13 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
       (window as any).addRecentQrGeneration = addRecentQrGeneration;
       (window as any).handleRePrintQr = handleRePrintQr;
       (window as any).handleClearRecentQrGenerations = handleClearRecentQrGenerations;
+      (window as any).setMapPrintZoom = handleUpdateMapPrintZoom;
+      (window as any).getMapPrintZoom = () => mapPrintZoom;
+      (window as any).openShareViaQrModal = () => setIsShareQrModalOpen(true);
+      (window as any).getSelectedMapViewUrl = () => selectedMapViewUrl;
+      (window as any).isShareQrModalOpen = () => isShareQrModalOpen;
     }
-  }, [currentHub, customQrUrl, recentPrints, printHistory, recentQrGenerations]);
+  }, [currentHub, customQrUrl, recentPrints, printHistory, recentQrGenerations, mapPrintZoom, selectedMapViewUrl, isShareQrModalOpen]);
 
   // Handler to manually re-generate and inject QR code
   const handleRegenerateAndInjectQr = async () => {
@@ -1145,6 +1233,50 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
     document.body.removeChild(link);
     if (onToast) {
       onToast(`📥 QR Code Google Maps untuk ${currentHub.name} berhasil diunduh!`);
+    }
+  };
+
+  // Handlers for 'Share via QR Code' Feature (Currently Selected Map View)
+  const handleOpenShareViaQrModal = () => {
+    setIsShareQrModalOpen(true);
+    setIsShareCopied(false);
+    if (onToast) {
+      onToast(`📲 QR Code untuk tampilan peta "${currentHub.shortName || currentHub.name}" (${mapPrintZoom}x) siap dipindai!`);
+    }
+  };
+
+  const handleCopyShareUrl = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(selectedMapViewUrl);
+    }
+    setIsShareCopied(true);
+    if (onToast) {
+      onToast('📋 Tautan tampilan peta berhasil disalin ke clipboard!');
+    }
+    setTimeout(() => setIsShareCopied(false), 2500);
+  };
+
+  const handleDownloadShareQrPng = () => {
+    let downloadSrc = '';
+    if (shareQrCanvasRef.current) {
+      try {
+        downloadSrc = shareQrCanvasRef.current.toDataURL('image/png');
+      } catch (e) {
+        console.warn('Share canvas export fallback:', e);
+      }
+    }
+    if (!downloadSrc) {
+      downloadSrc = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(selectedMapViewUrl)}&color=0a192f`;
+    }
+    const link = document.createElement('a');
+    const safeHub = (currentHub.shortName || currentHub.name).replace(/[^a-zA-Z0-9]/g, '_');
+    link.download = `QR_Peta_Lapang_${currentHub.id}_${mapPrintZoom}x_${safeHub}.png`;
+    link.href = downloadSrc;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (onToast) {
+      onToast(`📥 QR Code tampilan peta ${mapPrintZoom}x berhasil diunduh!`);
     }
   };
 
@@ -1497,6 +1629,19 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
             <span>📱</span>
             <span className="hidden sm:inline">Unduh QR</span>
           </button>
+          {/* Share via QR Code Button for field technicians on-site */}
+          <button
+            type="button"
+            id="btn-share-via-qr"
+            data-testid="btn-share-via-qr"
+            onClick={handleOpenShareViaQrModal}
+            className="px-3 py-2 rounded-xl text-xs font-bold bg-cyan hover:bg-cyan-light text-navy shadow-md border border-cyan/60 transition flex items-center gap-1.5 cursor-pointer active:scale-95"
+            title="Bagikan Tampilan Peta yang Dipilih via QR Code untuk Pemindaian Teknisi Lapangan On-Site"
+          >
+            <span className="text-sm">📲</span>
+            <span className="hidden sm:inline font-extrabold">Share via QR Code</span>
+            <span className="sm:hidden font-extrabold">Share QR</span>
+          </button>
           <button
             type="button"
             id="btn-nav-print-qr-hub"
@@ -1771,6 +1916,159 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Zoom Control Slider Section for Print Layout */}
+          <div
+            id="print-hub-zoom-slider-card"
+            className="mt-3.5 bg-slate-950/90 p-3.5 sm:p-4 rounded-xl border border-cyan/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm"
+          >
+            <div className="max-w-md w-full">
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor="map-zoom-slider"
+                  className="text-xs font-bold text-gray-200 uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  <span className="text-cyan">🔍</span>
+                  <span>Zoom Level Peta Cetak (Map Print Zoom):</span>
+                </label>
+                <span className="font-mono text-xs font-black text-cyan px-2 py-0.5 rounded bg-cyan/20 border border-cyan/40 shadow-xs">
+                  {mapPrintZoom}x • {getZoomScaleLabel(mapPrintZoom)}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed mb-2.5">
+                Geser slider untuk mengatur tingkat perbesaran peta sebelum dicetak fisik atau disimpan ke PDF.
+              </p>
+
+              {/* Slider Input with Zoom-in & Zoom-out buttons */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  id="btn-zoom-out-map"
+                  data-testid="btn-zoom-out-map"
+                  onClick={() => handleUpdateMapPrintZoom(mapPrintZoom - 1)}
+                  disabled={mapPrintZoom <= 10}
+                  className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center border border-slate-700 disabled:opacity-40 cursor-pointer active:scale-95 transition"
+                  title="Zoom Out (-)"
+                  aria-label="Zoom Out"
+                >
+                  −
+                </button>
+                <div className="flex-1 relative flex items-center">
+                  <input
+                    type="range"
+                    id="map-zoom-slider"
+                    data-testid="map-zoom-slider"
+                    min="10"
+                    max="18"
+                    step="1"
+                    value={mapPrintZoom}
+                    onChange={(e) => {
+                      const nextVal = Number(e.target.value);
+                      handleUpdateMapPrintZoom(nextVal);
+                      if (onToast) onToast(`🔍 Zoom Level Peta: ${nextVal}x (${getZoomScaleLabel(nextVal)})`);
+                    }}
+                    className="w-full accent-cyan cursor-pointer h-2 bg-slate-800 rounded-lg"
+                    aria-label="Map Zoom Control Slider"
+                  />
+                </div>
+                <button
+                  type="button"
+                  id="btn-zoom-in-map"
+                  data-testid="btn-zoom-in-map"
+                  onClick={() => handleUpdateMapPrintZoom(mapPrintZoom + 1)}
+                  disabled={mapPrintZoom >= 18}
+                  className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center border border-slate-700 disabled:opacity-40 cursor-pointer active:scale-95 transition"
+                  title="Zoom In (+)"
+                  aria-label="Zoom In"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Zoom Presets */}
+            <div className="flex flex-wrap items-center gap-1.5 self-stretch md:self-auto justify-start md:justify-end">
+              <span className="text-[10px] text-gray-400 font-bold uppercase block w-full md:w-auto text-left md:text-right mr-1">
+                Preset Skala:
+              </span>
+              {[
+                { label: 'Kota (11x)', level: 11 },
+                { label: 'Standar (13x)', level: 13 },
+                { label: 'Kawasan (15x)', level: 15 },
+                { label: 'Presisi (17x)', level: 17 },
+              ].map((preset) => (
+                <button
+                  key={preset.level}
+                  type="button"
+                  onClick={() => {
+                    handleUpdateMapPrintZoom(preset.level);
+                    if (onToast) onToast(`🔍 Skala peta diatur ke: ${preset.label}`);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    mapPrintZoom === preset.level
+                      ? 'bg-cyan text-navy shadow-sm font-black ring-1 ring-cyan'
+                      : 'bg-slate-900 hover:bg-slate-800 text-gray-300 border border-slate-700'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  handleUpdateMapPrintZoom(13);
+                  if (onToast) onToast('↺ Zoom peta dikembalikan ke standar (13x)');
+                }}
+                className="px-2 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 text-gray-300 transition cursor-pointer"
+                title="Kembalikan ke zoom default 13x"
+              >
+                Reset (13x)
+              </button>
+            </div>
+          </div>
+
+          {/* Share via QR Code Card for Field Technicians */}
+          <div
+            id="print-preview-share-qr-card"
+            data-testid="print-preview-share-qr-card"
+            className="p-3.5 bg-gradient-to-r from-slate-950 via-navy/50 to-slate-900 rounded-xl border border-cyan/40 mt-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-md"
+          >
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-cyan text-base">📲</span>
+                <span className="font-extrabold text-white text-xs sm:text-sm">
+                  Share via QR Code (Tampilan Peta Lapangan)
+                </span>
+                <span className="px-2 py-0.2 rounded text-[10px] font-bold bg-cyan/20 text-cyan border border-cyan/40">
+                  On-Site Field Sync
+                </span>
+              </div>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Generate kode QR dinamis yang mengarah ke tampilan peta aktif saat ini ({currentHub.shortName || currentHub.name}, Zoom {mapPrintZoom}x) agar dapat langsung dipindai oleh teknisi lapangan.
+              </p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="font-mono text-[10px] text-gray-400 bg-black/40 px-2 py-0.5 rounded border border-gray-700 truncate max-w-md">
+                  {selectedMapViewUrl}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyShareUrl}
+                  className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-cyan text-[10px] font-bold transition cursor-pointer"
+                >
+                  {isShareCopied ? '✓ Tersalin' : 'Salin URL'}
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              id="btn-open-share-qr-modal-from-panel"
+              onClick={handleOpenShareViaQrModal}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-cyan hover:bg-cyan-light text-navy transition shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+            >
+              <span>📲</span>
+              <span>Buka QR Code Lapangan</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -2016,114 +2314,189 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
           {/* LEFT: Clean Schematic Hub Map Visual (7 Cols) */}
           <div className="md:col-span-7 bg-slate-900 rounded-xl p-3.5 text-white flex flex-col justify-between border border-gray-800 relative overflow-hidden">
             {/* Header of Map Visual */}
-            <div className="flex items-center justify-between mb-2 z-10">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2 z-10">
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-cyan animate-pulse"></span>
                 <span className="text-[11px] font-bold tracking-wider uppercase text-cyan">
                   PETA RUTE & RADIUS RESPON CEPAT BEKASI
                 </span>
               </div>
-              <span className="text-[10px] font-mono bg-white/10 px-2 py-0.5 rounded text-gray-300">
-                Skala: 1 : 50.000
-              </span>
+              <div className="flex items-center gap-2">
+                {/* Inline Quick Zoom Slider for immediate interaction on the map visual itself */}
+                <div
+                  id="map-inline-zoom-control"
+                  className="print-hide hidden sm:flex items-center gap-1.5 bg-black/60 px-2 py-0.5 rounded border border-gray-700/80 text-[10px]"
+                >
+                  <span className="text-gray-400 font-medium text-[9px]">Zoom:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateMapPrintZoom(mapPrintZoom - 1)}
+                    disabled={mapPrintZoom <= 10}
+                    className="w-4 h-4 rounded flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-[10px] font-bold leading-none"
+                    title="Perkecil skala peta"
+                    aria-label="Perkecil zoom peta"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="range"
+                    min={10}
+                    max={18}
+                    step={1}
+                    value={mapPrintZoom}
+                    onChange={(e) => handleUpdateMapPrintZoom(Number(e.target.value))}
+                    className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan"
+                    title={`Zoom ${mapPrintZoom}x`}
+                    aria-label="Slider zoom peta cetak"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateMapPrintZoom(mapPrintZoom + 1)}
+                    disabled={mapPrintZoom >= 18}
+                    className="w-4 h-4 rounded flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-[10px] font-bold leading-none"
+                    title="Perbesar skala peta"
+                    aria-label="Perbesar zoom peta"
+                  >
+                    +
+                  </button>
+                  <span className="font-mono text-cyan font-bold text-[10px] min-w-[20px] text-center">
+                    {mapPrintZoom}x
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono bg-white/10 px-2 py-0.5 rounded text-gray-200 border border-white/10">
+                  Skala: {getZoomScaleLabel(mapPrintZoom)}
+                </span>
+                {/* Share via QR Code Button on map visual */}
+                <button
+                  type="button"
+                  id="map-visual-share-qr-btn"
+                  onClick={handleOpenShareViaQrModal}
+                  className="print-hide px-2 py-0.5 rounded bg-cyan/20 hover:bg-cyan/30 text-cyan border border-cyan/40 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition shadow-xs"
+                  title="Bagikan Tampilan Peta yang Dipilih via QR Code untuk Pemindaian Teknisi Lapangan"
+                >
+                  <span>📲</span>
+                  <span>Share QR</span>
+                </button>
+              </div>
             </div>
 
             {/* High-Resolution Vector Schematic Map Representation */}
-            <div className="relative w-full h-[220px] bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center">
-              {/* Grid Lines */}
+            <div
+              id="print-hub-map-viewport"
+              className="relative w-full h-[220px] bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center select-none"
+            >
+              {/* Scalable Vector Map Layer (Transforms according to mapPrintZoom slider) */}
               <div
-                className="absolute inset-0 opacity-15"
+                id="print-map-zoom-transform-layer"
+                className="absolute inset-0 w-full h-full"
                 style={{
-                  backgroundImage:
-                    'linear-gradient(to right, #06b6d4 1px, transparent 1px), linear-gradient(to bottom, #06b6d4 1px, transparent 1px)',
-                  backgroundSize: '24px 24px',
+                  transform: `scale(${zoomFactor})`,
+                  transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
+                  transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
-              />
+              >
+                {/* Grid Lines */}
+                <div
+                  className="absolute inset-0 opacity-15"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(to right, #06b6d4 1px, transparent 1px), linear-gradient(to bottom, #06b6d4 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
+                  }}
+                />
 
-              {/* Major Highway / Route Arteries representation */}
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                {/* Tol Jakarta - Cikampek */}
-                <path d="M 0 45 Q 35 48, 65 60 T 100 70" fill="none" stroke="#f97316" strokeWidth="2.5" strokeOpacity="0.8" />
-                {/* Jalan Pantura Arteri */}
-                <path d="M 0 32 Q 40 38, 70 42 T 100 50" fill="none" stroke="#22d3ee" strokeWidth="1.8" strokeOpacity="0.6" strokeDasharray="3,1" />
-                {/* Jalan Narogong / Bantar Gebang */}
-                <path d="M 24 38 L 30 100" fill="none" stroke="#94a3b8" strokeWidth="1.2" strokeOpacity="0.4" />
-                {/* Jalan Kalimalang */}
-                <path d="M 0 40 Q 30 42, 60 52 L 100 58" fill="none" stroke="#38bdf8" strokeWidth="1.2" strokeOpacity="0.5" />
+                {/* Major Highway / Route Arteries representation */}
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  {/* Tol Jakarta - Cikampek */}
+                  <path d="M 0 45 Q 35 48, 65 60 T 100 70" fill="none" stroke="#f97316" strokeWidth="2.5" strokeOpacity="0.8" />
+                  {/* Jalan Pantura Arteri */}
+                  <path d="M 0 32 Q 40 38, 70 42 T 100 50" fill="none" stroke="#22d3ee" strokeWidth="1.8" strokeOpacity="0.6" strokeDasharray="3,1" />
+                  {/* Jalan Narogong / Bantar Gebang */}
+                  <path d="M 24 38 L 30 100" fill="none" stroke="#94a3b8" strokeWidth="1.2" strokeOpacity="0.4" />
+                  {/* Jalan Kalimalang */}
+                  <path d="M 0 40 Q 30 42, 60 52 L 100 58" fill="none" stroke="#38bdf8" strokeWidth="1.2" strokeOpacity="0.5" />
 
-                {/* Radar Concentric Circles around Active Hub */}
-                {activeHubIndex === 0 && (
-                  <>
-                    <circle cx="22" cy="38" r="12" fill="none" stroke="#06b6d4" strokeWidth="0.8" strokeDasharray="2,2" strokeOpacity="0.7" />
-                    <circle cx="22" cy="38" r="24" fill="none" stroke="#06b6d4" strokeWidth="0.5" strokeDasharray="3,3" strokeOpacity="0.4" />
-                    <circle cx="22" cy="38" r="3" fill="#06b6d4" fillOpacity="0.3" />
-                  </>
-                )}
-                {activeHubIndex === 1 && (
-                  <>
-                    <circle cx="78" cy="64" r="14" fill="none" stroke="#f97316" strokeWidth="0.8" strokeDasharray="2,2" strokeOpacity="0.7" />
-                    <circle cx="78" cy="64" r="26" fill="none" stroke="#f97316" strokeWidth="0.5" strokeDasharray="3,3" strokeOpacity="0.4" />
-                    <circle cx="78" cy="64" r="3" fill="#f97316" fillOpacity="0.3" />
-                  </>
-                )}
-                {activeHubIndex === 2 && (
-                  <>
-                    <circle cx="50" cy="48" r="13" fill="none" stroke="#10b981" strokeWidth="0.8" strokeDasharray="2,2" strokeOpacity="0.7" />
-                    <circle cx="50" cy="48" r="25" fill="none" stroke="#10b981" strokeWidth="0.5" strokeDasharray="3,3" strokeOpacity="0.4" />
-                    <circle cx="50" cy="48" r="3" fill="#10b981" fillOpacity="0.3" />
-                  </>
-                )}
-              </svg>
+                  {/* Radar Concentric Circles around Active Hub */}
+                  {activeHubIndex === 0 && (
+                    <>
+                      <circle cx="22" cy="38" r="12" fill="none" stroke="#06b6d4" strokeWidth="0.8" strokeDasharray="2,2" strokeOpacity="0.7" />
+                      <circle cx="22" cy="38" r="24" fill="none" stroke="#06b6d4" strokeWidth="0.5" strokeDasharray="3,3" strokeOpacity="0.4" />
+                      <circle cx="22" cy="38" r="3" fill="#06b6d4" fillOpacity="0.3" />
+                    </>
+                  )}
+                  {activeHubIndex === 1 && (
+                    <>
+                      <circle cx="78" cy="64" r="14" fill="none" stroke="#f97316" strokeWidth="0.8" strokeDasharray="2,2" strokeOpacity="0.7" />
+                      <circle cx="78" cy="64" r="26" fill="none" stroke="#f97316" strokeWidth="0.5" strokeDasharray="3,3" strokeOpacity="0.4" />
+                      <circle cx="78" cy="64" r="3" fill="#f97316" fillOpacity="0.3" />
+                    </>
+                  )}
+                  {activeHubIndex === 2 && (
+                    <>
+                      <circle cx="50" cy="48" r="13" fill="none" stroke="#10b981" strokeWidth="0.8" strokeDasharray="2,2" strokeOpacity="0.7" />
+                      <circle cx="50" cy="48" r="25" fill="none" stroke="#10b981" strokeWidth="0.5" strokeDasharray="3,3" strokeOpacity="0.4" />
+                      <circle cx="50" cy="48" r="3" fill="#10b981" fillOpacity="0.3" />
+                    </>
+                  )}
+                </svg>
 
-              {/* Highway Label */}
-              <div className="absolute top-2 left-2 text-[9px] font-mono text-orange bg-black/60 px-1.5 py-0.5 rounded border border-orange/40">
+                {/* Standby Hub Markers on schematic map */}
+                {hubs.map((hub, idx) => {
+                  const isActive = activeHubIndex === idx;
+                  // When in 'Show active hub only' mode, hide markers of non-active hubs
+                  if (hubDisplayMode === 'active' && !isActive) {
+                    return null;
+                  }
+                  return (
+                    <div
+                      key={hub.id}
+                      style={{ left: hub.pinPos.left, top: hub.pinPos.top }}
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 ${
+                        isActive ? 'z-20 scale-105' : 'opacity-65 z-10'
+                      }`}
+                    >
+                      <div
+                        className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shadow-md border ${
+                          isActive
+                            ? 'bg-cyan text-navy border-white ring-2 ring-cyan/50 font-black'
+                            : 'bg-slate-800 text-gray-200 border-gray-600 text-[10px]'
+                        }`}
+                      >
+                        {hub.pinIcon || '📍'}
+                      </div>
+                      <div
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap shadow ${
+                          isActive
+                            ? 'bg-navy/90 text-cyan border border-cyan/60'
+                            : 'bg-black/70 text-gray-300'
+                        }`}
+                      >
+                        {hub.shortName || hub.name}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Highway Label - Stationary overlay */}
+              <div className="absolute top-2 left-2 z-10 text-[9px] font-mono text-orange bg-black/70 px-1.5 py-0.5 rounded border border-orange/40">
                 Tol Jkt-Cikampek Corridor
               </div>
 
-              {/* QR Navigation Callout Badge */}
-              <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-navy/85 backdrop-blur-xs px-2 py-0.5 rounded text-[9px] font-bold text-cyan border border-cyan/40 shadow-xs">
+              {/* QR Navigation Callout Badge - Stationary overlay */}
+              <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-navy/85 backdrop-blur-xs px-2 py-0.5 rounded text-[9px] font-bold text-cyan border border-cyan/40 shadow-xs">
                 <span>📱 Scan QR Hub untuk Navigasi Rute HP</span>
               </div>
 
-              {/* Standby Hub Markers on schematic map */}
-              {hubs.map((hub, idx) => {
-                const isActive = activeHubIndex === idx;
-                // When in 'Show active hub only' mode, hide markers of non-active hubs
-                if (hubDisplayMode === 'active' && !isActive) {
-                  return null;
-                }
-                return (
-                  <div
-                    key={hub.id}
-                    style={{ left: hub.pinPos.left, top: hub.pinPos.top }}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 ${
-                      isActive ? 'z-20 scale-105' : 'opacity-65 z-10'
-                    }`}
-                  >
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shadow-md border ${
-                        isActive
-                          ? 'bg-cyan text-navy border-white ring-2 ring-cyan/50 font-black'
-                          : 'bg-slate-800 text-gray-200 border-gray-600 text-[10px]'
-                      }`}
-                    >
-                      {hub.pinIcon || '📍'}
-                    </div>
-                    <div
-                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap shadow ${
-                        isActive
-                          ? 'bg-navy/90 text-cyan border border-cyan/60'
-                          : 'bg-black/70 text-gray-300'
-                      }`}
-                    >
-                      {hub.shortName || hub.name}
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Zoom Scale Indicator Badge on bottom left */}
+              <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/75 px-1.5 py-0.5 rounded border border-slate-700 text-[8px] font-mono text-gray-300">
+                <span className="text-cyan font-bold">{mapPrintZoom}x</span>
+                <span className="text-gray-400">({Math.round(zoomFactor * 100)}%)</span>
+                {hubDisplayMode === 'active' && <span className="text-emerald-400 font-semibold">• Focus Pos</span>}
+              </div>
 
-              {/* Compass Rose */}
-              <div className="absolute bottom-2 right-2 flex flex-col items-center bg-black/60 p-1 rounded border border-gray-700 text-[8px] font-mono text-gray-300">
+              {/* Compass Rose - Stationary overlay */}
+              <div className="absolute bottom-2 right-2 z-10 flex flex-col items-center bg-black/60 p-1 rounded border border-gray-700 text-[8px] font-mono text-gray-300">
                 <span className="font-bold text-cyan">▲ U</span>
                 <span>(North)</span>
               </div>
@@ -2310,6 +2683,17 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
 
                     {/* Action buttons */}
                     <div className="flex items-center gap-1.5 mt-2 flex-wrap justify-center sm:justify-start">
+                      <button
+                        type="button"
+                        id="share-via-qr-sheet-btn"
+                        data-testid="share-via-qr-sheet-btn"
+                        onClick={handleOpenShareViaQrModal}
+                        className="print-hide inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan hover:bg-cyan-light text-navy text-[10px] font-bold transition shadow-xs cursor-pointer active:scale-95"
+                        title="Bagikan Tampilan Peta saat ini via QR Code untuk teknisi lapangan on-site"
+                      >
+                        <span>📲</span>
+                        <span>Share via QR</span>
+                      </button>
                       <a
                         id="print-hub-maps-link"
                         href={currentHub.mapsDirectUrl || googleMapsNavUrl}
@@ -4098,12 +4482,232 @@ export const MapPrintPreviewModal: React.FC<MapPrintPreviewModalProps> = ({
         </div>
       )}
 
+      {/* Share via QR Code Modal for Field Technicians On-Site */}
+      {isShareQrModalOpen && (
+        <div
+          id="share-via-qr-modal"
+          data-testid="share-via-qr-modal"
+          className="print-hide fixed inset-0 z-70 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fadeIn"
+          onClick={() => setIsShareQrModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-3xl p-5 sm:p-6 max-w-lg w-full text-navy shadow-2xl border-2 border-cyan animate-scaleUp relative my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setIsShareQrModalOpen(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-gray-500 hover:text-navy flex items-center justify-center font-bold text-sm transition cursor-pointer"
+              title="Tutup Modal (Esc)"
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-4 pr-8">
+              <div className="w-11 h-11 rounded-2xl bg-cyan/20 border-2 border-cyan text-cyan-dark flex items-center justify-center text-2xl font-black shrink-0 shadow-sm">
+                📲
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-extrabold text-base sm:text-lg text-navy leading-tight">
+                    Share via QR Code
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-cyan text-navy uppercase tracking-wider">
+                    Teknisi Lapangan
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  Pindai QR code ini di lokasi kerja menggunakan kamera HP untuk langsung membuka tampilan peta, koordinat pos, dan rute siaga armada secara instan.
+                </p>
+              </div>
+            </div>
+
+            {/* Currently Selected Map View Context Badge */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3.5 text-xs space-y-1.5">
+              <div className="flex items-center justify-between flex-wrap gap-1">
+                <span className="text-gray-500 font-semibold text-[11px]">Pos Siaga Terpilih:</span>
+                <span className="font-extrabold text-navy text-[12px] flex items-center gap-1">
+                  <span>📍</span>
+                  <span>{currentHub.name}</span>
+                  <span className="px-1.5 py-0.2 rounded bg-cyan/20 text-cyan-dark font-mono text-[10px] font-bold">
+                    {currentHub.badge}
+                  </span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-600">
+                <span>Koordinat GPS:</span>
+                <span className="font-mono font-bold text-cyan-dark">{currentHub.lat}, {currentHub.lng}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-600">
+                <span>Skala Zoom Aktif:</span>
+                <span className="font-mono font-bold text-navy">{mapPrintZoom}x • {getZoomScaleLabel(mapPrintZoom)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-600">
+                <span>Cakupan Tampilan:</span>
+                <span className="font-semibold text-emerald-700">
+                  {hubDisplayMode === 'all' ? '🗺️ Semua Pos Siaga Ditampilkan' : '🎯 Fokus Pos Terpilih Saja'}
+                </span>
+              </div>
+            </div>
+
+            {/* Target URL Selector Tabs */}
+            <div className="mb-3.5">
+              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">
+                Pilih Format Tautan Peta untuk Teknisi:
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShareQrTargetType('app_map')}
+                  className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                    shareQrTargetType === 'app_map'
+                      ? 'bg-cyan/15 border-cyan text-navy font-bold shadow-xs'
+                      : 'bg-white hover:bg-slate-50 border-gray-200 text-gray-600 text-xs'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-bold mb-0.5">
+                    <span>🌐</span>
+                    <span>Peta Interaktif Web KGR</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 font-normal leading-tight">
+                    Membuka web app dengan posisi pos {currentHub.shortName || currentHub.name} & zoom {mapPrintZoom}x
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShareQrTargetType('google_maps')}
+                  className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                    shareQrTargetType === 'google_maps'
+                      ? 'bg-cyan/15 border-cyan text-navy font-bold shadow-xs'
+                      : 'bg-white hover:bg-slate-50 border-gray-200 text-gray-600 text-xs'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-bold mb-0.5">
+                    <span>🗺️</span>
+                    <span>Google Maps Navigation</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 font-normal leading-tight">
+                    Langsung buka aplikasi Google Maps di HP teknisi untuk panduan rute GPS
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* QR Code Container with High-Contrast Viewfinder */}
+            <div className="bg-gradient-to-b from-slate-900 to-navy p-3.5 sm:p-4 rounded-2xl text-center relative overflow-hidden shadow-inner mb-3.5">
+              <div className="inline-block relative p-2.5 bg-white rounded-2xl shadow-xl border-4 border-cyan">
+                <div className="w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center mx-auto">
+                  <QRCodeSVG
+                    id="share-map-view-qr-svg"
+                    value={selectedMapViewUrl}
+                    size={215}
+                    level="H"
+                    fgColor="#0a192f"
+                    bgColor="#ffffff"
+                    marginSize={2}
+                    title={`QR Code Tampilan Peta: ${currentHub.name}`}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-cyan-light font-medium mt-2 flex items-center justify-center gap-1.5">
+                <span>📱</span>
+                <span>Arahkan kamera HP ke QR di atas untuk membuka peta secara instan</span>
+              </p>
+            </div>
+
+            {/* Target URL Preview & Copy Field */}
+            <div className="mb-4">
+              <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                Tautan Peta Terpilih (URL Tujuan):
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={selectedMapViewUrl}
+                  id="share-map-view-url-input"
+                  data-testid="share-map-view-url-input"
+                  className="w-full px-3 py-2 bg-slate-50 border border-gray-200 rounded-xl font-mono text-[11px] text-navy select-all focus:outline-cyan"
+                />
+                <button
+                  type="button"
+                  id="btn-copy-share-map-url"
+                  onClick={handleCopyShareUrl}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer flex items-center gap-1 ${
+                    isShareCopied
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-navy text-cyan hover:bg-navy-light'
+                  }`}
+                  title="Salin tautan ke clipboard"
+                >
+                  <span>{isShareCopied ? '✓' : '📋'}</span>
+                  <span>{isShareCopied ? 'Tersalin' : 'Salin'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Technician Action Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-200">
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href={selectedMapViewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-navy text-xs font-bold transition flex items-center gap-1"
+                >
+                  <span>Buka Link</span>
+                  <span>↗</span>
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Halo Teknisi Lapangan PT KGR,\nBerikut link tampilan peta & koordinat pos ${currentHub.name} (Zoom: ${mapPrintZoom}x):\n${selectedMapViewUrl}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 shadow-sm"
+                  title="Kirim link peta langsung ke WhatsApp teknisi"
+                >
+                  <span>💬</span>
+                  <span>Kirim WhatsApp</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={handleDownloadShareQrPng}
+                  className="px-3 py-2 rounded-xl bg-orange hover:bg-orange-dark text-white text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-sm"
+                  title="Unduh QR Code sebagai gambar PNG HD"
+                >
+                  <span>📥</span>
+                  <span>Unduh PNG</span>
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsShareQrModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold transition cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hidden QRCodeCanvas for direct high-resolution PNG export using 'qrcode.react' */}
       <div className="hidden" aria-hidden="true">
         <QRCodeCanvas
           ref={qrCanvasRef}
           value={currentHub.mapsDirectUrl || googleMapsNavUrl}
           size={360}
+          level="H"
+          fgColor="#0a192f"
+          bgColor="#ffffff"
+          marginSize={2}
+        />
+        <QRCodeCanvas
+          ref={shareQrCanvasRef}
+          value={selectedMapViewUrl}
+          size={420}
           level="H"
           fgColor="#0a192f"
           bgColor="#ffffff"

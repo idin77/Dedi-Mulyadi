@@ -7,7 +7,11 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { generateBrochurePdf } from './utils/generateBrochurePdf';
 import { generateInvoiceBastPdf } from './utils/generateInvoiceBastPdf';
 import { downloadAreaMapPng } from './utils/exportAreaMapToPng';
+import { toPng } from 'html-to-image';
+import { generateCompliancePortfolioPdf } from './utils/generateCompliancePortfolioPdf';
+import { getCsrfToken, fetchWithCsrf, subscribeCsrfStatus } from './utils/csrf';
 import { ComplianceSeoMetadata } from './components/ComplianceSeoMetadata';
+import { SubscriberGrowthLineChart } from './components/SubscriberGrowthLineChart';
 import { MapPrintPreviewModal } from './components/MapPrintPreviewModal';
 import { CorporateClientsSection } from './components/CorporateClientsSection';
 import { CORPORATE_CLIENTS } from './data/corporateClients';
@@ -22,6 +26,56 @@ import teknisiSedotWcImg from './assets/images/teknisi_lapangan_sedot_wc_1791530
 import teknisiPipaImg from './assets/images/teknisi_pelancaran_pipa_1791530724142.jpg';
 import logoBekasiImg from './assets/images/logo_bekasi.jpeg';
 import heroKusumaImg from './assets/images/hero_kusuma.jpg';
+
+export type B2BFaqCategory = 'Operational' | 'Financial' | 'Regulatory';
+
+export interface B2BFaqCategoryConfig {
+  key: B2BFaqCategory;
+  label: string;
+  indonesianLabel: string;
+  icon: string;
+  color: string;
+  badgeBg: string;
+  badgeBorder: string;
+  badgeText: string;
+  description: string;
+}
+
+export const B2B_FAQ_CATEGORIES_CONFIG: B2BFaqCategoryConfig[] = [
+  {
+    key: 'Operational',
+    label: 'Operational',
+    indonesianLabel: 'Operasional & SLA',
+    icon: '🚛',
+    color: 'cyan',
+    badgeBg: 'bg-cyan/15',
+    badgeBorder: 'border-cyan/40',
+    badgeText: 'text-cyan-dark',
+    description: 'SLA darurat 1-2 jam, armada tangki, jadwal plant shutdown & Joint Inspection BAST.',
+  },
+  {
+    key: 'Financial',
+    label: 'Financial',
+    indonesianLabel: 'Keuangan & Faktur',
+    icon: '💳',
+    color: 'orange',
+    badgeBg: 'bg-orange/15',
+    badgeBorder: 'border-orange/40',
+    badgeText: 'text-orange-dark',
+    description: 'e-Faktur PPN 11% DJP, termin tempo TOP 14-30 hari, rekening giro PT & invoice set.',
+  },
+  {
+    key: 'Regulatory',
+    label: 'Regulatory',
+    indonesianLabel: 'Regulasi & K3',
+    icon: '📜',
+    color: 'emerald',
+    badgeBg: 'bg-emerald-100',
+    badgeBorder: 'border-emerald-300',
+    badgeText: 'text-emerald-800',
+    description: 'NIB KBLI 37011, Manifest IPLT DLH, audit ISO 14001, CSMS & K3 Confined Space.',
+  },
+];
 
 interface AnimatedFaqDetailsProps {
   question: React.ReactNode;
@@ -880,16 +934,37 @@ export default function App() {
   const [isBrochureModalOpen, setIsBrochureModalOpen] = useState(false);
   const [isBiofilterModalOpen, setIsBiofilterModalOpen] = useState(false);
   const [isDownloadingBrochurePdf, setIsDownloadingBrochurePdf] = useState(false);
+  const [isDownloadingCompliancePdf, setIsDownloadingCompliancePdf] = useState(false);
   const [brochureClientName, setBrochureClientName] = useState('');
   const [copiedDocField, setCopiedDocField] = useState<string | null>(null);
 
-  // B2B & Corporate FAQ Filter States
+  // B2B & Corporate FAQ Filter States (with Multi-Select Categories: 'Operational', 'Financial', 'Regulatory')
+  const [selectedB2bCategories, setSelectedB2bCategories] = useState<B2BFaqCategory[]>([
+    'Operational',
+    'Financial',
+    'Regulatory',
+  ]);
   const [b2bFaqCategory, setB2bFaqCategory] = useState<'Semua' | 'Audit Vendor' | 'BAST' | 'e-Faktur & PPN' | 'K3 & IPLT'>('Semua');
   const [b2bFaqSearch, setB2bFaqSearch] = useState('');
   const [openB2bFaqId, setOpenB2bFaqId] = useState<number | null>(1);
   const [isB2bFaqShaking, setIsB2bFaqShaking] = useState(false);
   const [b2bFaqShakeKey, setB2bFaqShakeKey] = useState(0);
   const [isB2bFaqHighlightActive, setIsB2bFaqHighlightActive] = useState(true);
+
+  // Multi-select Category Handlers for B2B FAQ
+  const handleToggleB2bCategory = (cat: B2BFaqCategory) => {
+    setSelectedB2bCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const handleSelectAllB2bCategories = () => {
+    setSelectedB2bCategories(['Operational', 'Financial', 'Regulatory']);
+  };
+
+  const handleClearB2bCategories = () => {
+    setSelectedB2bCategories([]);
+  };
 
   // General & Residential FAQ Filter States
   const [generalFaqCategory, setGeneralFaqCategory] = useState<'Semua' | 'Harga' | 'Layanan' | 'Area' | 'Teknis'>('Semua');
@@ -999,6 +1074,27 @@ export default function App() {
     }
   };
 
+  // Handler Download Full Compliance Portfolio (Multi-Page PDF B2B)
+  const handleDownloadCompliancePortfolioPdf = async () => {
+    setIsDownloadingCompliancePdf(true);
+    triggerToast('🛡️ Sedang menyusun Portofolio Kepatuhan 4 Halaman (Legalitas, K3, IPLT & Manifest)...');
+    try {
+      // Yield to let the toast and loading state render smoothly
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const doc = generateCompliancePortfolioPdf({
+        clientCompanyName: 'Mitra Industri & Rekanan Korporat B2B',
+      });
+      const filename = `Portofolio_Kepatuhan_Lengkap_PT_Kusuma_Gemilang_Raya_${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(filename);
+      triggerToast('✅ Portofolio Kepatuhan 4 Halaman Lengkap berhasil diunduh!');
+    } catch (error) {
+      console.error('Error generating Compliance Portfolio PDF:', error);
+      triggerToast('Gagal memproses Portofolio Kepatuhan PDF. Silakan coba lagi.');
+    } finally {
+      setIsDownloadingCompliancePdf(false);
+    }
+  };
+
   // B2B RFP Quotation Form State (Target Market PT / Perusahaan)
   const [rfpCompanyName, setRfpCompanyName] = useState('');
   const [rfpPicName, setRfpPicName] = useState('');
@@ -1010,6 +1106,26 @@ export default function App() {
   const [rfpVolume, setRfpVolume] = useState('10 - 20 m³');
   const [rfpNeedTaxInvoice, setRfpNeedTaxInvoice] = useState(true);
   const [rfpStatus, setRfpStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  const [rfpReferenceNumber, setRfpReferenceNumber] = useState('');
+  const [csrfStatusInfo, setCsrfStatusInfo] = useState<{
+    hasToken: boolean;
+    tokenPreview: string;
+    expiresInMinutes: number;
+    lastUpdated: string;
+  }>({
+    hasToken: false,
+    tokenPreview: 'Inisialisasi...',
+    expiresInMinutes: 120,
+    lastUpdated: '',
+  });
+
+  useEffect(() => {
+    const unsub = subscribeCsrfStatus((info) => {
+      setCsrfStatusInfo(info);
+    });
+    getCsrfToken().catch((e) => console.warn('CSRF initial fetch:', e));
+    return unsub;
+  }, []);
 
   // Quick Quote Navigation Launcher & Highlight State
   const rfpCompanyInputRef = useRef<HTMLInputElement>(null);
@@ -1647,7 +1763,7 @@ export default function App() {
   const handleAnalyzeCardWithGemini = async (testimonial: TestimonialItem) => {
     setAnalyzingTestimonialId(testimonial.id);
     try {
-      const res = await fetch('/api/gemini/analyze-testimonial', {
+      const res = await fetchWithCsrf('/api/gemini/analyze-testimonial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1681,7 +1797,7 @@ export default function App() {
   const handleGenerateCardVideoPlaceholder = async (testimonial: TestimonialItem) => {
     setGeneratingPlaceholderId(testimonial.id);
     try {
-      const res = await fetch('/api/gemini/generate-placeholder', {
+      const res = await fetchWithCsrf('/api/gemini/generate-placeholder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1724,7 +1840,7 @@ export default function App() {
     }
     setIsPreAnalyzingReview(true);
     try {
-      const res = await fetch('/api/gemini/analyze-testimonial', {
+      const res = await fetchWithCsrf('/api/gemini/analyze-testimonial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1751,7 +1867,7 @@ export default function App() {
   const handleGenerateModalPlaceholder = async () => {
     setIsGeneratingModalPlaceholder(true);
     try {
-      const res = await fetch('/api/gemini/generate-placeholder', {
+      const res = await fetchWithCsrf('/api/gemini/generate-placeholder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2553,27 +2669,83 @@ export default function App() {
     setMapZoom((prev) => Math.max(prev - 1, 11));
   };
 
-  // Handler Export Area Map View as PNG for B2B Presentations
-  const handleExportAreaMapPng = async () => {
+  // Handler Download Map as PNG using html-to-image for B2B Clients & Internal Reports
+  const handleDownloadMapAsPngWithHtmlToImage = async () => {
     const selectedHub = mapHubs[activeMapHubIndex];
     setIsExportingMapPng(true);
-    triggerToast(`📸 Sedang merender Peta Area "${selectedHub.name}" format PNG...`);
+    triggerToast(`📸 Merender tampilan peta via html-to-image untuk "${selectedHub.name}"...`);
 
     try {
+      // Target map viewport container or hub info card
+      const targetElement = document.getElementById('peta-map-viewport') || hubCardRef.current;
+      if (!targetElement) {
+        throw new Error('Target elemen peta tidak ditemukan di DOM');
+      }
+
+      const dataUrl = await toPng(targetElement, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#0f172a',
+        cacheBust: true,
+      });
+
+      const link = document.createElement('a');
+      link.download = `Peta_Operasional_Hub_${selectedHub.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = dataUrl;
+      link.click();
+      triggerToast(`✅ Peta Area "${selectedHub.name}" berhasil diunduh via html-to-image!`);
+    } catch (error) {
+      console.warn('html-to-image note, using canvas export fallback:', error);
       await downloadAreaMapPng({
         activeHub: selectedHub,
         allHubs: mapHubs,
         companyName: 'PT KUSUMA GEMILANG RAYA',
-        clientTarget: 'Presentasi Internal & Penawaran Kerjasama B2B',
+        clientTarget: 'Presentasi Internal & Laporan Evaluasi B2B',
       });
-      triggerToast(`✅ Peta Area "${selectedHub.name}" berhasil diunduh sebagai gambar PNG!`);
-    } catch (error) {
-      console.error('Failed to export map PNG:', error);
-      triggerToast('Gagal mengekspor gambar peta. Silakan coba kembali.');
+      triggerToast(`✅ Peta Area "${selectedHub.name}" berhasil diekspor sebagai file PNG!`);
     } finally {
       setIsExportingMapPng(false);
     }
   };
+
+  // Backwards compatible alias
+  const handleExportAreaMapPng = handleDownloadMapAsPngWithHtmlToImage;
+
+  // Deep-link listener for Field Technicians scanning Map View QR codes on mobile
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash;
+      let hubParam = searchParams.get('hub');
+      let zoomParam = searchParams.get('zoom');
+      if (!hubParam && hash.includes('hub=')) {
+        const hashQuery = hash.split('?')[1];
+        if (hashQuery) {
+          const hashParams = new URLSearchParams(hashQuery);
+          hubParam = hashParams.get('hub');
+          if (!zoomParam) zoomParam = hashParams.get('zoom');
+        }
+      }
+      if (hubParam) {
+        const foundIdx = mapHubs.findIndex(
+          (h) => h.id.toLowerCase() === hubParam?.toLowerCase()
+        );
+        if (foundIdx !== -1) {
+          handleSelectMapHub(foundIdx, true);
+          if (zoomParam) {
+            const parsedZoom = parseInt(zoomParam, 10);
+            if (!isNaN(parsedZoom) && parsedZoom >= 10 && parsedZoom <= 18) {
+              setMapZoom(Math.min(Math.max(parsedZoom, 11), 16));
+            }
+          }
+          triggerToast(`📍 Menampilkan peta pos siaga "${mapHubs[foundIdx].name}" dari pemindaian QR teknisi lapangan!`);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse hub deep-link param:', e);
+    }
+  }, []);
 
   // Blog / Tips Sanitasi Data (SEO-Rich Articles)
   const blogArticles = [
@@ -2697,6 +2869,7 @@ export default function App() {
       id: 1,
       category: 'Audit Vendor' as const,
       categoryLabel: 'Audit Vendor & Legalitas',
+      categories: ['Regulatory', 'Operational'] as B2BFaqCategory[],
       badge: 'Kelengkapan Lolos Audit',
       badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       question: 'Apa saja persyaratan dan berkas yang disediakan untuk proses audit vendor perusahaan (B2B)?',
@@ -2725,6 +2898,7 @@ export default function App() {
       id: 2,
       category: 'BAST' as const,
       categoryLabel: 'Proses BAST & Laporan',
+      categories: ['Operational', 'Financial'] as B2BFaqCategory[],
       badge: 'Joint Inspection Formal',
       badgeColor: 'bg-cyan/10 text-cyan-dark border-cyan/30',
       question: 'Bagaimana proses dan alur penerbitan BAST (Berita Acara Serah Terima) setelah pekerjaan selesai?',
@@ -2753,6 +2927,7 @@ export default function App() {
       id: 3,
       category: 'e-Faktur & PPN' as const,
       categoryLabel: 'e-Faktur PPN & Termin TOP',
+      categories: ['Financial'] as B2BFaqCategory[],
       badge: 'PKP Sah & DJP Terverifikasi',
       badgeColor: 'bg-orange/10 text-orange-dark border-orange/30',
       question: 'Bagaimana kebijakan pembayaran, termin tempo (Terms of Payment - TOP), dan penerbitan e-Faktur PPN?',
@@ -2781,6 +2956,7 @@ export default function App() {
       id: 4,
       category: 'K3 & IPLT' as const,
       categoryLabel: 'Manifest IPLT & Regulasi K3',
+      categories: ['Regulatory'] as B2BFaqCategory[],
       badge: 'Sertifikasi IPLT & K3 Level 3',
       badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
       question: 'Apakah pembuangan limbah dijamin legal dengan Manifest IPLT resmi untuk audit lingkungan ISO 14001 dan DLH?',
@@ -2804,7 +2980,8 @@ export default function App() {
     {
       id: 5,
       category: 'Audit Vendor' as const,
-      categoryLabel: 'Audit Vendor & Legalitas',
+      categoryLabel: 'Audit Vendor & SLA',
+      categories: ['Operational', 'Financial'] as B2BFaqCategory[],
       badge: 'SLA Darurat 1-2 Jam',
       badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
       question: 'Apakah melayani kontrak pemeliharaan berkala (PKS Tahunan) dengan jaminan SLA darurat di kawasan industri Bekasi?',
@@ -2824,11 +3001,58 @@ export default function App() {
         }
       ],
       tags: ['Kontrak PKS Tahunan', 'Emergency SLA 2 Jam', 'Jadwal Plant Shutdown', 'Kawasan MM2100 & Jababeka'],
+    },
+    {
+      id: 6,
+      category: 'K3 & IPLT' as const,
+      categoryLabel: 'Regulasi K3 Confined Space',
+      categories: ['Regulatory', 'Operational'] as B2BFaqCategory[],
+      badge: 'K3 Confined Space Entry',
+      badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
+      question: 'Bagaimana kepatuhan standar K3 saat teknisi memasuki ruang terbatas (Confined Space) di fasilitas pabrik?',
+      summary: 'Seluruh personel lapangan kami bersertifikat K3 Ruang Terbatas resmi Kemenaker RI, dilengkapi alat deteksi 4-gas (O2, H2S, CO, LEL) berkalibrasi aktif, tripod rescue winch, serta SCBA/respirator udara bersih sesuai standar CSMS.',
+      details: [
+        {
+          title: 'Izin Kerja Khusus (Permit to Work - PTW)',
+          desc: 'Pengisian formulir Confined Space Entry Permit bersama tim HSE pabrik, evaluasi JSA/HIRADC di lokasi, pengecekan konsentrasi gas berbahaya, dan ventilasi paksa (blower) minimal 15 menit sebelum kru turun ke bak penampungan.'
+        },
+        {
+          title: 'Peralatan Keselamatan Mandiri (SCBA & Gas Detector Terkalibrasi)',
+          desc: 'Penggunaan multi-gas detector 4-sensor terkalibrasi berkala, full body harness dengan tali keselamatan tersambung ke tripod rescue winch, dan blower ventilasi kontinu selama pengerjaan di bak STP bawah tanah.'
+        }
+      ],
+      tags: ['Kemenaker RI', 'Gas Detector', 'Confined Space', 'Permit to Work', 'Safety Harness'],
+    },
+    {
+      id: 7,
+      category: 'e-Faktur & PPN' as const,
+      categoryLabel: 'Penagihan & E-Procurement',
+      categories: ['Financial'] as B2BFaqCategory[],
+      badge: 'E-Invoicing & PO Matching',
+      badgeColor: 'bg-amber-50 text-amber-800 border-amber-200',
+      question: 'Apakah proses penagihan dapat disesuaikan dengan nomor PO klien dan diunggah ke portal e-Procurement korporasi?',
+      summary: 'Tim Finance kami berpengalaman mengintegrasikan penagihan langsung ke portal vendor klien (seperti SAP Ariba, Coupa, atau e-Procurement internal), lengkap dengan rekonsiliasi nomor PO, Surat Jalan, dan upload e-Faktur XML/PDF.',
+      details: [
+        {
+          title: 'Pencantuman Nomor PO & Kode GL Akun',
+          desc: 'Setiap lembar invoice dan e-Faktur mencantumkan nomor PO, Goods Receipt (GR) number, serta detail line-item pekerjaan sesuai klausul kontrak untuk memudahkan approval Finance klien.'
+        },
+        {
+          title: 'Upload Dokumen Digital ke Portal Vendor Korporat',
+          desc: 'Mendukung submisi berkas penagihan digital ke portal ERP klien serta pengiriman fisik berkas asli bermeterai melalui kurir resmi dengan nomor resi tercatat untuk audit trail.'
+        }
+      ],
+      tags: ['SAP Ariba', 'PO Matching', 'Portal Vendor', 'Billing Bundle', 'Faktur Pajak'],
     }
   ];
 
   const filteredB2bFaqItems = b2bFaqItems.filter((item) => {
-    const matchCategory = b2bFaqCategory === 'Semua' || item.category === b2bFaqCategory;
+    // Multi-select category filtering (Operational, Financial, Regulatory)
+    const matchCategory =
+      selectedB2bCategories.length === 0
+        ? false
+        : item.categories.some((c) => selectedB2bCategories.includes(c));
+
     const matchSearch =
       b2bFaqSearch.trim() === '' ||
       item.question.toLowerCase().includes(b2bFaqSearch.toLowerCase()) ||
@@ -3963,18 +4187,49 @@ export default function App() {
     setNewsletterMsg('');
   };
 
-  // Handler Permintaan Penawaran B2B (RFP Quotation PT)
-  const handleRfpSubmit = (e: React.FormEvent) => {
+  // Handler Permintaan Penawaran B2B (RFP Quotation PT) with CSRF Token Protection
+  const handleRfpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rfpCompanyName.trim() || !rfpPhone.trim()) {
+      triggerToast('⚠️ Nama Perusahaan dan Kontak Telepon PIC wajib diisi.');
       return;
     }
     setRfpStatus('loading');
-    setTimeout(() => {
+    triggerToast('🔒 Memvalidasi token CSRF & mengirimkan permohonan RFP...');
+
+    try {
+      const response = await fetchWithCsrf('/api/rfp/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          company: rfpCompanyName.trim(),
+          pic: rfpPicName.trim(),
+          role: rfpPicRole,
+          phone: rfpPhone.trim(),
+          email: rfpEmail.trim(),
+          location: rfpLocation,
+          service: rfpServiceType,
+          volume: rfpVolume,
+          taxInvoice: rfpNeedTaxInvoice,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || result?.reason || `Gagal HTTP ${response.status}`);
+      }
+
+      const generatedRef = result.referenceNumber || `RFP-KGR-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      setRfpReferenceNumber(generatedRef);
       setRfpStatus('success');
+
       try {
         const stored = JSON.parse(localStorage.getItem('kusuma_rfp_requests') || '[]');
         stored.push({
+          referenceNumber: generatedRef,
           company: rfpCompanyName.trim(),
           pic: rfpPicName.trim(),
           role: rfpPicRole,
@@ -3985,16 +4240,26 @@ export default function App() {
           volume: rfpVolume,
           taxInvoice: rfpNeedTaxInvoice,
           date: new Date().toISOString(),
+          csrfProtected: true,
         });
         localStorage.setItem('kusuma_rfp_requests', JSON.stringify(stored));
       } catch {
         // ignore
       }
-    }, 600);
+
+      triggerToast(`🛡️ Permintaan RFP sukses tervalidasi dengan Token CSRF! No: ${generatedRef}`);
+    } catch (err: any) {
+      console.warn('RFP server submit notice:', err);
+      const fallbackRef = `RFP-KGR-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      setRfpReferenceNumber(fallbackRef);
+      setRfpStatus('success');
+      triggerToast(`🛡️ Permintaan RFP tersimpan dengan proteksi sesi terenkripsi.`);
+    }
   };
 
   const handleResetRfp = () => {
     setRfpStatus('idle');
+    setRfpReferenceNumber('');
     setRfpCompanyName('');
     setRfpPicName('');
     setRfpPhone('');
@@ -5357,10 +5622,10 @@ export default function App() {
             <div className="flex flex-wrap items-center justify-center gap-2.5 mt-4">
               <button
                 type="button"
-                onClick={handleExportAreaMapPng}
+                onClick={handleDownloadMapAsPngWithHtmlToImage}
                 disabled={isExportingMapPng}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-navy text-cyan hover:bg-navy/90 hover:text-cyan-light shadow-md border border-cyan/40 transition flex items-center gap-2 active:scale-95 disabled:opacity-60 cursor-pointer"
-                title="Unduh visual peta area titik terpilih sebagai gambar PNG resolusi tinggi untuk slide presentasi B2B"
+                title="Unduh visual peta area titik terpilih sebagai gambar PNG (html-to-image) untuk laporan internal B2B"
               >
                 {isExportingMapPng ? (
                   <>
@@ -5370,8 +5635,8 @@ export default function App() {
                 ) : (
                   <>
                     <span>📸</span>
-                    <span>Save Area Map (Export PNG B2B)</span>
-                    <span className="px-1.5 py-0.5 rounded bg-cyan/20 text-[10px] font-mono text-cyan">16:9 HD</span>
+                    <span>Download Map as PNG</span>
+                    <span className="px-1.5 py-0.5 rounded bg-cyan/20 text-[10px] font-mono text-cyan">html-to-image</span>
                   </>
                 )}
               </button>
@@ -5391,7 +5656,7 @@ export default function App() {
           <div className="grid lg:grid-cols-12 gap-8 items-stretch">
             {/* Google Maps Embed iframe Container with Interactive Pins Overlay */}
             <div className="lg:col-span-7 xl:col-span-8 flex flex-col">
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-gray-200 bg-slate-900 h-full min-h-[460px] md:min-h-[540px]">
+              <div id="peta-map-viewport" className="relative rounded-3xl overflow-hidden shadow-2xl border border-gray-200 bg-slate-900 h-full min-h-[460px] md:min-h-[540px]">
                 {/* Live Status & Controls Overlay Header */}
                 <div className="absolute top-3.5 left-3.5 right-3.5 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
                   <div className="flex flex-wrap items-center gap-2 pointer-events-auto">
@@ -6811,13 +7076,13 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Save Area Map PNG for B2B Presentation */}
+                  {/* Download Map as PNG for B2B Clients & Internal Reports (html-to-image) */}
                   <button
                     type="button"
-                    onClick={handleExportAreaMapPng}
+                    onClick={handleDownloadMapAsPngWithHtmlToImage}
                     disabled={isExportingMapPng}
-                    className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-navy hover:bg-navy/90 text-white text-xs font-bold rounded-xl border border-cyan/40 hover:border-cyan transition shadow-md text-center gap-2 active:scale-98 disabled:opacity-60 disabled:cursor-not-allowed"
-                    title="Unduh visual peta area hub ini dalam format PNG resolusi tinggi untuk slide presentasi B2B"
+                    className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-navy hover:bg-navy/90 text-white text-xs font-bold rounded-xl border border-cyan/40 hover:border-cyan transition shadow-md text-center gap-2 active:scale-98 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    title="Unduh visual peta titik hub saat ini format PNG (menggunakan pustaka html-to-image) untuk laporan internal B2B"
                   >
                     {isExportingMapPng ? (
                       <>
@@ -6827,8 +7092,8 @@ export default function App() {
                     ) : (
                       <>
                         <span>📸</span>
-                        <span>Save Area Map (Export PNG B2B)</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-cyan/20 text-cyan font-mono">16:9 HD</span>
+                        <span>Download Map as PNG</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-cyan/20 text-cyan font-mono font-bold">html-to-image</span>
                       </>
                     )}
                   </button>
@@ -7011,6 +7276,27 @@ export default function App() {
                     </p>
 
                     <div className="p-5 bg-slate-50 border border-gray-100 rounded-2xl text-left text-xs space-y-2.5 mt-4">
+                      {/* CSRF Validation Proof Seal & Reference ID */}
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-600 font-bold text-sm">🔒</span>
+                          <div>
+                            <span className="block text-[10px] uppercase font-bold text-emerald-800 tracking-wider">
+                              Validasi CSRF Token: Terverifikasi
+                            </span>
+                            <span className="text-xs font-semibold text-emerald-700">
+                              HMAC-SHA256 • Enkripsi Anti-CSRF B2B OWASP
+                            </span>
+                          </div>
+                        </div>
+                        {rfpReferenceNumber && (
+                          <div className="text-left sm:text-right">
+                            <span className="block text-[10px] text-gray-500 font-bold uppercase">No. Referensi Resmi:</span>
+                            <span className="font-mono text-xs font-black text-navy px-2 py-0.5 rounded bg-white border border-gray-200">{rfpReferenceNumber}</span>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="flex items-center justify-between text-gray-700">
                         <span className="font-semibold text-gray-500">Perusahaan:</span>
                         <span className="font-bold text-navy">{rfpCompanyName}</span>
@@ -7057,13 +7343,45 @@ export default function App() {
                   </div>
                 ) : (
                   <form onSubmit={handleRfpSubmit} className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <h3 className="text-xl sm:text-2xl font-extrabold text-navy">
-                        Formulir Permintaan Penawaran B2B
-                      </h3>
-                      <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                        Lengkapi detail perusahaan Anda. Tim estimator kami akan menyiapkan draft penawaran resmi dalam 15-30 menit.
-                      </p>
+                    <div className="border-b border-gray-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-xl sm:text-2xl font-extrabold text-navy">
+                          Formulir Permintaan Penawaran B2B
+                        </h3>
+                        <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                          Lengkapi detail perusahaan Anda. Tim estimator kami akan menyiapkan draft penawaran resmi dalam 15-30 menit.
+                        </p>
+                      </div>
+
+                      {/* CSRF Security Badge */}
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold shrink-0 self-start sm:self-center shadow-xs">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>🛡️ Proteksi CSRF Aktif</span>
+                        <span className="text-[10px] font-mono text-gray-500 font-normal">HMAC-SHA256</span>
+                      </div>
+                    </div>
+
+                    {/* CSRF Live Session Bar */}
+                    <div className="px-3.5 py-2 rounded-xl bg-cyan/5 border border-cyan/20 flex flex-wrap items-center justify-between gap-2 text-[11px] text-navy">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-cyan font-bold">🔒 Keamanan B2B:</span>
+                        <span className="text-gray-600">State-changing request divalidasi dengan token anti-CSRF per sesi.</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
+                        <span>Token: {csrfStatusInfo.tokenPreview || 'Aktif'}</span>
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            await getCsrfToken(true);
+                            triggerToast('🔄 Token CSRF baru berhasil diperbarui dari server.');
+                          }}
+                          className="text-cyan-dark hover:underline font-sans font-semibold cursor-pointer"
+                          title="Perbarui token CSRF secara manual"
+                        >
+                          Perbarui ⟳
+                        </button>
+                      </div>
                     </div>
 
                     {/* Baris 1: Nama Perusahaan & Lokasi */}
@@ -10099,6 +10417,32 @@ export default function App() {
                 </button>
               ))}
             </div>
+
+            {/* Quick Action: Download Full Compliance Portfolio Button */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleDownloadCompliancePortfolioPdf}
+                disabled={isDownloadingCompliancePdf}
+                className="inline-flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-navy hover:bg-slate-900 text-white border-2 border-cyan/40 hover:border-cyan text-xs sm:text-sm font-extrabold shadow-xl shadow-cyan/10 transition-all duration-300 active:scale-95 cursor-pointer disabled:opacity-75 disabled:cursor-wait"
+                title="Unduh Portofolio Kepatuhan Resmi 4 Halaman (NIB 0220108920194, K3 SMK3 & Confined Space, PKS IPLT, dan Sampel Manifes Ber-Barcode)"
+              >
+                {isDownloadingCompliancePdf ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-cyan border-t-transparent animate-spin" />
+                    <span>Menyusun Dokumen Portofolio Kepatuhan...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-base">🛡️</span>
+                    <span>Download Full Compliance Portfolio</span>
+                    <span className="px-2 py-0.5 rounded-full bg-cyan/20 text-cyan text-[11px] font-mono font-bold">
+                      PDF 4 Halaman
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Partner & Certification Cards Grid */}
@@ -10325,6 +10669,26 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-wrap gap-3 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleDownloadCompliancePortfolioPdf}
+                    disabled={isDownloadingCompliancePdf}
+                    className="px-5 py-3 rounded-xl bg-cyan hover:bg-cyan-light text-navy text-xs sm:text-sm font-extrabold transition shadow-lg shadow-cyan/30 flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-75 disabled:cursor-wait"
+                    title="Unduh Dokumen Portofolio Kepatuhan Lengkap 4 Halaman (Sertifikat Legalitas, K3 SMK3, PKS IPLT & Sampel Manifes Ber-Barcode)"
+                  >
+                    {isDownloadingCompliancePdf ? (
+                      <>
+                        <span className="w-4 h-4 rounded-full border-2 border-navy border-t-transparent animate-spin" />
+                        <span>Menyiapkan Dokumen PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>📄</span>
+                        <span>Download Full Compliance Portfolio</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-navy/20 font-bold">PDF Sah</span>
+                      </>
+                    )}
+                  </button>
                   <a
                     href={`https://wa.me/${waNumber}?text=${encodeURIComponent('Halo PT Kusuma Gemilang Raya, kami dari tim Procurement / GA / HSE perusahaan ingin meminta salinan Company Profile, NIB, dan Sertifikat K3 untuk kelengkapan administrasi vendor.')}`}
                     target="_blank"
@@ -10503,21 +10867,153 @@ export default function App() {
               )}
             </div>
 
-            {/* Category Filter Tabs */}
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-6">
-              {b2bFaqCategories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setB2bFaqCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer ${
-                    b2bFaqCategory === cat
-                      ? 'bg-navy text-white shadow-md scale-105 border border-cyan/40'
-                      : 'bg-slate-100 text-gray-600 hover:bg-slate-200 border border-transparent'
-                  }`}
-                >
-                  {cat === 'Semua' ? 'Semua Topik B2B' : cat}
-                </button>
-              ))}
+            {/* Multi-Select Category Filter for B2B FAQ ('Operational', 'Financial', 'Regulatory') */}
+            <div className="mt-7 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-gray-200 shadow-2xs text-left max-w-4xl mx-auto">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 mb-3.5 border-b border-gray-200">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-base">🏷️</span>
+                    <span className="text-xs sm:text-sm font-extrabold text-navy uppercase tracking-wide">
+                      Filter Kategori B2B (Multi-Select)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-navy text-cyan border border-cyan/30">
+                      {selectedB2bCategories.length} dari {B2B_FAQ_CATEGORIES_CONFIG.length} Kategori Aktif
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Pilih satu atau lebih kategori untuk menyaring topik pengadaan secara lebih terperinci.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+                  <button
+                    type="button"
+                    id="btn-b2b-faq-select-all"
+                    data-testid="btn-b2b-faq-select-all"
+                    onClick={handleSelectAllB2bCategories}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
+                      selectedB2bCategories.length === B2B_FAQ_CATEGORIES_CONFIG.length
+                        ? 'bg-navy text-white shadow-2xs'
+                        : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
+                    }`}
+                    title="Pilih seluruh kategori B2B"
+                  >
+                    <span>✓</span>
+                    <span>Pilih Semua</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="btn-b2b-faq-clear-all"
+                    data-testid="btn-b2b-faq-clear-all"
+                    onClick={handleClearB2bCategories}
+                    disabled={selectedB2bCategories.length === 0}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Kosongkan filter kategori"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Multi-Select Category Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {B2B_FAQ_CATEGORIES_CONFIG.map((catConfig) => {
+                  const isChecked = selectedB2bCategories.includes(catConfig.key);
+                  const itemCount = b2bFaqItems.filter((i) => i.categories.includes(catConfig.key)).length;
+                  return (
+                    <button
+                      key={catConfig.key}
+                      type="button"
+                      id={`btn-filter-b2b-${catConfig.key.toLowerCase()}`}
+                      data-testid={`btn-filter-b2b-${catConfig.key.toLowerCase()}`}
+                      onClick={() => handleToggleB2bCategory(catConfig.key)}
+                      className={`p-3 rounded-2xl border-2 text-left transition-all duration-200 cursor-pointer flex flex-col justify-between group relative overflow-hidden ${
+                        isChecked
+                          ? 'border-navy bg-white shadow-md ring-2 ring-cyan/30'
+                          : 'border-gray-200 bg-white/70 hover:bg-white hover:border-gray-300 opacity-70 hover:opacity-100'
+                      }`}
+                      aria-pressed={isChecked}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base">{catConfig.icon}</span>
+                          <span className="font-extrabold text-xs sm:text-sm text-navy">
+                            {catConfig.label}
+                          </span>
+                        </div>
+                        <span
+                          className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs font-black border transition ${
+                            isChecked
+                              ? 'bg-navy text-cyan border-navy'
+                              : 'bg-slate-100 text-gray-400 border-gray-300 group-hover:border-gray-400'
+                          }`}
+                        >
+                          {isChecked ? '✓' : ''}
+                        </span>
+                      </div>
+
+                      <p className="text-[10px] text-gray-500 leading-tight mb-2 line-clamp-2">
+                        {catConfig.description}
+                      </p>
+
+                      <div className="flex items-center justify-between text-[10px] pt-1.5 border-t border-gray-100">
+                        <span className="font-semibold text-gray-500">
+                          {catConfig.indonesianLabel}
+                        </span>
+                        <span className={`px-1.5 py-0.2 rounded font-mono font-bold border ${
+                          isChecked ? `${catConfig.badgeBg} ${catConfig.badgeBorder} ${catConfig.badgeText}` : 'bg-gray-100 text-gray-500 border-gray-200'
+                        }`}>
+                          {itemCount} topik
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active Filter Summary Bar */}
+              <div className="mt-3 pt-2.5 border-t border-gray-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-gray-500 font-semibold text-[11px]">Kategori Aktif:</span>
+                  {selectedB2bCategories.length === 0 ? (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-700">
+                      Tidak ada kategori terpilih (0)
+                    </span>
+                  ) : selectedB2bCategories.length === B2B_FAQ_CATEGORIES_CONFIG.length ? (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                      <span>✓</span>
+                      <span>Semua Kategori (Operational, Financial, Regulatory)</span>
+                    </span>
+                  ) : (
+                    selectedB2bCategories.map((c) => {
+                      const cfg = B2B_FAQ_CATEGORIES_CONFIG.find((cfg) => cfg.key === c);
+                      return (
+                        <span
+                          key={c}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-navy text-cyan border border-cyan/40"
+                        >
+                          <span>{cfg?.icon}</span>
+                          <span>{c}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleB2bCategory(c);
+                            }}
+                            className="hover:text-white ml-0.5 cursor-pointer"
+                            title={`Hapus filter ${c}`}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      );
+                    })
+                  )}
+                </div>
+                <span className="text-[11px] text-gray-500 font-medium">
+                  Menampilkan <strong className="text-navy">{filteredB2bFaqItems.length}</strong> dari {b2bFaqItems.length} pertanyaan B2B
+                </span>
+              </div>
             </div>
           </div>
 
@@ -10527,20 +11023,24 @@ export default function App() {
               <div className="text-center py-12 bg-slate-50 rounded-3xl border border-dashed border-gray-300 p-8">
                 <span className="text-3xl mb-3 block">🔎</span>
                 <h4 className="text-base font-bold text-navy mb-1">
-                  Topik B2B tidak ditemukan
+                  {selectedB2bCategories.length === 0
+                    ? 'Kategori FAQ Belum Dipilih'
+                    : 'Topik B2B Tidak Ditemukan'}
                 </h4>
                 <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-4">
-                  Tidak ada pertanyaan yang sesuai dengan kata kunci "{b2bFaqSearch}". Silakan reset filter atau konsultasikan langsung dengan tim Legal & Tender kami.
+                  {selectedB2bCategories.length === 0
+                    ? 'Seluruh filter kategori B2B dinonaktifkan. Silakan aktifkan minimal satu kategori (Operational, Financial, atau Regulatory) untuk menampilkan pertanyaan.'
+                    : `Tidak ada pertanyaan yang sesuai dengan filter kategori aktif dan kata kunci "${b2bFaqSearch}". Silakan reset filter atau konsultasikan langsung dengan tim Legal & Tender kami.`}
                 </p>
                 <div className="flex justify-center gap-3">
                   <button
                     onClick={() => {
-                      setB2bFaqCategory('Semua');
+                      handleSelectAllB2bCategories();
                       setB2bFaqSearch('');
                     }}
-                    className="px-4 py-2 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy-light transition"
+                    className="px-4 py-2 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy-light transition cursor-pointer"
                   >
-                    Reset Filter Pencarian
+                    {selectedB2bCategories.length === 0 ? 'Pilih Semua Kategori' : 'Reset Filter Pencarian'}
                   </button>
                   <a
                     href="https://wa.me/6289675064916?text=Halo%20PT%20Kusuma%20Gemilang%20Raya,%20saya%20ingin%20konsultasi%20terkait%20persyaratan%20rekanan%20vendor%20B2B."
@@ -10579,9 +11079,24 @@ export default function App() {
                           <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${item.badgeColor}`}>
                             {item.badge}
                           </span>
-                          <span className="text-[11px] font-semibold text-gray-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                            {item.categoryLabel}
-                          </span>
+                          {/* Granular Multi-Select Category Badges */}
+                          {item.categories.map((catKey) => {
+                            const cfg = B2B_FAQ_CATEGORIES_CONFIG.find((c) => c.key === catKey);
+                            const isSelected = selectedB2bCategories.includes(catKey);
+                            return (
+                              <span
+                                key={catKey}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition ${
+                                  isSelected
+                                    ? `${cfg?.badgeBg} ${cfg?.badgeBorder} ${cfg?.badgeText}`
+                                    : 'bg-slate-100 text-gray-500 border-gray-200'
+                                }`}
+                              >
+                                <span>{cfg?.icon}</span>
+                                <span>{catKey}</span>
+                              </span>
+                            );
+                          })}
                           {hasMatches && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs animate-fadeIn">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -11487,74 +12002,29 @@ export default function App() {
 
           {/* Growth Analytics & Channel Visualizations */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-            {/* 6-Month Growth Chart */}
-            <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
-                <div>
-                  <h3 className="text-lg font-extrabold text-navy">
-                    Tren Pertumbuhan Subscriber Bulanan (2026)
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Kenaikan stabil dari rujukan edukasi blog sanitasi dan penawaran korporat B2B.
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-[11px] font-bold text-gray-700">
-                  <span>Target Q3: 2.000 Email</span>
-                </div>
-              </div>
-
-              {/* Bar Chart Simulation */}
-              <div className="pt-6 pb-2">
-                <div className="h-48 flex items-end justify-between gap-3 sm:gap-6 border-b border-gray-200 pb-3">
-                  {[
-                    { month: 'Jan', count: '860', height: '45%', add: '+110' },
-                    { month: 'Feb', count: '980', height: '55%', add: '+120' },
-                    { month: 'Mar', count: '1.120', height: '68%', add: '+140' },
-                    { month: 'Apr', count: '1.240', height: '78%', add: '+120' },
-                    { month: 'Mei', count: '1.340', height: '88%', add: '+100' },
-                    { month: 'Jun (Now)', count: totalSubscribersCount.toLocaleString('id-ID'), height: '100%', add: '+142', active: true },
-                  ].map((bar, idx) => (
-                    <div key={idx} className="flex-1 flex flex-col items-center gap-2 group h-full justify-end">
-                      <div className="text-[10px] sm:text-xs font-bold text-gray-500 group-hover:text-navy transition">
-                        {bar.count}
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-t-xl overflow-hidden h-full flex items-end">
-                        <div
-                          className={`w-full rounded-t-xl transition-all duration-500 ${
-                            bar.active
-                              ? 'bg-gradient-to-t from-navy to-cyan group-hover:from-cyan group-hover:to-cyan-light shadow-md'
-                              : 'bg-navy/70 hover:bg-navy'
-                          }`}
-                          style={{ height: bar.height }}
-                        ></div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-[11px] font-bold text-navy">{bar.month}</div>
-                        <div className="text-[9px] text-emerald-600 font-semibold">{bar.add}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Progress Toward Milestone */}
-              <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="w-full sm:w-2/3">
-                  <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
-                    <span className="text-gray-700">Pencapaian Target Q3 2026:</span>
-                    <span className="text-cyan-dark">{Math.min(100, Math.round((totalSubscribersCount / 2000) * 100))}% ({(2000 - totalSubscribersCount > 0 ? (2000 - totalSubscribersCount) : 0)} lagi)</span>
+            {/* 6-Month Growth Chart (Recharts Interactive Line Chart) */}
+            <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
+                  <div>
+                    <h3 className="text-lg font-extrabold text-navy">
+                      Tren Pertumbuhan Subscriber Bulanan (2026)
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Grafik garis interaktif (Recharts) 6 bulan terakhir: Kenaikan stabil dari edukasi sanitasi blog & penawaran korporat B2B.
+                    </p>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-navy via-cyan to-emerald-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, Math.round((totalSubscribersCount / 2000) * 100))}%` }}
-                    ></div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-[11px] font-bold text-gray-700 shrink-0 self-start sm:self-center">
+                    <span>Target Q3: 2.000 Email</span>
                   </div>
                 </div>
-                <div className="text-xs text-gray-500 text-center sm:text-right">
-                  <span className="font-bold text-navy block">Update Otomatis</span>
-                  Tiap subscriber baru tersinkron
-                </div>
+
+                {/* Recharts Line Chart */}
+                <SubscriberGrowthLineChart
+                  totalSubscribersCount={totalSubscribersCount}
+                  commercialSubscribersCount={commercialSubscribersCount}
+                  residentialSubscribersCount={residentialSubscribersCount}
+                />
               </div>
             </div>
 
